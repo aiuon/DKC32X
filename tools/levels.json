@@ -1,0 +1,15428 @@
+[
+ {
+  "entrance": 22,
+  "name": "Jungle Hijinxs",
+  "world": "Kongo Jungle",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 5120,
+  "start": [
+   85,
+   176
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 85,
+    "v": 176,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 42,
+    "v": 44,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 26,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ],
+   [
+    34,
+    222,
+    "PAL_FGBG_JungleLevels",
+    34
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16
+  ],
+  "room": false,
+  "aliases": [
+   8,
+   110,
+   14,
+   95,
+   37
+  ]
+ },
+ {
+  "entrance": 12,
+  "name": "Ropey Rampage",
+  "world": "Kongo Jungle",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 5888,
+  "x_max": 13952,
+  "start": [
+   5954,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 5954,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 2977,
+    "v": 66,
+    "bpp": 4
+   },
+   {
+    "sc": 11264,
+    "name": 8192,
+    "scs": 0,
+    "h": 6330,
+    "v": 135,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": false,
+  "aliases": [
+   111,
+   112,
+   15
+  ]
+ },
+ {
+  "entrance": 1,
+  "name": "Reptile Rumble",
+  "world": "Kongo Jungle",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 256,
+  "x_max": 6656,
+  "start": [
+   266,
+   41
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 266,
+    "v": 41,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 133,
+    "v": 5,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 399,
+    "v": 41,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ReptileRumble",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   234,
+   9,
+   201,
+   11,
+   38
+  ]
+ },
+ {
+  "entrance": 191,
+  "name": "Coral Capers",
+  "world": "Kongo Jungle",
+  "nmi": "808DB4",
+  "layout": 15269888,
+  "map32": 13631488,
+  "stream": 33128,
+  "x_min": 0,
+  "x_max": 1792,
+  "start": [
+   0,
+   10580
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 1,
+    "v": 10581,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 24576,
+    "scs": 0,
+    "h": 32448,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 20480,
+    "scs": 0,
+    "h": 0,
+    "v": 10580,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    13312,
+    224,
+    "GFX_Sprite_AirBubbles",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    17152,
+    "GFX_Layer1_UnderwaterLevels",
+    0
+   ],
+   [
+    40960,
+    5760,
+    "GFX_Layer3_Fog",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_UnderwaterLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_Fog",
+    0
+   ],
+   [
+    59392,
+    1792,
+    "TM_Layer2_UnderwaterLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_CoralCapers",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 34,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   192
+  ]
+ },
+ {
+  "entrance": 23,
+  "name": "Barrel Cannon Canyon",
+  "world": "Kongo Jungle",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 25440,
+  "x_max": 35903,
+  "start": [
+   25487,
+   278
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 25487,
+    "v": 278,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 12743,
+    "v": 69,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 188,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ],
+   [
+    34,
+    222,
+    "PAL_FGBG_JungleLevels",
+    34
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16
+  ],
+  "room": false,
+  "aliases": [
+   118,
+   119,
+   25
+  ]
+ },
+ {
+  "entrance": 224,
+  "name": "Very Gnawty's Lair",
+  "world": "Kongo Jungle",
+  "nmi": "8095B6",
+  "layout": 12840352,
+  "map32": 12840864,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 256,
+  "start": [
+   0,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 0,
+    "v": 236,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    22624,
+    "GFX_FGBG_BananaHoard",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    224,
+    "PAL_FGBG_BananaHoardCave",
+    0
+   ],
+   [
+    224,
+    32,
+    "PAL_FGBG_WorldMap",
+    224
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": []
+ },
+ {
+  "entrance": 217,
+  "name": "Winky's Walkway",
+  "world": "Monkey Mines",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 52352,
+  "x_max": 57136,
+  "start": [
+   52352,
+   240
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 52352,
+    "v": 240,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 26176,
+    "v": 30,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 63,
+    "v": 500,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 4,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": false,
+  "aliases": [
+   81,
+   218
+  ]
+ },
+ {
+  "entrance": 46,
+  "name": "Mine Cart Carnage",
+  "world": "Monkey Mines",
+  "nmi": "8090C3",
+  "layout": 15076744,
+  "map32": 15114632,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 18431,
+  "start": [
+   17,
+   94
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 17,
+    "v": 94,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 17,
+    "v": 94,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 24576,
+    "scs": 0,
+    "h": 8,
+    "v": 47,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    25216,
+    "GFX_Layer1_MineCartCarnage",
+    0
+   ],
+   [
+    49152,
+    3808,
+    "GFX_Layer3_MineLevels",
+    0
+   ],
+   [
+    53248,
+    2048,
+    "TM_Layer3_MineLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_MinecartMadness",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   56,
+   204
+  ]
+ },
+ {
+  "entrance": 7,
+  "name": "Bouncy Bonanza",
+  "world": "Monkey Mines",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 6912,
+  "x_max": 16000,
+  "start": [
+   6922,
+   88
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 6922,
+    "v": 88,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 3461,
+    "v": 11,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 10383,
+    "v": 88,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_BouncyBonanza",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    2,
+    2,
+    2
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   16,
+   21,
+   120,
+   121
+  ]
+ },
+ {
+  "entrance": 49,
+  "name": "Stop & Go Station",
+  "world": "Monkey Mines",
+  "nmi": "809137",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 13440,
+  "x_max": 23039,
+  "start": [
+   13466,
+   272
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 13466,
+    "v": 272,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 1,
+    "h": 6733,
+    "v": 136,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ],
+   [
+    49152,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    57344,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    61568,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    64,
+    192,
+    "PAL_FGBG_MineLevels",
+    64
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": false,
+  "aliases": [
+   60,
+   130,
+   131,
+   205
+  ]
+ },
+ {
+  "entrance": 66,
+  "name": "Millstone Mayhem",
+  "world": "Monkey Mines",
+  "nmi": "809326",
+  "layout": 15472424,
+  "map32": 15498792,
+  "stream": 32781,
+  "x_min": 2048,
+  "x_max": 13056,
+  "start": [
+   2162,
+   280
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 2162,
+    "v": 280,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 65368,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 1081,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    8896,
+    "GFX_Layer2_Millstone",
+    0
+   ],
+   [
+    25280,
+    192,
+    "GFX_Layer1_AnimatedTempleTorches",
+    576
+   ],
+   [
+    25472,
+    19776,
+    "GFX_Layer1_TempleLevels",
+    224
+   ],
+   [
+    49152,
+    4864,
+    "GFX_Layer3_TempleLevels",
+    0
+   ],
+   [
+    55296,
+    2048,
+    "TM_Layer3_TempleLevels",
+    0
+   ],
+   [
+    57344,
+    897,
+    "TM_Layer2_Millstone",
+    896
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TempleLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   53,
+   88,
+   174,
+   175,
+   176
+  ]
+ },
+ {
+  "entrance": 225,
+  "name": "Necky's Nuts",
+  "world": "Monkey Mines",
+  "nmi": "8095B6",
+  "layout": 12840352,
+  "map32": 12840864,
+  "stream": 32781,
+  "x_min": 256,
+  "x_max": 256,
+  "start": [
+   256,
+   248
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 248,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 512,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    22624,
+    "GFX_FGBG_BananaHoard",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    224,
+    "PAL_FGBG_BananaHoardCave",
+    0
+   ],
+   [
+    224,
+    32,
+    "PAL_FGBG_WorldMap",
+    224
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": []
+ },
+ {
+  "entrance": 165,
+  "name": "Vulture Culture",
+  "world": "Vine Valley",
+  "nmi": "809543",
+  "layout": 12804608,
+  "map32": 12827904,
+  "stream": 32781,
+  "x_min": 512,
+  "x_max": 11008,
+  "start": [
+   562,
+   168
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 562,
+    "v": 168,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 25,
+    "v": 229,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 140,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    28672,
+    "GFX_FGBG_ForestLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_ForestLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_ForestLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ForestLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    3,
+    5
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   101,
+   170,
+   186,
+   187,
+   188
+  ]
+ },
+ {
+  "entrance": 164,
+  "name": "Tree Top Town",
+  "world": "Vine Valley",
+  "nmi": "8094CC",
+  "layout": 12779520,
+  "map32": 12800512,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 10240,
+  "start": [
+   98,
+   240
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 98,
+    "v": 240,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 20480,
+    "scs": 0,
+    "h": 49,
+    "v": 30,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 24,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    19136,
+    "GFX_Layer1_TreehouseLevels",
+    0
+   ],
+   [
+    44640,
+    8608,
+    "GFX_Layer2_TreehouseLevels",
+    0
+   ],
+   [
+    53248,
+    4080,
+    "GFX_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    59392,
+    2048,
+    "TM_Layer2_TreehouseLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TreeTopTown",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   84,
+   169,
+   181,
+   182
+  ]
+ },
+ {
+  "entrance": 208,
+  "name": "Forest Frenzy",
+  "world": "Vine Valley",
+  "nmi": "809543",
+  "layout": 12804608,
+  "map32": 12827904,
+  "stream": 32781,
+  "x_min": 12288,
+  "x_max": 22528,
+  "start": [
+   12338,
+   168
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 12338,
+    "v": 168,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 25,
+    "v": 229,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 12,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    28672,
+    "GFX_FGBG_ForestLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_ForestLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_ForestLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ForestLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    3,
+    5
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   209,
+   219,
+   221
+  ]
+ },
+ {
+  "entrance": 67,
+  "name": "Temple Tempest",
+  "world": "Vine Valley",
+  "nmi": "809326",
+  "layout": 15472424,
+  "map32": 15498792,
+  "stream": 32781,
+  "x_min": 13312,
+  "x_max": 25856,
+  "start": [
+   13394,
+   280
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 13394,
+    "v": 280,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 65368,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 6697,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    8896,
+    "GFX_Layer2_Millstone",
+    0
+   ],
+   [
+    25280,
+    192,
+    "GFX_Layer1_AnimatedTempleTorches",
+    576
+   ],
+   [
+    25472,
+    19776,
+    "GFX_Layer1_TempleLevels",
+    224
+   ],
+   [
+    49152,
+    4864,
+    "GFX_Layer3_TempleLevels",
+    0
+   ],
+   [
+    55296,
+    2048,
+    "TM_Layer3_TempleLevels",
+    0
+   ],
+   [
+    57344,
+    897,
+    "TM_Layer2_Millstone",
+    896
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TempleLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   89,
+   177,
+   178
+  ]
+ },
+ {
+  "entrance": 13,
+  "name": "Orang-utan Gang",
+  "world": "Vine Valley",
+  "nmi": "808D43",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 14208,
+  "x_max": 23648,
+  "start": [
+   14328,
+   33
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 14328,
+    "v": 33,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 7164,
+    "v": 4,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 157,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ],
+   [
+    34,
+    222,
+    "PAL_FGBG_JungleLevels",
+    34
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16
+  ],
+  "room": false,
+  "aliases": [
+   29,
+   113,
+   114,
+   115,
+   116,
+   117
+  ]
+ },
+ {
+  "entrance": 222,
+  "name": "Clam City",
+  "world": "Vine Valley",
+  "nmi": "808DB4",
+  "layout": 15269888,
+  "map32": 13631488,
+  "stream": 33128,
+  "x_min": 0,
+  "x_max": 1792,
+  "start": [
+   0,
+   12272
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 1,
+    "v": 12273,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 24576,
+    "scs": 0,
+    "h": 32448,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 20480,
+    "scs": 0,
+    "h": 0,
+    "v": 12272,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    13312,
+    224,
+    "GFX_Sprite_AirBubbles",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    17152,
+    "GFX_Layer1_UnderwaterLevels",
+    0
+   ],
+   [
+    40960,
+    5760,
+    "GFX_Layer3_Fog",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_UnderwaterLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_Fog",
+    0
+   ],
+   [
+    59392,
+    1792,
+    "TM_Layer2_UnderwaterLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_CoralCapers",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    3,
+    5
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   223
+  ]
+ },
+ {
+  "entrance": 229,
+  "name": "Bumble B Rumble",
+  "world": "Vine Valley",
+  "nmi": "8095B6",
+  "layout": 12840352,
+  "map32": 12840864,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 256,
+  "start": [
+   0,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 0,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    22624,
+    "GFX_FGBG_BananaHoard",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    224,
+    "PAL_FGBG_BananaHoardCave",
+    0
+   ],
+   [
+    224,
+    32,
+    "PAL_FGBG_WorldMap",
+    224
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": []
+ },
+ {
+  "entrance": 36,
+  "name": "Snow Barrel Blast",
+  "world": "Gorilla Glacier",
+  "nmi": "808CDC",
+  "layout": 14693942,
+  "map32": 14723798,
+  "stream": 32781,
+  "x_min": 512,
+  "x_max": 14304,
+  "start": [
+   551,
+   250
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 551,
+    "v": 250,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 275,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    27296,
+    "GFX_FGBG_SnowLevels",
+    0
+   ],
+   [
+    49152,
+    4048,
+    "GFX_Layer3_SnowLevels",
+    0
+   ],
+   [
+    61440,
+    1664,
+    "TM_Layer3_SnowLevels",
+    0
+   ],
+   [
+    63488,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64000,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64512,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    65024,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_SnowLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   40,
+   148,
+   149,
+   150
+  ]
+ },
+ {
+  "entrance": 109,
+  "name": "Slipslide Ride",
+  "world": "Gorilla Glacier",
+  "nmi": "8093B5",
+  "layout": 14746085,
+  "map32": 14760933,
+  "stream": 33563,
+  "x_min": 0,
+  "x_max": 1792,
+  "start": [
+   37,
+   2913
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 37,
+    "v": 97,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 18,
+    "v": 176,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 22,
+    "v": 249,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    32320,
+    "GFX_FGBG_CrystalCaveLevels",
+    0
+   ],
+   [
+    49152,
+    5792,
+    "GFX_Layer3_NintendoLogoShine",
+    0
+   ],
+   [
+    54944,
+    352,
+    "TM_Layer3_NintendoLogoShine",
+    0
+   ],
+   [
+    55296,
+    1452,
+    "TM_Layer3_NintendoLogoShine",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    32,
+    224,
+    "PAL_FGBG_SlipSlideRide",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 4,
+   "CGWSEL": 2,
+   "CGADSUB": 51,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15
+  ],
+  "room": false,
+  "aliases": [
+   98,
+   171,
+   199,
+   200,
+   203
+  ]
+ },
+ {
+  "entrance": 167,
+  "name": "Ice Age Alley",
+  "world": "Gorilla Glacier",
+  "nmi": "808CDC",
+  "layout": 14693942,
+  "map32": 14723798,
+  "stream": 32781,
+  "x_min": 16896,
+  "x_max": 27296,
+  "start": [
+   17336,
+   256
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 17336,
+    "v": 256,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 8668,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 24576,
+    "scs": 0,
+    "h": 2,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    27296,
+    "GFX_FGBG_SnowLevels",
+    0
+   ],
+   [
+    48128,
+    1027,
+    "GFX_Layer2_AnimatedSnow",
+    0
+   ],
+   [
+    49156,
+    1020,
+    "GFX_Layer3_AnimatedHeavySnow",
+    4
+   ],
+   [
+    50176,
+    3024,
+    "GFX_Layer3_SnowLevels",
+    1024
+   ],
+   [
+    61440,
+    1664,
+    "TM_Layer3_SnowLevels",
+    0
+   ],
+   [
+    63488,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64000,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64512,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    65024,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ]
+  ],
+  "cgram_runs": [],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": false,
+  "aliases": [
+   168,
+   172,
+   173
+  ]
+ },
+ {
+  "entrance": 62,
+  "name": "Croctopus Chase",
+  "world": "Gorilla Glacier",
+  "nmi": "808DB4",
+  "layout": 15269888,
+  "map32": 13631488,
+  "stream": 33128,
+  "x_min": 0,
+  "x_max": 1792,
+  "start": [
+   0,
+   7204
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 7204,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 24576,
+    "scs": 0,
+    "h": 32448,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 20480,
+    "scs": 0,
+    "h": 0,
+    "v": 7204,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    12288,
+    224,
+    "GFX_Sprite_AirBubbles",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    17152,
+    "GFX_Layer1_UnderwaterLevels",
+    0
+   ],
+   [
+    40960,
+    5760,
+    "GFX_Layer3_Fog",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_UnderwaterLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_Fog",
+    0
+   ],
+   [
+    59392,
+    1792,
+    "TM_Layer2_UnderwaterLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_CroctopusChase",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 34,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   63
+  ]
+ },
+ {
+  "entrance": 20,
+  "name": "Torchlight Trouble",
+  "world": "Gorilla Glacier",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 28928,
+  "x_max": 34048,
+  "start": [
+   28954,
+   116
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 28954,
+    "v": 116,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 14477,
+    "v": 14,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 43431,
+    "v": 116,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    47104,
+    6144,
+    "TM_Layer3_CaveLevels",
+    2048
+   ],
+   [
+    57376,
+    672,
+    "GFX_Layer3_CaveLevels",
+    32
+   ]
+  ],
+  "cgram_runs": [],
+  "regs": {
+   "TM": 4,
+   "TS": 19,
+   "CGWSEL": 34,
+   "CGADSUB": 164,
+   "fixed": [
+    16,
+    16,
+    16
+   ],
+   "W12SEL": 0,
+   "W34SEL": 3,
+   "WOBJSEL": 0,
+   "TMW": 4,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": false,
+  "aliases": [
+   19,
+   194,
+   196
+  ]
+ },
+ {
+  "entrance": 206,
+  "name": "Rope Bridge Rumble",
+  "world": "Gorilla Glacier",
+  "nmi": "8094CC",
+  "layout": 12779520,
+  "map32": 12800512,
+  "stream": 32781,
+  "x_min": 11008,
+  "x_max": 19712,
+  "start": [
+   11042,
+   80
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 11042,
+    "v": 80,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 20480,
+    "scs": 0,
+    "h": 145,
+    "v": 10,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 200,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    19136,
+    "GFX_Layer1_TreehouseLevels",
+    0
+   ],
+   [
+    44640,
+    8608,
+    "GFX_Layer2_TreehouseLevels",
+    0
+   ],
+   [
+    53248,
+    4080,
+    "GFX_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    59392,
+    2048,
+    "TM_Layer2_TreehouseLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_RopeBridgeRumble",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   207,
+   214,
+   216
+  ]
+ },
+ {
+  "entrance": 226,
+  "name": "Really Gnawty Rampage",
+  "world": "Gorilla Glacier",
+  "nmi": "8095B6",
+  "layout": 12840352,
+  "map32": 12840864,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 256,
+  "start": [
+   0,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 0,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    22624,
+    "GFX_FGBG_BananaHoard",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    224,
+    "PAL_FGBG_BananaHoardCave",
+    0
+   ],
+   [
+    224,
+    32,
+    "PAL_FGBG_WorldMap",
+    224
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": []
+ },
+ {
+  "entrance": 64,
+  "name": "Oil Drum Alley",
+  "world": "Kremkroc Industries",
+  "nmi": "8091F5",
+  "layout": 14811136,
+  "map32": 14836224,
+  "stream": 32781,
+  "x_min": 512,
+  "x_max": 11872,
+  "start": [
+   522,
+   48
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 3,
+    "h": 1044,
+    "v": 48,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 522,
+    "v": 48,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 261,
+    "v": 6,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    29056,
+    "GFX_FGBG_FactoryLevels",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_FactoryLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_FactoryLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_FactoryLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   68,
+   143,
+   144,
+   145
+  ]
+ },
+ {
+  "entrance": 47,
+  "name": "Trick Track Trek",
+  "world": "Kremkroc Industries",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 27520,
+  "x_max": 39039,
+  "start": [
+   27520,
+   104
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 27520,
+    "v": 104,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 13760,
+    "v": 13,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": false,
+  "aliases": [
+   57,
+   136,
+   137,
+   138,
+   189
+  ]
+ },
+ {
+  "entrance": 24,
+  "name": "Elevator Antics",
+  "world": "Kremkroc Industries",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 34304,
+  "x_max": 44544,
+  "start": [
+   34322,
+   177
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 34322,
+    "v": 177,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 17161,
+    "v": 22,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 51483,
+    "v": 177,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ReptileRumble",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 19,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    3,
+    3,
+    3
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   35,
+   125,
+   126,
+   127
+  ]
+ },
+ {
+  "entrance": 34,
+  "name": "Poison Pond",
+  "world": "Kremkroc Industries",
+  "nmi": "808DB4",
+  "layout": 15269888,
+  "map32": 13631488,
+  "stream": 33128,
+  "x_min": 0,
+  "x_max": 1792,
+  "start": [
+   256,
+   2872
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 257,
+    "v": 2873,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 24576,
+    "scs": 0,
+    "h": 32576,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 20480,
+    "scs": 0,
+    "h": 322,
+    "v": 2938,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    13312,
+    224,
+    "GFX_Sprite_AirBubbles",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    17152,
+    "GFX_Layer1_UnderwaterLevels",
+    0
+   ],
+   [
+    40960,
+    5760,
+    "GFX_Layer3_Fog",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_UnderwaterLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_Fog",
+    0
+   ],
+   [
+    59392,
+    1792,
+    "TM_Layer2_UnderwaterLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PoisonPond",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 4,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 100,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   42
+  ]
+ },
+ {
+  "entrance": 39,
+  "name": "Mine Cart Madness",
+  "world": "Kremkroc Industries",
+  "nmi": "80905C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 14592,
+  "start": [
+   0,
+   40
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 40,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 0,
+    "v": 5,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    32,
+    "PAL_FGBG_MinecartMadness",
+    224
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": false,
+  "aliases": [
+   59,
+   140,
+   141,
+   142
+  ]
+ },
+ {
+  "entrance": 65,
+  "name": "Blackout Basement",
+  "world": "Kremkroc Industries",
+  "nmi": "809446",
+  "layout": 14811136,
+  "map32": 14836224,
+  "stream": 32781,
+  "x_min": 12128,
+  "x_max": 22368,
+  "start": [
+   12146,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 3,
+    "h": 24292,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 12146,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 6073,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    29056,
+    "GFX_FGBG_FactoryLevels",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_FactoryLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_FactoryLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_FactoryLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 167,
+   "fixed": [
+    30,
+    30,
+    30
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   69,
+   146,
+   147
+  ]
+ },
+ {
+  "entrance": 227,
+  "name": "Boss Dumb Drum",
+  "world": "Kremkroc Industries",
+  "nmi": "8095B6",
+  "layout": 12840352,
+  "map32": 12840864,
+  "stream": 32781,
+  "x_min": 256,
+  "x_max": 256,
+  "start": [
+   256,
+   248
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 248,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 512,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    22624,
+    "GFX_FGBG_BananaHoard",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    224,
+    "PAL_FGBG_BananaHoardCave",
+    0
+   ],
+   [
+    224,
+    32,
+    "PAL_FGBG_WorldMap",
+    224
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": []
+ },
+ {
+  "entrance": 48,
+  "name": "Tanked Up Trouble",
+  "world": "Chimp Caverns",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 39296,
+  "x_max": 51327,
+  "start": [
+   39296,
+   168
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 39296,
+    "v": 168,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 19648,
+    "v": 21,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 39,
+    "v": 492,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 4,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": false,
+  "aliases": [
+   58,
+   139
+  ]
+ },
+ {
+  "entrance": 18,
+  "name": "Manic Mincers",
+  "world": "Chimp Caverns",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 16512,
+  "x_max": 26624,
+  "start": [
+   16512,
+   31
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 16512,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 8256,
+    "v": 3,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 24768,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ManicMincers",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": [
+   41,
+   122,
+   123,
+   124
+  ]
+ },
+ {
+  "entrance": 10,
+  "name": "Misty Mine",
+  "world": "Chimp Caverns",
+  "nmi": "808FFE",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 768,
+  "x_max": 13184,
+  "start": [
+   782,
+   248
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 782,
+    "v": 248,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 1111,
+    "v": 382,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 391,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_Fog",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_MineLevels",
+    0
+   ],
+   [
+    49152,
+    3808,
+    "GFX_Layer3_MineLevels",
+    0
+   ],
+   [
+    57344,
+    7456,
+    "GFX_Layer2_Fog",
+    0
+   ],
+   [
+    64800,
+    736,
+    "TM_Layer2_Fog",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    32,
+    224,
+    "PAL_FGBG_MineLevels",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 2,
+   "TS": 21,
+   "CGWSEL": 2,
+   "CGADSUB": 34,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15
+  ],
+  "room": false,
+  "aliases": [
+   45,
+   128,
+   129
+  ]
+ },
+ {
+  "entrance": 54,
+  "name": "Loopy Lights",
+  "world": "Chimp Caverns",
+  "nmi": "809196",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 25088,
+  "x_max": 36863,
+  "start": [
+   25114,
+   240
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 25114,
+    "v": 240,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 1,
+    "h": 12557,
+    "v": 120,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 4097,
+    "v": 512,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ],
+   [
+    49152,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    57344,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    61568,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    64,
+    192,
+    "PAL_FGBG_MineLevels",
+    64
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 147,
+   "fixed": [
+    9,
+    9,
+    9
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": false,
+  "aliases": [
+   61,
+   132,
+   133
+  ]
+ },
+ {
+  "entrance": 43,
+  "name": "Platform Perils",
+  "world": "Chimp Caverns",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 15104,
+  "x_max": 27264,
+  "start": [
+   15104,
+   248
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 15104,
+    "v": 248,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 7552,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 512,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 4,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": false,
+  "aliases": [
+   44,
+   134,
+   135
+  ]
+ },
+ {
+  "entrance": 228,
+  "name": "Necky's Revenge",
+  "world": "Chimp Caverns",
+  "nmi": "8095B6",
+  "layout": 12840352,
+  "map32": 12840864,
+  "stream": 32781,
+  "x_min": 256,
+  "x_max": 256,
+  "start": [
+   256,
+   248
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 248,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 512,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    22624,
+    "GFX_FGBG_BananaHoard",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    224,
+    "PAL_FGBG_BananaHoardCave",
+    0
+   ],
+   [
+    224,
+    32,
+    "PAL_FGBG_WorldMap",
+    224
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": []
+ },
+ {
+  "entrance": 104,
+  "name": "Gang-Plank Galleon",
+  "world": "Gang-Plank Galleon",
+  "nmi": "809604",
+  "layout": 14876672,
+  "map32": 14877184,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 256,
+  "start": [
+   0,
+   22
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 22,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 57343,
+    "v": 1,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 1,
+    "h": 128,
+    "v": 13,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    32160,
+    "GFX_FGBG_GangplankGalleon",
+    0
+   ],
+   [
+    48544,
+    608,
+    "TM_Layer1_DKsHouse",
+    0
+   ],
+   [
+    49152,
+    3008,
+    "GFX_Layer3_GangplankGalleon",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_GangplankGalleon",
+    0
+   ],
+   [
+    60544,
+    129,
+    "TM_Layer1_IntroScreen",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_UnknownPalette8",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 191,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": false,
+  "aliases": []
+ },
+ {
+  "entrance": 6,
+  "name": "JH Bonus 1",
+  "world": "Kongo Jungle",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 26880,
+  "x_max": 27648,
+  "start": [
+   26898,
+   273
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 26898,
+    "v": 273,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13449,
+    "v": 34,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 40347,
+    "v": 273,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    2,
+    2,
+    2
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 26,
+  "name": "JH Bonus 2",
+  "world": "Kongo Jungle",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 23904,
+  "x_max": 23904,
+  "start": [
+   23904,
+   256
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 23904,
+    "v": 256,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 11952,
+    "v": 64,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 142,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ],
+   [
+    34,
+    222,
+    "PAL_FGBG_JungleLevels",
+    34
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 28,
+  "name": "Ropey Bonus 1",
+  "world": "Kongo Jungle",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 24416,
+  "x_max": 25184,
+  "start": [
+   24432,
+   256
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 24432,
+    "v": 256,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 12216,
+    "v": 64,
+    "bpp": 4
+   },
+   {
+    "sc": 11264,
+    "name": 8192,
+    "scs": 0,
+    "h": 24688,
+    "v": 255,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 27,
+  "name": "Ropey Bonus 2",
+  "world": "Kongo Jungle",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 23904,
+  "x_max": 23904,
+  "start": [
+   23904,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 23904,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 11952,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 11264,
+    "name": 8192,
+    "scs": 0,
+    "h": 24160,
+    "v": 255,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 2,
+  "name": "Reptile Bonus 1",
+  "world": "Kongo Jungle",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 26880,
+  "x_max": 27392,
+  "start": [
+   26890,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 26890,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13445,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 40335,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    3,
+    3,
+    3
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 72,
+  "name": "Reptile Bonus 2",
+  "world": "Kongo Jungle",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 45824,
+  "x_max": 46080,
+  "start": [
+   45842,
+   273
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 45842,
+    "v": 273,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 22921,
+    "v": 34,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 3227,
+    "v": 273,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 4,
+  "name": "Reptile Bonus 3",
+  "world": "Kongo Jungle",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 27904,
+  "x_max": 28160,
+  "start": [
+   27914,
+   177
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 27914,
+    "v": 177,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13957,
+    "v": 22,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 41871,
+    "v": 177,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    2,
+    2,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 70,
+  "name": "Barrel Bonus 1",
+  "world": "Kongo Jungle",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 44800,
+  "x_max": 45568,
+  "start": [
+   44818,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 44818,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 22409,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 1691,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 93,
+  "name": "Barrel Bonus 2",
+  "world": "Kongo Jungle",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 36704,
+  "x_max": 36704,
+  "start": [
+   36704,
+   287
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 36704,
+    "v": 287,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 18352,
+    "v": 71,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 238,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ],
+   [
+    34,
+    222,
+    "PAL_FGBG_JungleLevels",
+    34
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 210,
+  "name": "Rambi Bonus",
+  "world": "Kongo Jungle",
+  "nmi": "808CDC",
+  "layout": 14693942,
+  "map32": 14723798,
+  "stream": 32781,
+  "x_min": 27552,
+  "x_max": 29536,
+  "start": [
+   27969,
+   270
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 27968,
+    "v": 270,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 13984,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    27296,
+    "GFX_FGBG_SnowLevels",
+    0
+   ],
+   [
+    49152,
+    4048,
+    "GFX_Layer3_SnowLevels",
+    0
+   ],
+   [
+    61440,
+    1664,
+    "TM_Layer3_SnowLevels",
+    0
+   ],
+   [
+    63488,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64000,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64512,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    65024,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_SnowLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 166,
+  "name": "Enguarde Bonus",
+  "world": "Kongo Jungle",
+  "nmi": "808DB4",
+  "layout": 15269888,
+  "map32": 13631488,
+  "stream": 33128,
+  "x_min": 0,
+  "x_max": 1792,
+  "start": [
+   560,
+   8128
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 561,
+    "v": 8129,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 24576,
+    "scs": 0,
+    "h": 32728,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 20480,
+    "scs": 0,
+    "h": 840,
+    "v": 8128,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    7168,
+    416,
+    "GFX_Sprite_Sparkles",
+    0
+   ],
+   [
+    8192,
+    224,
+    "GFX_Sprite_AirBubbles",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_TinyEnguardeTokens",
+    0
+   ],
+   [
+    16384,
+    17152,
+    "GFX_Layer1_UnderwaterLevels",
+    0
+   ],
+   [
+    40960,
+    5760,
+    "GFX_Layer3_Fog",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_UnderwaterLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_Fog",
+    0
+   ],
+   [
+    59392,
+    1792,
+    "TM_Layer2_UnderwaterLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_EnguardeBonus",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 34,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 211,
+  "name": "Winky Bonus",
+  "world": "Kongo Jungle",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 46336,
+  "x_max": 48640,
+  "start": [
+   48640,
+   284
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 48640,
+    "v": 284,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 24320,
+    "v": 35,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 7424,
+    "v": 284,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 108,
+  "name": "Expresso Bonus",
+  "world": "Kongo Jungle",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 37984,
+  "x_max": 41664,
+  "start": [
+   38381,
+   64
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 38381,
+    "v": 64,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 19190,
+    "v": 16,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 58,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ],
+   [
+    34,
+    222,
+    "PAL_FGBG_JungleLevels",
+    34
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 71,
+  "name": "Kong's Banana Hoard",
+  "world": "Kongo Jungle",
+  "nmi": "808F28",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 45056,
+  "x_max": 45056,
+  "start": [
+   45056,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 45056,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 22528,
+    "v": 4,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 79,
+  "name": "Winky's Walkway Bonus1",
+  "world": "Monkey Mines",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51584,
+  "x_max": 51584,
+  "start": [
+   51584,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51584,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25792,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1024,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    5120,
+    416,
+    "GFX_Sprite_Sparkles",
+    0
+   ],
+   [
+    5536,
+    96,
+    "GFX_Layer1_ShadedDebugFont",
+    1440
+   ],
+   [
+    10240,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    384
+   ],
+   [
+    10752,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    896
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 3,
+  "name": "Bouncy Bonanza WinkyRoom",
+  "world": "Monkey Mines",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 27648,
+  "x_max": 27648,
+  "start": [
+   27648,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 27648,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13824,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 41472,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    2,
+    2,
+    2
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 17,
+  "name": "Bouncy Bonanza Bonus2",
+  "world": "Monkey Mines",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 16256,
+  "x_max": 16256,
+  "start": [
+   16256,
+   284
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 16256,
+    "v": 284,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 8128,
+    "v": 35,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 24384,
+    "v": 284,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 151,
+  "name": "Bouncy Bonanza Bonus1",
+  "world": "Monkey Mines",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 27648,
+  "x_max": 27648,
+  "start": [
+   27648,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 27648,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13824,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 41472,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    2,
+    2,
+    2
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 74,
+  "name": "Stop & Go Station Bonus2",
+  "world": "Monkey Mines",
+  "nmi": "808FFE",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 0,
+  "start": [
+   0,
+   287
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 287,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 257,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    8192,
+    416,
+    "GFX_Sprite_Sparkles",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_Fog",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_MineLevels",
+    0
+   ],
+   [
+    49152,
+    3808,
+    "GFX_Layer3_MineLevels",
+    0
+   ],
+   [
+    57344,
+    7456,
+    "GFX_Layer2_Fog",
+    0
+   ],
+   [
+    64800,
+    736,
+    "TM_Layer2_Fog",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    20,
+    236,
+    "PAL_FGBG_MineLevels",
+    20
+   ]
+  ],
+  "regs": {
+   "TM": 2,
+   "TS": 21,
+   "CGWSEL": 2,
+   "CGADSUB": 34,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 75,
+  "name": "Stop & Go Station Bonus1",
+  "world": "Monkey Mines",
+  "nmi": "808FFE",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 264,
+  "x_max": 512,
+  "start": [
+   274,
+   273
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 274,
+    "v": 273,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 137,
+    "v": 257,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_Fog",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_MineLevels",
+    0
+   ],
+   [
+    49152,
+    3808,
+    "GFX_Layer3_MineLevels",
+    0
+   ],
+   [
+    57344,
+    7456,
+    "GFX_Layer2_Fog",
+    0
+   ],
+   [
+    64800,
+    736,
+    "TM_Layer2_Fog",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    20,
+    236,
+    "PAL_FGBG_MineLevels",
+    20
+   ]
+  ],
+  "regs": {
+   "TM": 2,
+   "TS": 21,
+   "CGWSEL": 2,
+   "CGADSUB": 34,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 85,
+  "name": "Millstone Mayhem Bonus1",
+  "world": "Monkey Mines",
+  "nmi": "809326",
+  "layout": 15472424,
+  "map32": 15498792,
+  "stream": 32781,
+  "x_min": 26112,
+  "x_max": 26112,
+  "start": [
+   26112,
+   287
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 26112,
+    "v": 287,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 65375,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 13056,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    8896,
+    "GFX_Layer2_Millstone",
+    0
+   ],
+   [
+    25280,
+    192,
+    "GFX_Layer1_AnimatedTempleTorches",
+    768
+   ],
+   [
+    25472,
+    19776,
+    "GFX_Layer1_TempleLevels",
+    224
+   ],
+   [
+    49152,
+    4864,
+    "GFX_Layer3_TempleLevels",
+    0
+   ],
+   [
+    55296,
+    2048,
+    "TM_Layer3_TempleLevels",
+    0
+   ],
+   [
+    57344,
+    896,
+    "TM_Layer2_Millstone",
+    2688
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TempleLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 86,
+  "name": "Millstone Mayhem Bonus2",
+  "world": "Monkey Mines",
+  "nmi": "809326",
+  "layout": 15472424,
+  "map32": 15498792,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 0,
+  "start": [
+   0,
+   268
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 65356,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    8896,
+    "GFX_Layer2_Millstone",
+    0
+   ],
+   [
+    25280,
+    192,
+    "GFX_Layer1_AnimatedTempleTorches",
+    960
+   ],
+   [
+    25472,
+    19776,
+    "GFX_Layer1_TempleLevels",
+    224
+   ],
+   [
+    49152,
+    4864,
+    "GFX_Layer3_TempleLevels",
+    0
+   ],
+   [
+    55296,
+    2048,
+    "TM_Layer3_TempleLevels",
+    0
+   ],
+   [
+    57344,
+    896,
+    "TM_Layer2_Millstone",
+    2688
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TempleLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 87,
+  "name": "Millstone Mayhem Bonus3",
+  "world": "Monkey Mines",
+  "nmi": "809326",
+  "layout": 15472424,
+  "map32": 15498792,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 0,
+  "start": [
+   0,
+   268
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 65356,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    8896,
+    "GFX_Layer2_Millstone",
+    0
+   ],
+   [
+    25280,
+    192,
+    "GFX_Layer1_AnimatedTempleTorches",
+    960
+   ],
+   [
+    25472,
+    19776,
+    "GFX_Layer1_TempleLevels",
+    224
+   ],
+   [
+    49152,
+    4864,
+    "GFX_Layer3_TempleLevels",
+    0
+   ],
+   [
+    55296,
+    2048,
+    "TM_Layer3_TempleLevels",
+    0
+   ],
+   [
+    57344,
+    896,
+    "TM_Layer2_Millstone",
+    2688
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TempleLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 183,
+  "name": "Vulture Culture Bonus1",
+  "world": "Vine Valley",
+  "nmi": "809543",
+  "layout": 12804608,
+  "map32": 12827904,
+  "stream": 32781,
+  "x_min": 11264,
+  "x_max": 11264,
+  "start": [
+   11264,
+   16
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 11264,
+    "v": 16,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 0,
+    "v": 210,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    28672,
+    "GFX_FGBG_ForestLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_ForestLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_ForestLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ForestLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    3,
+    5
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 184,
+  "name": "Vulture Culture Bonus2",
+  "world": "Vine Valley",
+  "nmi": "809543",
+  "layout": 12804608,
+  "map32": 12827904,
+  "stream": 32781,
+  "x_min": 11264,
+  "x_max": 11264,
+  "start": [
+   11264,
+   16
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 11264,
+    "v": 16,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 0,
+    "v": 210,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    28672,
+    "GFX_FGBG_ForestLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_ForestLevels",
+    0
+   ],
+   [
+    57392,
+    2000,
+    "TM_Layer3_ForestLevels",
+    48
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ForestLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    3,
+    5
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 185,
+  "name": "Vulture Culture Bonus3",
+  "world": "Vine Valley",
+  "nmi": "809543",
+  "layout": 12804608,
+  "map32": 12827904,
+  "stream": 32781,
+  "x_min": 11264,
+  "x_max": 12032,
+  "start": [
+   11282,
+   256
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 11282,
+    "v": 256,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 9,
+    "v": 240,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 4,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    28672,
+    "GFX_FGBG_ForestLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_ForestLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_ForestLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ForestLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    3,
+    5
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 179,
+  "name": "Tree Top Town Bonus2",
+  "world": "Vine Valley",
+  "nmi": "8094CC",
+  "layout": 12779520,
+  "map32": 12800512,
+  "stream": 32781,
+  "x_min": 10496,
+  "x_max": 10496,
+  "start": [
+   10496,
+   287
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 10496,
+    "v": 287,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 20480,
+    "scs": 0,
+    "h": 128,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 64,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    19136,
+    "GFX_Layer1_TreehouseLevels",
+    0
+   ],
+   [
+    44640,
+    8608,
+    "GFX_Layer2_TreehouseLevels",
+    0
+   ],
+   [
+    53248,
+    4080,
+    "GFX_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    59392,
+    2048,
+    "TM_Layer2_TreehouseLevels",
+    0
+   ],
+   [
+    61952,
+    64,
+    "GFX_Sprite_MapIcons",
+    381
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TreeTopTown",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 180,
+  "name": "Tree Top Town Bonus1",
+  "world": "Vine Valley",
+  "nmi": "8094CC",
+  "layout": 12779520,
+  "map32": 12800512,
+  "stream": 32781,
+  "x_min": 10752,
+  "x_max": 10752,
+  "start": [
+   10752,
+   288
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 10752,
+    "v": 288,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 20480,
+    "scs": 0,
+    "h": 0,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 128,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    7168,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    448
+   ],
+   [
+    7680,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    960
+   ],
+   [
+    16384,
+    19136,
+    "GFX_Layer1_TreehouseLevels",
+    0
+   ],
+   [
+    44640,
+    8608,
+    "GFX_Layer2_TreehouseLevels",
+    0
+   ],
+   [
+    53248,
+    4080,
+    "GFX_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    59392,
+    2048,
+    "TM_Layer2_TreehouseLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TreeTopTown",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 212,
+  "name": "Forest Frenzy Bonus2",
+  "world": "Vine Valley",
+  "nmi": "809543",
+  "layout": 12804608,
+  "map32": 12827904,
+  "stream": 32781,
+  "x_min": 22784,
+  "x_max": 23040,
+  "start": [
+   22802,
+   273
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 22802,
+    "v": 273,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 137,
+    "v": 242,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 68,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    28672,
+    "GFX_FGBG_ForestLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_ForestLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_ForestLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ForestLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 220,
+  "name": "Forest Frenzy Bonus1",
+  "world": "Vine Valley",
+  "nmi": "809543",
+  "layout": 12804608,
+  "map32": 12827904,
+  "stream": 32781,
+  "x_min": 11264,
+  "x_max": 11264,
+  "start": [
+   11264,
+   16
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 11264,
+    "v": 16,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 0,
+    "v": 210,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    28672,
+    "GFX_FGBG_ForestLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_ForestLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_ForestLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_ForestLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    3,
+    5
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 82,
+  "name": "Temple Tempest Bonus1",
+  "world": "Vine Valley",
+  "nmi": "809326",
+  "layout": 15472424,
+  "map32": 15498792,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 768,
+  "start": [
+   41,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 41,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 65088,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 20,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    8896,
+    "GFX_Layer2_Millstone",
+    0
+   ],
+   [
+    25280,
+    192,
+    "GFX_Layer1_AnimatedTempleTorches",
+    192
+   ],
+   [
+    25472,
+    19776,
+    "GFX_Layer1_TempleLevels",
+    224
+   ],
+   [
+    49152,
+    4864,
+    "GFX_Layer3_TempleLevels",
+    0
+   ],
+   [
+    55296,
+    2048,
+    "TM_Layer3_TempleLevels",
+    0
+   ],
+   [
+    57344,
+    897,
+    "TM_Layer2_Millstone",
+    1792
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TempleLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 21,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 83,
+  "name": "Temple Tempest Bonus2",
+  "world": "Vine Valley",
+  "nmi": "809326",
+  "layout": 15472424,
+  "map32": 15498792,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 0,
+  "start": [
+   0,
+   268
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 0,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 256,
+    "v": 65356,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    8896,
+    "GFX_Layer2_Millstone",
+    0
+   ],
+   [
+    25280,
+    192,
+    "GFX_Layer1_AnimatedTempleTorches",
+    192
+   ],
+   [
+    25472,
+    19776,
+    "GFX_Layer1_TempleLevels",
+    224
+   ],
+   [
+    49152,
+    4864,
+    "GFX_Layer3_TempleLevels",
+    0
+   ],
+   [
+    55296,
+    2048,
+    "TM_Layer3_TempleLevels",
+    0
+   ],
+   [
+    57344,
+    896,
+    "TM_Layer2_Millstone",
+    2688
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_TempleLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 30,
+  "name": "Orang-utan Gang Bonus3",
+  "world": "Vine Valley",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 24672,
+  "x_max": 24672,
+  "start": [
+   24672,
+   28
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 24672,
+    "v": 28,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 12336,
+    "v": 7,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 30,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 31,
+  "name": "Orang-utan Gang Bonus2",
+  "world": "Vine Valley",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 24928,
+  "x_max": 24928,
+  "start": [
+   24928,
+   28
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 24928,
+    "v": 28,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 12464,
+    "v": 7,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 78,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 32,
+  "name": "Orang-utan Gang Bonus1",
+  "world": "Vine Valley",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 23904,
+  "x_max": 23904,
+  "start": [
+   23904,
+   256
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 23904,
+    "v": 256,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 11952,
+    "v": 64,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 142,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    4,
+    4
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 90,
+  "name": "Orang-utan Gang Bonus5",
+  "world": "Vine Valley",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 24416,
+  "x_max": 25184,
+  "start": [
+   24418,
+   256
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 24418,
+    "v": 256,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 12209,
+    "v": 64,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 238,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 91,
+  "name": "Orang-utan Gang Bonus4",
+  "world": "Vine Valley",
+  "nmi": "808C6C",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 24416,
+  "x_max": 24416,
+  "start": [
+   24416,
+   28
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 24416,
+    "v": 28,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 12208,
+    "v": 7,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 238,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    624,
+    "GFX_Layer3_JungleLevels",
+    0
+   ],
+   [
+    18944,
+    384,
+    "TM_Layer3_JungleLevels",
+    0
+   ],
+   [
+    22528,
+    2050,
+    "TM_Layer3_Rain",
+    0
+   ],
+   [
+    24578,
+    27966,
+    "GFX_FGBG_JungleLevels",
+    2
+   ]
+  ],
+  "cgram_runs": [
+   [
+    4,
+    29,
+    "PAL_FGBG_JungleLevels",
+    4
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 102,
+  "name": "Snow Barrel Blast Bonus3",
+  "world": "Gorilla Glacier",
+  "nmi": "808CDC",
+  "layout": 14693942,
+  "map32": 14723798,
+  "stream": 32781,
+  "x_min": 14848,
+  "x_max": 15616,
+  "start": [
+   14888,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 14888,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 7444,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 24576,
+    "scs": 0,
+    "h": 23,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    27296,
+    "GFX_FGBG_SnowLevels",
+    0
+   ],
+   [
+    48096,
+    75,
+    "GFX_Layer2_AnimatedSnow",
+    192
+   ],
+   [
+    48172,
+    473,
+    "GFX_Layer2_AnimatedSnow",
+    2092
+   ],
+   [
+    48646,
+    508,
+    "GFX_Layer2_AnimatedSnow",
+    518
+   ],
+   [
+    49154,
+    1022,
+    "GFX_Layer3_AnimatedHeavySnow",
+    4098
+   ],
+   [
+    50176,
+    3024,
+    "GFX_Layer3_SnowLevels",
+    1024
+   ],
+   [
+    61440,
+    1664,
+    "TM_Layer3_SnowLevels",
+    0
+   ],
+   [
+    63488,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64000,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64512,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    65024,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ]
+  ],
+  "cgram_runs": [],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 103,
+  "name": "Snow Barrel Blast Bonus1",
+  "world": "Gorilla Glacier",
+  "nmi": "808CDC",
+  "layout": 14693942,
+  "map32": 14723798,
+  "stream": 32781,
+  "x_min": 14848,
+  "x_max": 14848,
+  "start": [
+   14848,
+   268
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 14848,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 7424,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    27296,
+    "GFX_FGBG_SnowLevels",
+    0
+   ],
+   [
+    49152,
+    4048,
+    "GFX_Layer3_SnowLevels",
+    0
+   ],
+   [
+    61440,
+    1664,
+    "TM_Layer3_SnowLevels",
+    0
+   ],
+   [
+    63488,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64000,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64512,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    65024,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_SnowLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 105,
+  "name": "Snow Barrel Blast Bonus2",
+  "world": "Gorilla Glacier",
+  "nmi": "808CDC",
+  "layout": 14693942,
+  "map32": 14723798,
+  "stream": 32781,
+  "x_min": 14592,
+  "x_max": 14592,
+  "start": [
+   14592,
+   287
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 14592,
+    "v": 287,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 7296,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 24576,
+    "scs": 0,
+    "h": 23,
+    "v": 65535,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    27296,
+    "GFX_FGBG_SnowLevels",
+    0
+   ],
+   [
+    48096,
+    75,
+    "GFX_Layer2_AnimatedSnow",
+    192
+   ],
+   [
+    48172,
+    473,
+    "GFX_Layer2_AnimatedSnow",
+    2092
+   ],
+   [
+    48646,
+    508,
+    "GFX_Layer2_AnimatedSnow",
+    518
+   ],
+   [
+    49154,
+    1022,
+    "GFX_Layer3_AnimatedHeavySnow",
+    4098
+   ],
+   [
+    50176,
+    3024,
+    "GFX_Layer3_SnowLevels",
+    1024
+   ],
+   [
+    61440,
+    1664,
+    "TM_Layer3_SnowLevels",
+    0
+   ],
+   [
+    63488,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64000,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64512,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    65024,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ]
+  ],
+  "cgram_runs": [],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 197,
+  "name": "Slipslide Ride Bonus2",
+  "world": "Gorilla Glacier",
+  "nmi": "8093B5",
+  "layout": 14746085,
+  "map32": 14760933,
+  "stream": 33563,
+  "x_min": 1536,
+  "x_max": 1536,
+  "start": [
+   1536,
+   272
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 1536,
+    "v": 16,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 768,
+    "v": 136,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 22,
+    "v": 249,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    32320,
+    "GFX_FGBG_CrystalCaveLevels",
+    0
+   ],
+   [
+    49152,
+    5792,
+    "GFX_Layer3_NintendoLogoShine",
+    0
+   ],
+   [
+    54944,
+    352,
+    "TM_Layer3_NintendoLogoShine",
+    0
+   ],
+   [
+    55296,
+    1452,
+    "TM_Layer3_NintendoLogoShine",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    32,
+    224,
+    "PAL_FGBG_SlipSlideRide",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 4,
+   "CGWSEL": 2,
+   "CGADSUB": 51,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 198,
+  "name": "Slipslide Ride Bonus3",
+  "world": "Gorilla Glacier",
+  "nmi": "8093B5",
+  "layout": 14746085,
+  "map32": 14760933,
+  "stream": 33563,
+  "x_min": 1024,
+  "x_max": 1280,
+  "start": [
+   1032,
+   3249
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 1032,
+    "v": 177,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 516,
+    "v": 88,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 22,
+    "v": 249,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    32320,
+    "GFX_FGBG_CrystalCaveLevels",
+    0
+   ],
+   [
+    49152,
+    5792,
+    "GFX_Layer3_NintendoLogoShine",
+    0
+   ],
+   [
+    54944,
+    352,
+    "TM_Layer3_NintendoLogoShine",
+    0
+   ],
+   [
+    55296,
+    1452,
+    "TM_Layer3_NintendoLogoShine",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    32,
+    224,
+    "PAL_FGBG_SlipSlideRide",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 4,
+   "CGWSEL": 2,
+   "CGADSUB": 51,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 202,
+  "name": "Slipslide Ride Bonus1",
+  "world": "Gorilla Glacier",
+  "nmi": "8093B5",
+  "layout": 14746085,
+  "map32": 14760933,
+  "stream": 33563,
+  "x_min": 1536,
+  "x_max": 1536,
+  "start": [
+   1536,
+   272
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 1536,
+    "v": 16,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 768,
+    "v": 136,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 0,
+    "h": 22,
+    "v": 249,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    32320,
+    "GFX_FGBG_CrystalCaveLevels",
+    0
+   ],
+   [
+    49152,
+    5792,
+    "GFX_Layer3_NintendoLogoShine",
+    0
+   ],
+   [
+    54944,
+    352,
+    "TM_Layer3_NintendoLogoShine",
+    0
+   ],
+   [
+    55296,
+    1452,
+    "TM_Layer3_NintendoLogoShine",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    32,
+    224,
+    "PAL_FGBG_SlipSlideRide",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 4,
+   "CGWSEL": 2,
+   "CGADSUB": 51,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 106,
+  "name": "Ice Age Alley Bonus1",
+  "world": "Gorilla Glacier",
+  "nmi": "808CDC",
+  "layout": 14693942,
+  "map32": 14723798,
+  "stream": 32781,
+  "x_min": 16384,
+  "x_max": 16640,
+  "start": [
+   16423,
+   281
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 16423,
+    "v": 281,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 8211,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    27296,
+    "GFX_FGBG_SnowLevels",
+    0
+   ],
+   [
+    48124,
+    523,
+    "GFX_Layer2_AnimatedSnow",
+    1532
+   ],
+   [
+    49152,
+    4048,
+    "GFX_Layer3_SnowLevels",
+    0
+   ],
+   [
+    61440,
+    1664,
+    "TM_Layer3_SnowLevels",
+    0
+   ],
+   [
+    63488,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64000,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64512,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    65024,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    78,
+    178,
+    "PAL_FGBG_SnowLevels",
+    78
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 107,
+  "name": "Ice Age Alley Bonus2",
+  "world": "Gorilla Glacier",
+  "nmi": "808CDC",
+  "layout": 14693942,
+  "map32": 14723798,
+  "stream": 32781,
+  "x_min": 14848,
+  "x_max": 14848,
+  "start": [
+   14848,
+   268
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 14848,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 1,
+    "h": 7424,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    27296,
+    "GFX_FGBG_SnowLevels",
+    0
+   ],
+   [
+    49152,
+    4048,
+    "GFX_Layer3_SnowLevels",
+    0
+   ],
+   [
+    61440,
+    1664,
+    "TM_Layer3_SnowLevels",
+    0
+   ],
+   [
+    63488,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64000,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    64512,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ],
+   [
+    65024,
+    512,
+    "TM_Layer3_Snow",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_SnowLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 193,
+  "name": "Torchlight Trouble Bonus1",
+  "world": "Gorilla Glacier",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 27648,
+  "x_max": 27648,
+  "start": [
+   27648,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 27648,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13824,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 41472,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    47104,
+    6144,
+    "TM_Layer3_CaveLevels",
+    2048
+   ],
+   [
+    57376,
+    672,
+    "GFX_Layer3_CaveLevels",
+    32
+   ]
+  ],
+  "cgram_runs": [],
+  "regs": {
+   "TM": 4,
+   "TS": 19,
+   "CGWSEL": 34,
+   "CGADSUB": 164,
+   "fixed": [
+    16,
+    16,
+    16
+   ],
+   "W12SEL": 0,
+   "W34SEL": 3,
+   "WOBJSEL": 0,
+   "TMW": 4,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 195,
+  "name": "Torchlight Trouble Bonus2",
+  "world": "Gorilla Glacier",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 27648,
+  "x_max": 27648,
+  "start": [
+   27648,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 27648,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13824,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 41472,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    47136,
+    6112,
+    "TM_Layer3_CaveLevels",
+    2080
+   ],
+   [
+    57408,
+    640,
+    "GFX_Layer3_CaveLevels",
+    64
+   ]
+  ],
+  "cgram_runs": [],
+  "regs": {
+   "TM": 4,
+   "TS": 19,
+   "CGWSEL": 34,
+   "CGADSUB": 164,
+   "fixed": [
+    16,
+    16,
+    16
+   ],
+   "W12SEL": 0,
+   "W34SEL": 3,
+   "WOBJSEL": 0,
+   "TMW": 4,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 213,
+  "name": "Rope Bridge Rumble Bonus1",
+  "world": "Gorilla Glacier",
+  "nmi": "8094CC",
+  "layout": 12779520,
+  "map32": 12800512,
+  "stream": 32781,
+  "x_min": 19968,
+  "x_max": 20736,
+  "start": [
+   19986,
+   28
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 19986,
+    "v": 28,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 20480,
+    "scs": 0,
+    "h": 9,
+    "v": 3,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 132,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    19136,
+    "GFX_Layer1_TreehouseLevels",
+    0
+   ],
+   [
+    44640,
+    8608,
+    "GFX_Layer2_TreehouseLevels",
+    0
+   ],
+   [
+    53248,
+    4080,
+    "GFX_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    59392,
+    2048,
+    "TM_Layer2_TreehouseLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_RopeBridgeRumble",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 194,
+   "fixed": [
+    4,
+    3,
+    5
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 215,
+  "name": "Rope Bridge Rumble Bonus2",
+  "world": "Gorilla Glacier",
+  "nmi": "8094CC",
+  "layout": 12779520,
+  "map32": 12800512,
+  "stream": 32781,
+  "x_min": 10752,
+  "x_max": 10752,
+  "start": [
+   10752,
+   288
+  ],
+  "bgs": [
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 10752,
+    "v": 288,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 20480,
+    "scs": 0,
+    "h": 0,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 28672,
+    "name": 24576,
+    "scs": 0,
+    "h": 128,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    19136,
+    "GFX_Layer1_TreehouseLevels",
+    0
+   ],
+   [
+    44640,
+    8608,
+    "GFX_Layer2_TreehouseLevels",
+    0
+   ],
+   [
+    53248,
+    4080,
+    "GFX_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    57344,
+    2048,
+    "TM_Layer3_TreehouseLevels",
+    0
+   ],
+   [
+    59392,
+    2048,
+    "TM_Layer2_TreehouseLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_RopeBridgeRumble",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 96,
+  "name": "Oil Drum Alley Bonus4",
+  "world": "Kremkroc Industries",
+  "nmi": "8091F5",
+  "layout": 14811136,
+  "map32": 14836224,
+  "stream": 32781,
+  "x_min": 22784,
+  "x_max": 23552,
+  "start": [
+   22794,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 3,
+    "h": 45588,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 22794,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 11397,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    29056,
+    "GFX_FGBG_FactoryLevels",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_FactoryLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_FactoryLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_FactoryLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 97,
+  "name": "Oil Drum Alley Bonus2",
+  "world": "Kremkroc Industries",
+  "nmi": "8091F5",
+  "layout": 14811136,
+  "map32": 14836224,
+  "stream": 32781,
+  "x_min": 22784,
+  "x_max": 22784,
+  "start": [
+   22784,
+   268
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 3,
+    "h": 45568,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 22784,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 11392,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    29056,
+    "GFX_FGBG_FactoryLevels",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_FactoryLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_FactoryLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_FactoryLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 22,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 99,
+  "name": "Oil Drum Alley Bonus1",
+  "world": "Kremkroc Industries",
+  "nmi": "8091F5",
+  "layout": 14811136,
+  "map32": 14836224,
+  "stream": 32781,
+  "x_min": 23808,
+  "x_max": 23808,
+  "start": [
+   23808,
+   276
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 3,
+    "h": 47616,
+    "v": 276,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 23808,
+    "v": 276,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 11904,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    29056,
+    "GFX_FGBG_FactoryLevels",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_FactoryLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_FactoryLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_FactoryLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 22,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 190,
+  "name": "Oil Drum Alley Bonus3",
+  "world": "Kremkroc Industries",
+  "nmi": "8091F5",
+  "layout": 14811136,
+  "map32": 14836224,
+  "stream": 32781,
+  "x_min": 22784,
+  "x_max": 22784,
+  "start": [
+   22784,
+   268
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 3,
+    "h": 45568,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 22784,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 11392,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    29056,
+    "GFX_FGBG_FactoryLevels",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_FactoryLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_FactoryLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_FactoryLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 22,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 157,
+  "name": "Trick Track Trek Bonus3",
+  "world": "Kremkroc Industries",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51584,
+  "x_max": 51584,
+  "start": [
+   51584,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51584,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25792,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 158,
+  "name": "Trick Track Trek Bonus2",
+  "world": "Kremkroc Industries",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51584,
+  "x_max": 51584,
+  "start": [
+   51584,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51584,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25792,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 161,
+  "name": "Trick Track Trek Bonus1",
+  "world": "Kremkroc Industries",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51840,
+  "x_max": 52096,
+  "start": [
+   51850,
+   277
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51850,
+    "v": 277,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25925,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 154,
+  "name": "Elevator Antics Bonus1",
+  "world": "Kremkroc Industries",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 27648,
+  "x_max": 27648,
+  "start": [
+   27648,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 27648,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13824,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 41472,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    6144,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    448
+   ],
+   [
+    6656,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    960
+   ],
+   [
+    7168,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    384
+   ],
+   [
+    7680,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    896
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    2,
+    2,
+    2
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 155,
+  "name": "Elevator Antics Bonus2",
+  "world": "Kremkroc Industries",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 44800,
+  "x_max": 45568,
+  "start": [
+   44818,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 44818,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 22409,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 1691,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 156,
+  "name": "Elevator Antics Bonus3",
+  "world": "Kremkroc Industries",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 16256,
+  "x_max": 16256,
+  "start": [
+   16256,
+   284
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 16256,
+    "v": 284,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 8128,
+    "v": 35,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 24384,
+    "v": 284,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 77,
+  "name": "Mine Cart Madness Bonus1",
+  "world": "Kremkroc Industries",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 44800,
+  "x_max": 45568,
+  "start": [
+   44818,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 44818,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 22409,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 1691,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 160,
+  "name": "Mine Cart Madness Bonus2",
+  "world": "Kremkroc Industries",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51584,
+  "x_max": 51584,
+  "start": [
+   51584,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51584,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25792,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 162,
+  "name": "Mine Cart Madness Bonus3",
+  "world": "Kremkroc Industries",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51840,
+  "x_max": 52096,
+  "start": [
+   51850,
+   277
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51850,
+    "v": 277,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25925,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 100,
+  "name": "Blackout Basement Bonus1",
+  "world": "Kremkroc Industries",
+  "nmi": "809446",
+  "layout": 14811136,
+  "map32": 14836224,
+  "stream": 32781,
+  "x_min": 24064,
+  "x_max": 24320,
+  "start": [
+   24074,
+   257
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 3,
+    "h": 48148,
+    "v": 257,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 24074,
+    "v": 257,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 12037,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    29056,
+    "GFX_FGBG_FactoryLevels",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_FactoryLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_FactoryLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_FactoryLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 22,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 167,
+   "fixed": [
+    30,
+    30,
+    30
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 163,
+  "name": "Blackout Basement Bonus2",
+  "world": "Kremkroc Industries",
+  "nmi": "809446",
+  "layout": 14811136,
+  "map32": 14836224,
+  "stream": 32781,
+  "x_min": 22784,
+  "x_max": 22784,
+  "start": [
+   22784,
+   268
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 3,
+    "h": 45568,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 8192,
+    "scs": 1,
+    "h": 22784,
+    "v": 268,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 11392,
+    "v": 31,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    29056,
+    "GFX_FGBG_FactoryLevels",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_FactoryLevels",
+    0
+   ],
+   [
+    49152,
+    4016,
+    "GFX_Layer3_FactoryLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_FactoryLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 22,
+   "TS": 0,
+   "CGWSEL": 0,
+   "CGADSUB": 167,
+   "fixed": [
+    30,
+    30,
+    30
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 0
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 159,
+  "name": "Tanked Up Trouble Bonus1",
+  "world": "Chimp Caverns",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51584,
+  "x_max": 51584,
+  "start": [
+   51584,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51584,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25792,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 5,
+  "name": "Manic Mincers Bonus1",
+  "world": "Chimp Caverns",
+  "nmi": "808E38",
+  "layout": 14221312,
+  "map32": 14263232,
+  "stream": 32781,
+  "x_min": 0,
+  "x_max": 0,
+  "start": [
+   0,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 27648,
+    "name": 12288,
+    "scs": 1,
+    "h": 0,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 12288,
+    "scs": 1,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 9216,
+    "name": 8192,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 0,
+   "CGADSUB": 0,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 152,
+  "name": "Manic Mincers Bonus2",
+  "world": "Chimp Caverns",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 27648,
+  "x_max": 27648,
+  "start": [
+   27648,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 27648,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 13824,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 41472,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    2,
+    2,
+    2
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 153,
+  "name": "Manic Mincers MincerRoom",
+  "world": "Chimp Caverns",
+  "nmi": "808E38",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 44800,
+  "x_max": 45056,
+  "start": [
+   44818,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 44818,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 31744,
+    "name": 8192,
+    "scs": 0,
+    "h": 22409,
+    "v": 33,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 1691,
+    "v": 264,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45056,
+    8192,
+    "TM_Layer3_CaveLevels",
+    0
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 23,
+   "TS": 23,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 50,
+  "name": "Misty Mine Bonus2",
+  "world": "Chimp Caverns",
+  "nmi": "808FFE",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 23296,
+  "x_max": 23296,
+  "start": [
+   23296,
+   8
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 23296,
+    "v": 8,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 11648,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_Fog",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_MineLevels",
+    0
+   ],
+   [
+    49152,
+    3808,
+    "GFX_Layer3_MineLevels",
+    0
+   ],
+   [
+    57344,
+    7456,
+    "GFX_Layer2_Fog",
+    0
+   ],
+   [
+    64800,
+    736,
+    "TM_Layer2_Fog",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    20,
+    236,
+    "PAL_FGBG_MineLevels",
+    20
+   ]
+  ],
+  "regs": {
+   "TM": 2,
+   "TS": 21,
+   "CGWSEL": 2,
+   "CGADSUB": 34,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 51,
+  "name": "Misty Mine Bonus1",
+  "world": "Chimp Caverns",
+  "nmi": "808FFE",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 23328,
+  "x_max": 24800,
+  "start": [
+   23346,
+   272
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 23346,
+    "v": 272,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 29318,
+    "v": 408,
+    "bpp": 4
+   },
+   {
+    "sc": 23552,
+    "name": 24576,
+    "scs": 0,
+    "h": 11673,
+    "v": 257,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_Fog",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer3_MineLevels",
+    0
+   ],
+   [
+    49152,
+    3808,
+    "GFX_Layer3_MineLevels",
+    0
+   ],
+   [
+    57344,
+    7456,
+    "GFX_Layer2_Fog",
+    0
+   ],
+   [
+    64800,
+    736,
+    "TM_Layer2_Fog",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    32,
+    224,
+    "PAL_FGBG_MineLevels",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 2,
+   "TS": 21,
+   "CGWSEL": 2,
+   "CGADSUB": 34,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 55,
+  "name": "Loopy Lights Bonus2",
+  "world": "Chimp Caverns",
+  "nmi": "809196",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 37120,
+  "x_max": 38399,
+  "start": [
+   37146,
+   284
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 37146,
+    "v": 284,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 1,
+    "h": 18573,
+    "v": 142,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 16,
+    "v": 496,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ],
+   [
+    49152,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    57344,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    61568,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_MineLevels",
+    64
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 147,
+   "fixed": [
+    9,
+    9,
+    9
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 73,
+  "name": "Loopy Lights Bonus1",
+  "world": "Chimp Caverns",
+  "nmi": "809196",
+  "layout": 14353868,
+  "map32": 14393548,
+  "stream": 32781,
+  "x_min": 24064,
+  "x_max": 24832,
+  "start": [
+   24082,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 24082,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 1,
+    "h": 12041,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    24704,
+    "GFX_Layer1_MineLevels",
+    0
+   ],
+   [
+    45056,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    47104,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ],
+   [
+    49152,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    57344,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    61568,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    64,
+    192,
+    "PAL_FGBG_MineLevels",
+    64
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 0,
+   "CGWSEL": 2,
+   "CGADSUB": 147,
+   "fixed": [
+    9,
+    9,
+    9
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 78,
+  "name": "Platform Perils Bonus1",
+  "world": "Chimp Caverns",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51584,
+  "x_max": 51584,
+  "start": [
+   51584,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51584,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25792,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    6144,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    448
+   ],
+   [
+    6656,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    960
+   ],
+   [
+    7168,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    384
+   ],
+   [
+    7680,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    896
+   ],
+   [
+    8192,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    320
+   ],
+   [
+    8704,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    832
+   ],
+   [
+    9216,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    256
+   ],
+   [
+    9728,
+    64,
+    "GFX_Sprite_GlobalSprites",
+    768
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 80,
+  "name": "Platform Perils Bonus2",
+  "world": "Chimp Caverns",
+  "nmi": "808F9C",
+  "layout": 13303808,
+  "map32": 13361216,
+  "stream": 32781,
+  "x_min": 51584,
+  "x_max": 51584,
+  "start": [
+   51584,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 22528,
+    "name": 8192,
+    "scs": 1,
+    "h": 51584,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 24576,
+    "scs": 1,
+    "h": 25792,
+    "v": 31,
+    "bpp": 4
+   },
+   {
+    "sc": 26624,
+    "name": 20480,
+    "scs": 3,
+    "h": 4097,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    23392,
+    "GFX_Layer1_WalkwayLevels",
+    0
+   ],
+   [
+    40960,
+    2256,
+    "GFX_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    49152,
+    4064,
+    "GFX_Layer2_WalkwayLevels",
+    0
+   ],
+   [
+    53376,
+    1536,
+    "TM_Layer3_HangingLampLight",
+    0
+   ],
+   [
+    61440,
+    2048,
+    "TM_Layer2_WalkwayLevelsLeftHalf",
+    0
+   ],
+   [
+    63488,
+    2048,
+    "TM_Layer2_WalkwayLevelsRightHalf",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    30,
+    16,
+    "PAL_Layer1_GameOverScreen",
+    194
+   ],
+   [
+    64,
+    192,
+    "PAL_FGBG_UnknownPalette3",
+    32
+   ]
+  ],
+  "regs": {
+   "TM": 0,
+   "TS": 19,
+   "CGWSEL": 2,
+   "CGADSUB": 36,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30,
+   31
+  ],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 76,
+  "name": "Kong's Banana Hoard (full)",
+  "world": "Kongo Jungle",
+  "nmi": "808F28",
+  "layout": 14286848,
+  "map32": 14335744,
+  "stream": 32781,
+  "x_min": 45056,
+  "x_max": 45056,
+  "start": [
+   45056,
+   264
+  ],
+  "bgs": [
+   {
+    "sc": 26624,
+    "name": 8192,
+    "scs": 1,
+    "h": 45056,
+    "v": 264,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 0,
+    "h": 22528,
+    "v": 4,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    15360,
+    1024,
+    "GFX_Sprite_Bananas",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45088,
+    1760,
+    "TM_Layer2_KongsBananaHoardCave",
+    32
+   ],
+   [
+    57344,
+    7968,
+    "GFX_FGBG_KongsBananaHoardCave",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    160,
+    "PAL_FGBG_PurpleCaveLevels",
+    0
+   ],
+   [
+    160,
+    32,
+    "PAL_Layer2_KongsBananaHoardCave",
+    0
+   ],
+   [
+    192,
+    64,
+    "PAL_FGBG_PurpleCaveLevels",
+    192
+   ]
+  ],
+  "regs": {
+   "TM": 19,
+   "TS": 19,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 48,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ },
+ {
+  "entrance": 94,
+  "name": "Credits",
+  "world": "Gang-Plank Galleon",
+  "nmi": "8096C4",
+  "layout": 14876672,
+  "map32": 14877184,
+  "stream": 32781,
+  "x_min": 256,
+  "x_max": 256,
+  "start": [
+   256,
+   0
+  ],
+  "bgs": [
+   {
+    "sc": 28672,
+    "name": 8192,
+    "scs": 0,
+    "h": 256,
+    "v": 65535,
+    "bpp": 4
+   },
+   {
+    "sc": 29696,
+    "name": 8192,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 27648,
+    "name": 24576,
+    "scs": 1,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    16384,
+    24416,
+    "GFX_Layer1_DKsHouse",
+    0
+   ],
+   [
+    47968,
+    1185,
+    "GFX_FGBG_GangplankGalleon",
+    0
+   ],
+   [
+    57346,
+    1790,
+    "TM_Layer1_DKsHouse",
+    2
+   ],
+   [
+    59136,
+    256,
+    "GFX_Layer1_DKsHouse",
+    0
+   ],
+   [
+    60544,
+    129,
+    "TM_Layer1_IntroScreen",
+    0
+   ],
+   [
+    62594,
+    127,
+    "TM_Layer1_IntroScreen",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_FGBG_DKsHouse",
+    0
+   ]
+  ],
+  "regs": {
+   "TM": 17,
+   "TS": 16,
+   "CGWSEL": 2,
+   "CGADSUB": 1,
+   "fixed": [
+    0,
+    0,
+    0
+   ],
+   "W12SEL": 0,
+   "W34SEL": 0,
+   "WOBJSEL": 0,
+   "TMW": 0,
+   "TSW": 0,
+   "BGMODE": 1,
+   "BG3PRIO": 1
+  },
+  "uncovered_cgram": [],
+  "room": true,
+  "aliases": []
+ }
+]

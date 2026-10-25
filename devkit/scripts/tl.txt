@@ -1,0 +1,34 @@
+run 60
+run 40 RIGHT
+run 12 RIGHT B
+run 88
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT
+run 30 RIGHT
+run 20 LEFT

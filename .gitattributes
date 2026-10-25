@@ -1,0 +1,6 @@
+# keep every file byte-for-byte as in the source tree
+*.bat -text
+*.patch -text
+*.exe binary
+*.bin binary
+*.gz binary

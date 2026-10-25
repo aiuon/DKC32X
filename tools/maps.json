@@ -1,0 +1,368 @@
+[
+ {
+  "entrance": 236,
+  "name": "Kongo Jungle",
+  "bgs": [
+   {
+    "sc": 31744,
+    "name": 4096,
+    "scs": 0,
+    "h": 0,
+    "v": 255,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 0,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    8192,
+    24480,
+    "GFX_Layer1_KongoJungleMap1",
+    0
+   ],
+   [
+    36896,
+    5312,
+    "GFX_Layer1_PlayerSelectScreen",
+    4128
+   ],
+   [
+    63488,
+    1792,
+    "TM_Layer1_KongoJungleMap1",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_Layer1_KongoJungleMap1",
+    0
+   ]
+  ]
+ },
+ {
+  "entrance": 237,
+  "name": "Monkey Mines",
+  "bgs": [
+   {
+    "sc": 31744,
+    "name": 4096,
+    "scs": 0,
+    "h": 0,
+    "v": 255,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 0,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    8192,
+    23936,
+    "GFX_Layer1_MonkeyMinesMap1",
+    0
+   ],
+   [
+    36864,
+    5344,
+    "GFX_Layer1_PlayerSelectScreen",
+    4096
+   ],
+   [
+    63488,
+    1792,
+    "TM_Layer1_MonkeyMinesMap1",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_Layer1_MonkeyMinesMap1",
+    0
+   ]
+  ]
+ },
+ {
+  "entrance": 233,
+  "name": "Vine Valley",
+  "bgs": [
+   {
+    "sc": 31744,
+    "name": 4096,
+    "scs": 0,
+    "h": 0,
+    "v": 255,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 0,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    8192,
+    25952,
+    "GFX_Layer1_VineValleyMap1",
+    0
+   ],
+   [
+    36896,
+    5312,
+    "GFX_Layer1_PlayerSelectScreen",
+    4128
+   ],
+   [
+    63488,
+    1792,
+    "TM_Layer1_VineValleyMap1",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_Layer1_VineValleyMap1",
+    0
+   ]
+  ]
+ },
+ {
+  "entrance": 232,
+  "name": "Gorilla Glacier",
+  "bgs": [
+   {
+    "sc": 31744,
+    "name": 4096,
+    "scs": 0,
+    "h": 0,
+    "v": 255,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 0,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    8192,
+    24480,
+    "GFX_Layer1_GorillaGlacierMap1",
+    0
+   ],
+   [
+    36896,
+    5312,
+    "GFX_Layer1_PlayerSelectScreen",
+    4128
+   ],
+   [
+    63488,
+    1792,
+    "TM_Layer1_GorillaGlacierMap1",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_Layer1_GorillaGlacierMap1",
+    0
+   ]
+  ]
+ },
+ {
+  "entrance": 231,
+  "name": "Kremkroc Industries",
+  "bgs": [
+   {
+    "sc": 31744,
+    "name": 4096,
+    "scs": 0,
+    "h": 0,
+    "v": 255,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 0,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    8192,
+    24128,
+    "GFX_Layer1_KremkrocIndustriesIncMap1",
+    0
+   ],
+   [
+    36864,
+    5344,
+    "GFX_Layer1_PlayerSelectScreen",
+    4096
+   ],
+   [
+    63488,
+    1792,
+    "TM_Layer1_KremkrocIndustriesIncMap1",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    224,
+    "PAL_Layer1_KremkrocIndustriesIncMap1",
+    0
+   ],
+   [
+    224,
+    32,
+    "PAL_Layer1_KremkrocIndustriesIncMap2",
+    0
+   ]
+  ]
+ },
+ {
+  "entrance": 230,
+  "name": "Chimp Caverns",
+  "bgs": [
+   {
+    "sc": 31744,
+    "name": 4096,
+    "scs": 0,
+    "h": 0,
+    "v": 255,
+    "bpp": 4
+   },
+   {
+    "sc": 30720,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 0,
+    "name": 0,
+    "scs": 0,
+    "h": 0,
+    "v": 0,
+    "bpp": 2
+   }
+  ],
+  "vram_runs": [
+   [
+    8192,
+    24512,
+    "GFX_Layer1_ChimpCavernsMap1",
+    0
+   ],
+   [
+    32768,
+    1729,
+    "TM_Layer1_ChimpCavernsMap2",
+    63
+   ],
+   [
+    34498,
+    2366,
+    "GFX_Layer1_ChimpCavernsMap2",
+    0
+   ],
+   [
+    36864,
+    5344,
+    "GFX_Layer1_PlayerSelectScreen",
+    4096
+   ],
+   [
+    63488,
+    1792,
+    "TM_Layer1_ChimpCavernsMap1",
+    0
+   ]
+  ],
+  "cgram_runs": [
+   [
+    0,
+    256,
+    "PAL_Layer1_ChimpCavernsMap1",
+    0
+   ]
+  ]
+ }
+]

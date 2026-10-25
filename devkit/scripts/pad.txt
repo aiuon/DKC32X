@@ -1,0 +1,401 @@
+run 60
+run 25 RIGHT B
+run 30 RIGHT A
+run 8 RIGHT Y
+run 57 RIGHT DOWN Y
+run 11 LEFT Y
+run 42 RIGHT
+run 37 RIGHT Y B
+run 7 RIGHT Y
+run 32 B
+run 9 RIGHT Y B
+run 10 RIGHT DOWN Y
+run 32 RIGHT
+run 57 Y
+run 12 RIGHT Y B
+run 45 RIGHT A
+run 42 RIGHT
+run 41 Y
+run 30 RIGHT
+run 19 RIGHT
+run 40 RIGHT B
+run 23 B
+run 14 RIGHT DOWN Y
+run 12 Y
+run 24 RIGHT DOWN Y
+run 57 RIGHT A
+run 16 RIGHT Y
+run 42 Y
+run 45 RIGHT Y B
+run 28 RIGHT Y
+run 40 UP
+run 9 Y
+run 8 Y
+run 18 DOWN
+run 48 RIGHT DOWN Y
+run 32 LEFT Y
+run 34 Y
+run 34 LEFT Y
+run 24 RIGHT Y B
+run 55 RIGHT B
+run 49 RIGHT Y B
+run 10 Y
+run 24 RIGHT DOWN Y
+run 36 LEFT Y
+run 51 DOWN
+run 23 Y
+run 9 RIGHT Y
+run 37 B
+run 15 LEFT Y
+run 14 DOWN
+run 31 RIGHT
+run 47 RIGHT Y
+run 53 RIGHT DOWN Y
+run 41 LEFT Y
+run 26 UP
+run 27 Y
+run 36 Y
+run 56 DOWN
+run 9 RIGHT Y
+run 22 DOWN
+run 49 RIGHT A
+run 9 RIGHT
+run 51 UP
+run 24 RIGHT A
+run 41 RIGHT A
+run 57 DOWN
+run 23 UP
+run 29 RIGHT A
+run 27 RIGHT
+run 34 LEFT Y
+run 15 Y
+run 12 DOWN
+run 8 RIGHT Y B
+run 54 LEFT
+run 13 UP
+run 20 B
+run 30 DOWN
+run 10 RIGHT B
+run 33 B
+run 40 LEFT
+run 13 B
+run 60 RIGHT DOWN Y
+run 22 UP
+run 31 LEFT Y
+run 48 B
+run 19 RIGHT B
+run 10 RIGHT B
+run 14 RIGHT Y B
+run 47 RIGHT Y B
+run 5 DOWN
+run 58 Y
+run 16 LEFT
+run 23 RIGHT
+run 14 B
+run 39 LEFT Y
+run 44 Y
+run 25 RIGHT B
+run 49 RIGHT DOWN Y
+run 44 RIGHT A
+run 48 UP
+run 8 DOWN
+run 60 RIGHT A
+run 56 RIGHT DOWN Y
+run 30 B
+run 30 B
+run 11 DOWN
+run 45 B
+run 8 RIGHT Y B
+run 9 RIGHT Y B
+run 33 RIGHT B
+run 12 LEFT Y
+run 43 RIGHT
+run 11 RIGHT
+run 41 RIGHT B
+run 39 RIGHT Y
+run 28 Y
+run 6 RIGHT Y
+run 60 RIGHT Y B
+run 44 B
+run 14 RIGHT A
+run 21 LEFT Y
+run 43 LEFT Y
+run 35 RIGHT Y
+run 12 DOWN
+run 34 DOWN
+run 35 LEFT
+run 10 RIGHT B
+run 11 UP
+run 26 UP
+run 21 DOWN
+run 58 UP
+run 15 RIGHT DOWN Y
+run 6 RIGHT Y B
+run 38 LEFT Y
+run 14 UP
+run 39 RIGHT
+run 53 RIGHT DOWN Y
+run 24 RIGHT A
+run 60 RIGHT Y
+run 49 LEFT
+run 38 LEFT Y
+run 15 LEFT Y
+run 54 RIGHT Y B
+run 39 RIGHT DOWN Y
+run 54 RIGHT DOWN Y
+run 26 RIGHT A
+run 19 Y
+run 56 RIGHT Y B
+run 56 RIGHT Y B
+run 57 B
+run 52 RIGHT Y B
+run 17 RIGHT DOWN Y
+run 36 LEFT Y
+run 51 RIGHT
+run 6 LEFT
+run 35 LEFT
+run 17 UP
+run 43 LEFT Y
+run 33 UP
+run 27 LEFT Y
+run 10 RIGHT Y B
+run 11 RIGHT Y B
+run 35 RIGHT Y B
+run 26 RIGHT Y B
+run 35 Y
+run 44 RIGHT
+run 35 RIGHT A
+run 27 RIGHT A
+run 10 RIGHT A
+run 12 B
+run 55 UP
+run 53 RIGHT Y B
+run 35 RIGHT B
+run 32 RIGHT A
+run 26 RIGHT Y
+run 56 UP
+run 30 DOWN
+run 30 UP
+run 10 UP
+run 15 RIGHT B
+run 13 RIGHT
+run 14 Y
+run 34 RIGHT A
+run 14 Y
+run 57 Y
+run 35 RIGHT A
+run 27 RIGHT B
+run 40 RIGHT DOWN Y
+run 13 RIGHT
+run 5 UP
+run 46 RIGHT Y
+run 38 UP
+run 13 B
+run 60 RIGHT Y B
+run 57 RIGHT Y B
+run 6 LEFT
+run 18 LEFT
+run 37 RIGHT Y B
+run 53 Y
+run 25 LEFT
+run 39 B
+run 58 RIGHT B
+run 8 UP
+run 27 DOWN
+run 47 Y
+run 57 RIGHT DOWN Y
+run 31 RIGHT DOWN Y
+run 13 RIGHT DOWN Y
+run 14 RIGHT DOWN Y
+run 37 RIGHT
+run 60 DOWN
+run 54 RIGHT B
+run 43 RIGHT
+run 54 RIGHT B
+run 16 RIGHT B
+run 35 Y
+run 51 RIGHT Y
+run 40 RIGHT
+run 25 RIGHT A
+run 38 RIGHT DOWN Y
+run 40 DOWN
+run 55 RIGHT Y
+run 40 RIGHT
+run 20 RIGHT Y B
+run 22 RIGHT
+run 54 RIGHT Y
+run 37 DOWN
+run 40 RIGHT
+run 53 RIGHT Y
+run 33 LEFT Y
+run 44 RIGHT DOWN Y
+run 43 RIGHT DOWN Y
+run 17 UP
+run 22 DOWN
+run 37 RIGHT DOWN Y
+run 56 DOWN
+run 37 RIGHT Y B
+run 49 RIGHT DOWN Y
+run 21 RIGHT DOWN Y
+run 17 DOWN
+run 13 B
+run 12 B
+run 33 LEFT Y
+run 9 RIGHT A
+run 20 B
+run 9 RIGHT Y B
+run 47 LEFT
+run 55 RIGHT Y
+run 54 RIGHT B
+run 50 RIGHT A
+run 47 LEFT Y
+run 14 LEFT
+run 13 DOWN
+run 19 UP
+run 11 B
+run 36 RIGHT B
+run 47 RIGHT Y B
+run 15 UP
+run 32 RIGHT DOWN Y
+run 30 LEFT Y
+run 31 RIGHT Y B
+run 27 LEFT Y
+run 10 UP
+run 28 RIGHT
+run 26 RIGHT DOWN Y
+run 34 DOWN
+run 50 RIGHT
+run 29 LEFT Y
+run 38 Y
+run 23 RIGHT DOWN Y
+run 9 RIGHT Y
+run 55 RIGHT Y B
+run 11 RIGHT Y
+run 21 LEFT
+run 7 RIGHT B
+run 22 RIGHT B
+run 57 B
+run 59 RIGHT A
+run 57 LEFT
+run 30 RIGHT B
+run 39 RIGHT DOWN Y
+run 41 DOWN
+run 49 LEFT Y
+run 10 LEFT
+run 8 UP
+run 16 B
+run 9 LEFT
+run 6 RIGHT A
+run 10 LEFT
+run 10 Y
+run 59 RIGHT Y B
+run 9 LEFT
+run 60 RIGHT Y
+run 34 RIGHT
+run 26 RIGHT DOWN Y
+run 31 LEFT
+run 44 RIGHT B
+run 7 RIGHT DOWN Y
+run 50 RIGHT Y B
+run 12 RIGHT B
+run 21 RIGHT
+run 16 RIGHT Y B
+run 24 RIGHT A
+run 24 RIGHT DOWN Y
+run 53 RIGHT Y B
+run 23 DOWN
+run 37 RIGHT A
+run 16 LEFT
+run 27 RIGHT
+run 21 RIGHT
+run 5 RIGHT
+run 51 RIGHT DOWN Y
+run 40 RIGHT Y B
+run 37 DOWN
+run 20 DOWN
+run 11 RIGHT A
+run 57 RIGHT A
+run 32 RIGHT A
+run 36 RIGHT DOWN Y
+run 58 B
+run 37 LEFT
+run 49 RIGHT Y B
+run 19 LEFT Y
+run 17 UP
+run 51 RIGHT A
+run 13 B
+run 27 RIGHT
+run 58 RIGHT B
+run 5 RIGHT Y
+run 45 UP
+run 21 B
+run 15 RIGHT
+run 10 RIGHT A
+run 58 B
+run 60 RIGHT DOWN Y
+run 47 LEFT
+run 43 RIGHT Y B
+run 49 LEFT
+run 7 DOWN
+run 16 RIGHT B
+run 22 DOWN
+run 5 LEFT
+run 28 LEFT Y
+run 40 LEFT Y
+run 20 RIGHT
+run 24 RIGHT Y B
+run 27 RIGHT B
+run 5 LEFT Y
+run 29 RIGHT Y
+run 35 LEFT
+run 37 RIGHT A
+run 17 RIGHT Y B
+run 37 RIGHT
+run 10 LEFT
+run 57 RIGHT Y
+run 14 B
+run 42 RIGHT
+run 30 RIGHT
+run 24 LEFT
+run 45 RIGHT Y B
+run 10 Y
+run 38 RIGHT B
+run 47 UP
+run 55 Y
+run 29 LEFT Y
+run 51 DOWN
+run 14 LEFT
+run 51 Y
+run 46 RIGHT B
+run 7 UP
+run 37 RIGHT A
+run 32 UP
+run 49 RIGHT DOWN Y
+run 13 RIGHT DOWN Y
+run 53 RIGHT DOWN Y
+run 41 RIGHT
+run 57 RIGHT A
+run 42 UP
+run 48 UP
+run 46 RIGHT Y B
+run 10 RIGHT
+run 7 RIGHT B
+run 45 LEFT Y
+run 11 B
+run 58 DOWN
+run 40 RIGHT
+run 45 RIGHT
+run 45 RIGHT DOWN Y
+run 48 RIGHT Y B
+run 36 LEFT
+run 5 DOWN
+run 56 RIGHT Y
+run 52 RIGHT DOWN Y
+run 39 RIGHT Y
+run 47 RIGHT DOWN Y
+run 9 UP
+run 52 DOWN
+run 21 RIGHT Y
+run 59 LEFT
+run 20 UP
+run 53 RIGHT Y B

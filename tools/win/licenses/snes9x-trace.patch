@@ -1,0 +1,277 @@
+diff -ruN '--exclude=*.o' '--exclude=*.so' '--exclude=*.a' '--exclude=.git' '--exclude=obj' '--exclude=*.dll' snes9x/cpuexec.cpp snes9x_trace/cpuexec.cpp
+--- snes9x/cpuexec.cpp	2026-10-16 23:04:34.737138371 +0000
++++ snes9x_trace/cpuexec.cpp	2026-10-20 07:32:45.100173179 +0000
+@@ -5,6 +5,7 @@
+ \*****************************************************************************/
+ 
+ #include "snes9x.h"
++#include "tracehook.h"
+ #include "memmap.h"
+ #include "cpuops.h"
+ #include "dma.h"
+@@ -168,6 +169,25 @@
+ 				Opcodes = S9xOpcodesSlow;
+ 		}
+ 
++		if (tr_on) {
++			tr_curpc = Registers.PBPC & 0xFFFFFF;
++			S9xPackStatus();
++			tr_insn(tr_curpc, Op, Registers.PL, CheckEmulation() ? 1 : 0, Registers.DB, Registers.D.W);
++			if ((tr_on & 2) && tr_file) {
++				uint32 r[4] = { tr_curpc | ((uint32)Op << 24), (uint32)Registers.A.W | ((uint32)Registers.X.W << 16),
++					(uint32)Registers.Y.W | ((uint32)Registers.D.W << 16), (uint32)Registers.PL | ((uint32)Registers.DB << 8) | ((uint32)Registers.S.W << 16) };
++				fwrite(r, 4, 4, tr_file);
++			}
++			if (tr_redirect) {		/* (TRJUMP: run from another key instead of this instruction) */
++				uint32 k = tr_redirect & 0x7FFFFFFF;
++				tr_redirect = 0;
++				Registers.PL = (Registers.PL & ~0x30) | ((k >> 20) & 0x30);
++				S9xUnpackStatus();
++				S9xFixCycles();
++				S9xSetPCBase(k & 0xFFFFFF);
++				continue;
++			}
++		}
+ 		Registers.PCw++;
+ 		(*Opcodes[Op].S9xOpcode)();
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.so' '--exclude=*.a' '--exclude=.git' '--exclude=obj' '--exclude=*.dll' snes9x/dma.cpp snes9x_trace/dma.cpp
+--- snes9x/dma.cpp	2026-10-16 23:04:34.740440434 +0000
++++ snes9x_trace/dma.cpp	2026-10-18 09:48:00.277022606 +0000
+@@ -55,6 +55,7 @@
+ 	CPU.CurrentDMAorHDMAChannel = Channel;
+ 
+     SDMA	*d = &DMA[Channel];
++	{ extern void tr_dma(uint32_t, uint32_t, uint32_t, int); tr_dma(((uint32_t)d->ABank << 16) | d->AAddress, d->TransferBytes ? d->TransferBytes : 0x10000, d->BAddress, d->ReverseTransfer); }
+ 
+ 	// Check invalid DMA first
+ 	if ((d->ABank == 0x7E || d->ABank == 0x7F) && d->BAddress == 0x80 && !d->ReverseTransfer)
+diff -ruN '--exclude=*.o' '--exclude=*.so' '--exclude=*.a' '--exclude=.git' '--exclude=obj' '--exclude=*.dll' snes9x/getset.h snes9x_trace/getset.h
+--- snes9x/getset.h	2026-10-16 23:04:34.744102092 +0000
++++ snes9x_trace/getset.h	2026-10-18 08:54:28.160430467 +0000
+@@ -15,6 +15,7 @@
+ #include "sa1hw.h"
+ #include "obc1.h"
+ #include "seta.h"
++#include "tracehook.h"
+ #include "bsx.h"
+ #include "msu1.h"
+ 
+@@ -57,6 +58,7 @@
+ 
+ inline uint8 S9xGetByte (uint32 Address)
+ {
++	tr_access(Address, 0);
+ 	int		block = (Address & 0xffffff) >> MEMMAP_SHIFT;
+ 	uint8	*GetAddress = Memory.Map[block];
+ 	int32	speed = memory_speed(Address);
+@@ -197,6 +199,7 @@
+ 		}
+ 	}
+ 
++	tr_access(Address, 0); tr_access(Address + 1, 0);
+ 	int		block = (Address & 0xffffff) >> MEMMAP_SHIFT;
+ 	uint8	*GetAddress = Memory.Map[block];
+ 	int32	speed = memory_speed(Address);
+@@ -339,6 +342,7 @@
+ 
+ inline void S9xSetByte (uint8 Byte, uint32 Address)
+ {
++	tr_access(Address, 1);
+ 	int		block = (Address & 0xffffff) >> MEMMAP_SHIFT;
+ 	uint8	*SetAddress = Memory.WriteMap[block];
+ 	int32	speed = memory_speed(Address);
+@@ -484,6 +488,7 @@
+ 		return;
+ 	}
+ 
++	tr_access(Address, 1); tr_access(Address + 1, 1);
+ 	int		block = (Address & 0xffffff) >> MEMMAP_SHIFT;
+ 	uint8	*SetAddress = Memory.WriteMap[block];
+ 	int32	speed = memory_speed(Address);
+diff -ruN '--exclude=*.o' '--exclude=*.so' '--exclude=*.a' '--exclude=.git' '--exclude=obj' '--exclude=*.dll' snes9x/libretro/Makefile.common snes9x_trace/libretro/Makefile.common
+--- snes9x/libretro/Makefile.common	2026-10-16 23:04:34.745339557 +0000
++++ snes9x_trace/libretro/Makefile.common	2026-10-18 08:54:38.638917444 +0000
+@@ -32,6 +32,7 @@
+ 	       $(CORE_DIR)/controls.cpp \
+ 	       $(CORE_DIR)/cpu.cpp \
+ 	       $(CORE_DIR)/cpuexec.cpp \
++	       $(CORE_DIR)/tracehook.cpp \
+ 	       $(CORE_DIR)/cpuops.cpp \
+ 	       $(CORE_DIR)/crosshairs.cpp \
+ 	       $(CORE_DIR)/dma.cpp \
+diff -ruN '--exclude=*.o' '--exclude=*.so' '--exclude=*.a' '--exclude=.git' '--exclude=obj' '--exclude=*.dll' snes9x/libretro/libretro.cpp snes9x_trace/libretro/libretro.cpp
+--- snes9x/libretro/libretro.cpp	2026-10-17 08:21:42.835474742 +0000
++++ snes9x_trace/libretro/libretro.cpp	2026-10-18 09:15:47.366239620 +0000
+@@ -5,6 +5,7 @@
+ #include "libretro_core_options.h"
+ 
+ #include "snes9x.h"
++#include "../tracehook.h"
+ #include "dma.h"
+ extern "C" { extern uint8 TileMode7Hires; extern uint8 TileMode7HiresBilinear; }
+ #include "fxemu.h"
+@@ -2249,6 +2250,7 @@
+ 
+ void retro_run()
+ {
++    { extern uint32_t tr_frame; tr_frame++; }
+     static uint16 height = PPU.ScreenHeight;
+     bool updated = false;
+     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+@@ -2345,6 +2347,15 @@
+         case RETRO_MEMORY_ROM:
+             data = Memory.ROM;
+             break;
++        case 0x1010: { extern void tr_reset(void); tr_reset(); tr_on = 1; const char *p = getenv("TRFILE"); if (p && !tr_file) { tr_file = fopen(p, "wb"); } if (tr_file) tr_on |= (getenv("TRINS") ? 2 : 0) | (getenv("TRIO") ? 4 : 0); data = Memory.RAM; break; }
++        case 0x1011: data = (uint8 *)tr_cov; break;
++        case 0x1012: data = (uint8 *)tr_wr; break;
++        case 0x1013: data = (uint8 *)tr_ww; break;
++        case 0x1014: data = (uint8 *)tr_wlast; break;
++        case 0x1015: data = (uint8 *)tr_rfirst; break;
++        case 0x1016: tr_on = 0; if (tr_file) { fclose(tr_file); tr_file = NULL; } data = (uint8 *)&tr_icount; break;
++        case 0x1017: data = (uint8 *)&tr_icount; break;
++        case 0x1018: { extern void tr_write(const char *); const char *p = getenv("TRDIR"); tr_write(p ? p : "."); data = (uint8 *)&tr_icount; break; }
+         case 0x1000: data = PPU.CGDATA; break;      /* harness: CGRAM */
+         case 0x1001: data = Memory.FillRAM; break;  /* harness: I/O regs */
+         case 0x1002: data = PPU.OAMData; break;     /* harness: OAM */
+diff -ruN '--exclude=*.o' '--exclude=*.so' '--exclude=*.a' '--exclude=.git' '--exclude=obj' '--exclude=*.dll' snes9x/tracehook.cpp snes9x_trace/tracehook.cpp
+--- snes9x/tracehook.cpp	1970-01-01 00:00:00.000000000 +0000
++++ snes9x_trace/tracehook.cpp	2026-10-20 07:32:45.099437834 +0000
+@@ -0,0 +1,104 @@
++#include "tracehook.h"
++#include <stdlib.h>
++#include <string.h>
++#include "snes9x.h"
++#include "memmap.h"
++int tr_on;
++uint32_t *tr_cov, *tr_wr, *tr_ww, *tr_wlast, *tr_rfirst;
++uint32_t tr_curpc;
++uint64_t tr_icount;
++FILE *tr_file;
++/* per-PC state summary */
++static uint8_t *tr_pst;      /* bit (M<<1|X) seen, bit4 = E seen */
++static uint16_t *tr_db;      /* 0x100 | db, 0x200 = multiple */
++static uint32_t *tr_dp;      /* 0x10000 | d, 0x20000 = multiple */
++/* hash sets */
++#define HS (1 << 20)
++static uint64_t *edges, *ios, *dmas;
++uint8_t *tr_romr; static uint8_t *tr_dmar;
++static uint32_t prevpc; static uint8_t prevop;
++static void hs_add(uint64_t *t, uint64_t k) {
++    k += 1; uint64_t h = (k * 0x9E3779B97F4A7C15ull) >> 44;
++    for (;;) { h &= HS - 1; if (t[h] == k) return; if (!t[h]) { t[h] = k; return; } h++; }
++}
++void tr_init(void) {
++    if (!tr_cov) {
++        tr_cov = (uint32_t *)calloc(1 << 24, 4);
++        tr_wr = (uint32_t *)calloc(1 << 17, 4); tr_ww = (uint32_t *)calloc(1 << 17, 4);
++        tr_wlast = (uint32_t *)calloc(1 << 17, 4); tr_rfirst = (uint32_t *)calloc(1 << 17, 4);
++        tr_pst = (uint8_t *)calloc(1 << 24, 1); tr_db = (uint16_t *)calloc(1 << 24, 2); tr_dp = (uint32_t *)calloc(1 << 24, 4);
++        edges = (uint64_t *)calloc(HS, 8); ios = (uint64_t *)calloc(HS, 8); dmas = (uint64_t *)calloc(HS, 8);
++        tr_romr = (uint8_t *)calloc(1 << 22, 1); tr_dmar = (uint8_t *)calloc(1 << 22, 1);
++    }
++}
++void tr_reset(void) {
++    tr_init();
++    memset(tr_cov, 0, 4 << 24); memset(tr_wr, 0, 4 << 17); memset(tr_ww, 0, 4 << 17);
++    memset(tr_wlast, 0, 4 << 17); memset(tr_rfirst, 0, 4 << 17);
++    tr_icount = 0;
++}
++static uint32_t joyr1, joyr2; static int joyr_have;
++void tr_io(uint32_t a, int w) {
++    if (!w && (a & 0xFFFF) == 0x4218 && !joyr_have) { joyr_have = 1; joyr1 = Memory.FillRAM[0x4218] | Memory.FillRAM[0x4219] << 8; joyr2 = Memory.FillRAM[0x421A] | Memory.FillRAM[0x421B] << 8; } hs_add(ios, ((uint64_t)tr_curpc << 32) | ((uint64_t)w << 24) | (a & 0xFFFFFF)); }
++static uint32_t wai_pc = 0xFFFFFFFF; static FILE *wai_f; static int wai_init;
++extern uint32_t tr_frame;
++uint32_t tr_frame;
++uint32_t tr_redirect;
++/* TRJUMP=frame:key - at the first NMI handler entry (00:A968) from that frame on, run from key instead
++   (key = mode bits << 20 | pc, as the 32X runtime's game_debug_jump): reach the ending etc. in a capture */
++static void tr_jump_check(uint32_t pc) {
++    static int init, done; static uint32_t jf, jk;
++    if (!init) { init = 1; const char *q = getenv("TRJUMP"); if (q) { jf = strtoul(q, 0, 10); const char *c = strchr(q, ':'); jk = c ? strtoul(c + 1, 0, 16) : 0; } else done = 1; }
++    if (!done && pc == 0x00A968 && tr_frame >= jf && jk) { done = 1; tr_redirect = jk | 0x80000000u; }
++}
++void tr_insn(uint32_t pc, uint8_t op, uint8_t p, uint8_t e, uint8_t db, uint16_t d) {
++    tr_jump_check(pc);
++    if (!wai_init) { wai_init = 1; const char *q = getenv("TRWAI"); if (q) { wai_pc = strtoul(q, 0, 16); wai_f = fopen(getenv("TRWAIFILE"), "wb"); } }
++    static uint32_t last_fr = 0xFFFFFFFF;
++    if ((wai_pc == 0xCB ? op == 0xCB : pc == wai_pc) && prevpc != pc && wai_f && tr_frame != last_fr) {
++        last_fr = tr_frame;
++        uint32_t hdr[12] = { 0x57414931, tr_frame, Registers.A.W, Registers.X.W, Registers.Y.W, Registers.S.W, Registers.D.W, Registers.DB, Registers.PL,
++            joyr_have ? joyr1 : (uint32_t)(Memory.FillRAM[0x4218] | Memory.FillRAM[0x4219] << 8), joyr_have ? joyr2 : (uint32_t)(Memory.FillRAM[0x421A] | Memory.FillRAM[0x421B] << 8), pc };
++        joyr_have = 0;
++        fwrite(hdr, 4, 12, wai_f); fwrite(Memory.RAM, 1, 0x20000, wai_f); fwrite(Memory.SRAM, 1, 0x2000, wai_f); fflush(wai_f);
++    }
++    tr_cov[pc]++; tr_icount++;
++    tr_pst[pc] |= (1 << (((p >> 5) & 1) << 1 | ((p >> 4) & 1))) | (e ? 16 : 0);
++    if (!tr_db[pc]) tr_db[pc] = 0x100 | db; else if ((tr_db[pc] & 0xFF) != db) tr_db[pc] |= 0x200;
++    if (!tr_dp[pc]) tr_dp[pc] = 0x10000 | d; else if ((tr_dp[pc] & 0xFFFF) != d) tr_dp[pc] |= 0x20000;
++    switch (prevop) {
++    case 0x6C: case 0x7C: case 0xDC: case 0xFC: case 0x60: case 0x6B: case 0x40: case 0x22: case 0x20: case 0x5C: case 0x4C: case 0x00:
++        hs_add(edges, ((uint64_t)prevpc << 32) | pc); break;
++    }
++    prevpc = pc; prevop = op;
++}
++/* write summaries: state.txt (pc pst db dp count), edges.txt, io.txt; accumulate across runs by appending */
++void tr_dma(uint32_t src, uint32_t n, uint32_t b, int rev) {
++    if (!tr_on) return;
++    hs_add(dmas, ((uint64_t)tr_curpc << 40) | ((uint64_t)(b & 0xFF) << 32) | ((uint64_t)rev << 31) | (src & 0xFFFFFF));
++    uint32_t bank = src >> 16;
++    if (!rev && bank != 0x7E && bank != 0x7F && ((bank & 0x40) || (src & 0xFFFF) >= 0x8000))
++        for (uint32_t i = 0; i < n; i++) tr_dmar[(((bank & 0x3F) << 16) | ((src + i) & 0xFFFF))] = 1;
++}
++void tr_write(const char *dir) {
++    char p[1024]; FILE *f;
++    snprintf(p, sizeof p, "%s/state.txt", dir); f = fopen(p, "a");
++    for (uint32_t i = 0; i < (1u << 24); i++) if (tr_pst[i])
++        fprintf(f, "%06x %02x %03x %05x %u\n", i, tr_pst[i], tr_db[i], tr_dp[i], tr_cov[i]);
++    fclose(f);
++    snprintf(p, sizeof p, "%s/edges.txt", dir); f = fopen(p, "a");
++    for (int i = 0; i < HS; i++) if (edges[i]) { uint64_t k = edges[i] - 1; fprintf(f, "%06x %06x\n", (unsigned)(k >> 32), (unsigned)(k & 0xFFFFFF)); }
++    fclose(f);
++    snprintf(p, sizeof p, "%s/dma.txt", dir); f = fopen(p, "a");
++    for (int i = 0; i < HS; i++) if (dmas[i]) { uint64_t k = dmas[i] - 1; fprintf(f, "%06x %02x %d %06x\n", (unsigned)(k >> 40), (unsigned)((k >> 32) & 0xFF), (int)((k >> 31) & 1), (unsigned)(k & 0xFFFFFF)); }
++    fclose(f);
++    { snprintf(p, sizeof p, "%s/romr.bin", dir); uint8_t *old = (uint8_t *)calloc(1 << 22, 1); f = fopen(p, "rb"); if (f) { fread(old, 1, 1 << 22, f); fclose(f); }
++      for (int i = 0; i < (1 << 22); i++) old[i] |= tr_romr[i] | (tr_dmar[i] << 1);
++      f = fopen(p, "wb"); fwrite(old, 1, 1 << 22, f); fclose(f); free(old); }
++    { snprintf(p, sizeof p, "%s/wram.bin", dir); uint8_t *old = (uint8_t *)calloc(1 << 17, 1); f = fopen(p, "rb"); if (f) { fread(old, 1, 1 << 17, f); fclose(f); }
++      for (int i = 0; i < (1 << 17); i++) old[i] |= (tr_wr[i] ? 1 : 0) | (tr_ww[i] ? 2 : 0);
++      f = fopen(p, "wb"); fwrite(old, 1, 1 << 17, f); fclose(f); free(old); }
++    snprintf(p, sizeof p, "%s/io.txt", dir); f = fopen(p, "a");
++    for (int i = 0; i < HS; i++) if (ios[i]) { uint64_t k = ios[i] - 1; fprintf(f, "%06x %c %06x\n", (unsigned)(k >> 32), (k >> 24) & 1 ? 'w' : 'r', (unsigned)(k & 0xFFFFFF)); }
++    fclose(f);
++}
+diff -ruN '--exclude=*.o' '--exclude=*.so' '--exclude=*.a' '--exclude=.git' '--exclude=obj' '--exclude=*.dll' snes9x/tracehook.h snes9x_trace/tracehook.h
+--- snes9x/tracehook.h	1970-01-01 00:00:00.000000000 +0000
++++ snes9x_trace/tracehook.h	2026-10-20 07:32:45.099807597 +0000
+@@ -0,0 +1,28 @@
++#ifndef TRACEHOOK_H
++#define TRACEHOOK_H
++#include <stdint.h>
++#include <stdio.h>
++extern int tr_on;
++extern uint32_t *tr_cov, *tr_wr, *tr_ww, *tr_wlast, *tr_rfirst;
++extern uint32_t tr_curpc;
++extern uint64_t tr_icount;
++extern FILE *tr_file;
++void tr_io(uint32_t a, int w);
++extern uint8_t *tr_romr;
++void tr_dma(uint32_t src, uint32_t n, uint32_t b, int rev);
++static inline void tr_access(uint32_t a, int w) {
++    if (!tr_on) return;
++    uint32_t bank = (a >> 16) & 0xFF, off = a & 0xFFFF, wa;
++    if (bank == 0x7E || bank == 0x7F) wa = ((bank & 1) << 16) | off;
++    else if ((bank & 0x40) == 0 && off < 0x2000) wa = off;
++    else {
++        if ((bank & 0x40) == 0 && off < 0x8000) tr_io(a, w);
++        else if (!w && tr_romr) tr_romr[(((bank & 0x3F) << 16) | off)] = 1;
++        return;
++    }
++    if (w) { tr_ww[wa]++; tr_wlast[wa] = tr_curpc; }
++    else { if (!tr_wr[wa]) tr_rfirst[wa] = tr_curpc; tr_wr[wa]++; }
++}
++void tr_insn(uint32_t pc, uint8_t op, uint8_t p, uint8_t e, uint8_t db, uint16_t d);
++extern uint32_t tr_redirect;
++#endif

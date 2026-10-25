@@ -1,0 +1,225 @@
+# high WRAM pages (256 B, 0x20-0x1FF) seen in world-1 free-runs: class bits 1 gameplay, 2 read in a load
+# with older data (both resident), 8 load-only scratch (tile cache alias, hostrun WHSTAT), 16 kept in
+# levels without the comp ring (aliases sh/main.c ring_ent: not valid in comp levels)
+020 9  # world 2 (WHSTAT): used in gameplay
+021 8
+022 8
+023 8
+024 9
+025 8
+026 8
+027 8
+028 9
+029 8
+02A 8
+02B 8
+02C 9
+02D 8
+02E 8
+02F 8
+070 9
+079 8
+07A 8
+07B 8
+07C 8
+07D 8
+07E 8
+07F 8
+080 8
+081 8
+082 8
+083 8
+084 8
+085 8
+086 8
+087 8
+088 8
+089 8
+08A 8
+08B 8
+08C 8
+08D 8
+08E 8
+08F 8
+090 8
+091 8
+092 8
+093 8
+094 8
+095 8
+096 8
+097 8
+098 8
+099 8
+09A 8
+09B 8
+09C 8
+09D 8
+09E 8
+09F 8
+0A0 8
+0A1 8
+0A2 8
+0A3 8
+0A4 8
+0A5 8
+0A6 8
+0A7 8
+0A8 8
+0A9 8
+0AA 8
+0AB 8
+0AC 8
+0AD 8
+0AE 8
+0AF 8
+0B0 8
+0B1 8
+0B2 8
+0B3 8
+0B4 8
+0B5 8
+0B6 8
+0B7 8
+0B8 8
+0B9 8
+0BA 8
+0BB 8
+0BC 10  # worlds 3-5 (WHSTAT): read in a load with older data
+0BD 10  # worlds 3-5 (WHSTAT): read in a load with older data
+0BE 10  # worlds 3-5 (WHSTAT): read in a load with older data
+0BF 10  # worlds 3-5 (WHSTAT): read in a load with older data
+0C0 9
+0C1 16  # 7E item table / item bitmaps (CODE_B8B580): animal bonus rooms need up to C0-CA, D0-DD; aliased on the comp-level BG ring
+0C2 16
+0C3 16
+0C4 16
+0C5 16
+0C6 16
+0C7 16
+0C8 16
+0C9 16
+0CA 16
+0CB 16  # world 2: item tables up to CF (load reads older data)
+0CC 16
+0CD 16
+0CE 16
+0CF 16
+0D0 9
+0D1 1  # 7E:D100: used in levels (were scratch = tile cache alias)
+0D2 16  # 7E item table / item bitmaps (CODE_B8B580): animal bonus rooms need up to C0-CA, D0-DD; aliased on the comp-level BG ring
+0D3 16
+0D4 16
+0D5 16
+0D6 16
+0D7 16
+0D8 16
+0D9 16
+0DA 16
+0DB 16
+0DC 16
+0DD 16
+0DE 10
+0DF 10
+0E0 10
+0E1 10
+0E2 10
+0E3 10
+0E4 10
+0E5 10
+0E6 10
+0E7 10
+0E8 10
+0E9 10
+0EA 10
+0EB 10
+0EC 10
+0ED 10
+0EE 10
+0EF 10
+0F0 10
+0F1 10
+0F2 10
+0F3 10
+0F4 10
+0F5 10
+0F6 10
+0F7 10
+0F8 10
+0F9 10
+0FA 10
+0FB 9
+0FC 11
+0FE 10
+0FF 10
+100 9
+101 9
+102 9
+103 9
+104 11
+105 11
+106 11
+107 11
+108 1  # 7F:0800-0CFF fade buffers: used in levels (were scratch = tile cache alias)
+109 1
+10A 1
+10B 1
+10C 1
+10D 1  # JH dusk / Ropey rain end write these during gameplay (were scratch: tile cache corrupted)
+10E 1
+10F 1
+110 1
+111 1  # 7F:1100-13FF: used in levels (were scratch = tile cache alias)
+112 1
+113 1
+114 9  # worlds 3-5 (WHSTAT): used in gameplay
+115 9  # worlds 3-5 (WHSTAT): used in gameplay
+116 10
+117 10
+118 10
+119 10
+11A 8
+11B 8
+11C 9
+11D 9  # worlds 3-5 (WHSTAT): used in gameplay
+11E 9  # worlds 3-5 (WHSTAT): used in gameplay
+127 1  # 7F:2700-33FF sprite palette buffer ($7F2779): used in levels (were scratch = tile cache alias)
+128 1
+129 9
+12A 9
+12B 1
+12C 9
+12D 1
+12E 1
+12F 1
+130 1
+131 1
+132 1
+133 1
+134 16  # Ropey (TP sweep, f 1802 BFB075): used in gameplay
+135 16
+136 9
+137 1
+
+0FD 16  # world 2: read in a load with older data (WHSTAT class 10)
+030 8  # world 2: load-only (WHSTAT)
+031 8  # world 5: load-only
+032 8  # world 5: load-only
+033 8  # world 5: load-only
+034 8  # world 5: load-only
+035 8  # world 5: load-only
+036 8  # world 5: load-only
+037 8  # world 5: load-only
+038 8  # world 5: load-only
+039 8  # world 5: load-only
+03A 8  # world 5: load-only
+03B 8  # world 5: load-only
+03C 8  # world 5: load-only
+03D 8  # world 5: load-only
+03E 8  # world 5: load-only
+03F 8  # world 5: load-only
+11F 8  # world 4: load-only
+123 8  # 7F:2300-26FF: world map setup (B89333, first map of the complete game): load-only scratch
+124 8
+125 8
+126 8

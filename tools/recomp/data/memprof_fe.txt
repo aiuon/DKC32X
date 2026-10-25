@@ -1,0 +1,53 @@
+# front-end screens (title, file / player select): tilemap sources + player select table (sim3 boot run)
+R 043
+R 044
+R 045
+R 901
+R 9C1
+R 9C2
+R BBF
+R BC0
+R BC1
+R BDF
+R BE0
+R BE1
+R BE2
+R BE3
+R C28
+R C29
+R C2A
+R C70
+R C71
+R C72
+R BED
+# (front-end pages found in world banks: sim WORLDBANK=0 over the boot + menu script)
+R B49
+R B4A
+R 480
+R 9BA
+R 9CE
+R C40
+R 905
+# (GAME OVER map F87728)
+R E1D
+R E1E
+R E1F
+# (world 7 bank lacks these: game over from Gang-Plank Galleon -> player select)
+R 7C9
+R BF9
+R 86E
+# the credits setup (entrance 5E: loaded in the same game frame that sets $3E = 5E, still with the hoard's world bank): map, graphics, tables
+R 3DF
+R 3F9
+R 3FA
+R 3FB
+R 3FC
+R 3FD
+R 3FE
+R 3FF
+R 8FF
+R 8C0
+R 8C1
+R 8C2
+R 8C3
+R 8C4

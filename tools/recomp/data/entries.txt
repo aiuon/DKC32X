@@ -1,0 +1,9 @@
+# (I11) code no trace reached, run in the interpreter (sim_xc XC_PROF: the credits)
+00BF835F
+# (I16) entered through pointer tables no trace reached as an entry (XC_PROF: interpreted keys with no owner)
+00BFEA09
+00BF8383
+00BF836B
+00BF841B
+00BF8363
+00BF8433

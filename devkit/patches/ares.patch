@@ -1,0 +1,334 @@
+diff --git a/ares/component/processor/sh2/sh2.hpp b/ares/component/processor/sh2/sh2.hpp
+index 6cb5d69..c3c7edb 100644
+--- a/ares/component/processor/sh2/sh2.hpp
++++ b/ares/component/processor/sh2/sh2.hpp
+@@ -247,6 +247,7 @@ struct SH2 {
+   u32 exceptions = 0;  //delayed exception flags
+ 
+   s32 cyclesUntilRecompilerExit = 0;
++  u32 profFills[5] = {};
+   s32 recompilerStepCycles = 0;
+ 
+   auto instructionPrologueTrampoline(u16 instruction) -> void {
+diff --git a/ares/component/processor/sh2/sh7604/bus.cpp b/ares/component/processor/sh2/sh7604/bus.cpp
+index 98f5aa1..1077df8 100644
+--- a/ares/component/processor/sh2/sh7604/bus.cpp
++++ b/ares/component/processor/sh2/sh7604/bus.cpp
+@@ -1,3 +1,4 @@
++extern "C" void ares_misalign(u32 pc, u32 address, int size, int write);
+ template<u32 Origin> auto SH2::readByte(u32 address) -> u32 {
+   switch(address >> 29) {
+ 
+@@ -34,6 +35,7 @@ template<u32 Origin> auto SH2::readByte(u32 address) -> u32 {
+ }
+ 
+ template<u32 Origin> auto SH2::readWord(u32 address) -> u32 {
++  if(unlikely(address & 1)) ares_misalign(PC - 4, address, 2, 0);
+   if constexpr(Accuracy::AddressErrors) {
+     if(unlikely(address & 1)) return exceptions |= AddressErrorCPU, 0;
+   }
+@@ -71,6 +73,7 @@ template<u32 Origin> auto SH2::readWord(u32 address) -> u32 {
+ }
+ 
+ template<u32 Origin> auto SH2::readLong(u32 address) -> u32 {
++  if(unlikely(address & 3)) ares_misalign(PC - 4, address, 4, 0);
+   if constexpr(Accuracy::AddressErrors) {
+     if(unlikely(address & 3)) return exceptions |= AddressErrorCPU, 0;
+   }
+@@ -168,6 +171,7 @@ template<u32 Origin> auto SH2::writeByte(u32 address, u32 data) -> void {
+ }
+ 
+ template<u32 Origin> auto SH2::writeWord(u32 address, u32 data) -> void {
++  if(unlikely(address & 1)) ares_misalign(PC - 4, address, 2, 1);
+   if constexpr(Accuracy::AddressErrors) {
+     if(unlikely(address & 1)) return (void)(exceptions |= AddressErrorCPU);
+   }
+@@ -214,6 +218,7 @@ template<u32 Origin> auto SH2::writeWord(u32 address, u32 data) -> void {
+ }
+ 
+ template<u32 Origin> auto SH2::writeLong(u32 address, u32 data) -> void {
++  if(unlikely(address & 3)) ares_misalign(PC - 4, address, 4, 1);
+   if constexpr(Accuracy::AddressErrors) {
+     if(unlikely(address & 3)) return (void)(exceptions |= AddressErrorCPU);
+   }
+@@ -272,3 +277,12 @@ template<u32 Origin> auto SH2::writeLong(u32 address, u32 data) -> void {
+ 
+   }
+ }
++
++extern "C" void ares_misalign(u32 pc, u32 address, int size, int write) {
++  static FILE* f = getenv("ARES_MISALIGN") ? fopen(getenv("ARES_MISALIGN"), "w") : nullptr;
++  static u32 seen[4096]; static int nseen;
++  if(!f) return;
++  for(int i = 0; i < nseen; i++) if(seen[i] == pc) return;
++  if(nseen < 4096) seen[nseen++] = pc;
++  fprintf(f, "%08X %08X %d %d\n", pc, address, size, write); fflush(f);
++}
+diff --git a/ares/component/processor/sh2/sh7604/cache.cpp b/ares/component/processor/sh2/sh7604/cache.cpp
+index 4215e65..049972b 100644
+--- a/ares/component/processor/sh2/sh7604/cache.cpp
++++ b/ares/component/processor/sh2/sh7604/cache.cpp
+@@ -1,3 +1,4 @@
++extern "C" int ares_in_fill;
+ template<u32 Size>
+ auto SH2::Cache::read(u32 address) -> u32 {
+   auto read = [&](auto& line) -> u32 {
+@@ -22,15 +23,29 @@ auto SH2::Cache::read(u32 address) -> u32 {
+     if constexpr(Size == Long) { return self->busReadLong(address & 0x1fff'fffc); }
+   }
+ 
++  {   // profiling hack: fills by kind (0 code ROM, 1 code SDRAM, 2 data ROM, 3 data SDRAM, 4 other)
++    u32 a = address & 0x1fff'ffff; bool code = address == self->PC - 4;
++    u32 k = a >= 0x02000000 && a < 0x04000000 ? 0 : a >= 0x06000000 && a < 0x06040000 ? 1 : 2;
++    k = k == 2 ? 4 : k + (code ? 0 : 2);
++    self->profFills[k]++;
++  }
+   auto way = lruSelect[lru] | twoWay;
+   auto index = way << 6 | entry;
+   lrus[entry] = lruUpdate[way][lru];
+   tags[index] = tag;  //marks line as valid
++  ares_in_fill = 1;
+   lines[index].longs[0] = bswap32(self->busReadLong(address & 0x1fff'fff0 | 0x0));
+   lines[index].longs[1] = bswap32(self->busReadLong(address & 0x1fff'fff0 | 0x4));
+   lines[index].longs[2] = bswap32(self->busReadLong(address & 0x1fff'fff0 | 0x8));
+   lines[index].longs[3] = bswap32(self->busReadLong(address & 0x1fff'fff0 | 0xc));
++  ares_in_fill = 0;
+   self->step(12);
++  {   // ARES_SDFILL=n: total cycles of an SDRAM line fill (MiSTer measured ~30, ares models 12)
++    static int sdx = -1;
++    if(sdx < 0) { const char *e = getenv("ARES_SDFILL"); sdx = e && atoi(e) > 12 ? atoi(e) - 12 : 0; }
++    u32 a = address & 0x1fff'ffff;
++    if(sdx && a >= 0x06000000 && a < 0x06040000) self->step(sdx);
++  }
+   return read(lines[index]);
+ }
+ 
+diff --git a/ares/md/controller/control-pad/control-pad.cpp b/ares/md/controller/control-pad/control-pad.cpp
+index 255ed8a..f003f3f 100644
+--- a/ares/md/controller/control-pad/control-pad.cpp
++++ b/ares/md/controller/control-pad/control-pad.cpp
+@@ -1,3 +1,7 @@
++#include <string>
++#include <vector>
++#include <cstdio>
++#include <cstdlib>
+ ControlPad::ControlPad(Node::Port parent) {
+   node = parent->append<Node::Peripheral>("Control Pad");
+ 
+@@ -11,6 +15,39 @@ ControlPad::ControlPad(Node::Port parent) {
+   start = node->append<Node::Input::Button>("Start");
+ }
+ 
++extern "C" { extern unsigned ares_frame_no; }
++// (test hack) ARES_PADSCRIPT=file: "run N [UP DOWN LEFT RIGHT A B C START]" lines (or ';'-separated),
++// N frames each, from power-on; replaces the host input while the script lasts
++unsigned ares_frame_no_fp() { return ares_frame_no; }
++int padScriptBits(unsigned f) {
++  static bool loaded = false; static std::vector<std::pair<unsigned,int>> seg;
++  if(!loaded) {
++    loaded = true;
++    const char* fn = getenv("ARES_PADSCRIPT");
++    if(fn) if(FILE* fp = fopen(fn, "r")) {
++      std::string all; char buf[4096]; size_t k;
++      while((k = fread(buf, 1, sizeof buf, fp)) > 0) all.append(buf, k);
++      fclose(fp);
++      for(auto& ch: all) if(ch == ';') ch = '\n';
++      size_t pos = 0; unsigned t = 0;
++      while(pos < all.size()) {
++        size_t e = all.find('\n', pos); if(e == std::string::npos) e = all.size();
++        std::string l = all.substr(pos, e - pos); pos = e + 1;
++        unsigned n = 0; char b[256] = "";
++        if(sscanf(l.c_str(), "run %u %255[^\n]", &n, b) < 1) continue;
++        std::string bs = std::string(" ") + b + " "; int m = 0;
++        if(bs.find(" UP") != std::string::npos) m |= 1; if(bs.find(" DOWN") != std::string::npos) m |= 2;
++        if(bs.find(" LEFT") != std::string::npos) m |= 4; if(bs.find(" RIGHT") != std::string::npos) m |= 8;
++        if(bs.find(" A ") != std::string::npos) m |= 16; if(bs.find(" B ") != std::string::npos) m |= 32;
++        if(bs.find(" C ") != std::string::npos) m |= 64; if(bs.find(" START") != std::string::npos) m |= 128;
++        t += n ? n : 1; seg.push_back({t, m});
++      }
++    }
++  }
++  for(auto& s: seg) if(f < s.first) return s.second;
++  return -1;
++}
++
+ auto ControlPad::poll() -> void {
+   platform->input(up);
+   platform->input(down);
+@@ -20,6 +57,9 @@ auto ControlPad::poll() -> void {
+   platform->input(b);
+   platform->input(c);
+   platform->input(start);
++  { int m = padScriptBits(ares_frame_no);
++    if(m >= 0) { up->setValue(m & 1); down->setValue(m & 2); left->setValue(m & 4); right->setValue(m & 8);
++                 a->setValue(m & 16); b->setValue(m & 32); c->setValue(m & 64); start->setValue(m & 128); } }
+ 
+   if(!(up->value() & down->value())) {
+     yHold = 0, upLatch = up->value(), downLatch = down->value();
+diff --git a/ares/md/controller/fighting-pad/fighting-pad.cpp b/ares/md/controller/fighting-pad/fighting-pad.cpp
+index a12d44d..ab10a5f 100644
+--- a/ares/md/controller/fighting-pad/fighting-pad.cpp
++++ b/ares/md/controller/fighting-pad/fighting-pad.cpp
+@@ -29,6 +29,7 @@ auto FightingPad::main() -> void {
+   Thread::synchronize(cpu);
+ }
+ 
++int padScriptBits(unsigned f);
+ auto FightingPad::poll() -> void {
+   platform->input(up);
+   platform->input(down);
+@@ -42,6 +43,10 @@ auto FightingPad::poll() -> void {
+   platform->input(z);
+   platform->input(mode);
+   platform->input(start);
++  { extern unsigned ares_frame_no_fp(); int m = padScriptBits(ares_frame_no_fp());
++    if(m >= 0) { up->setValue(m & 1); down->setValue(m & 2); left->setValue(m & 4); right->setValue(m & 8);
++                 a->setValue(m & 16); b->setValue(m & 32); c->setValue(m & 64); start->setValue(m & 128);
++                 x->setValue(0); y->setValue(0); z->setValue(0); mode->setValue(0); } }
+ 
+   if(!(up->value() & down->value())) {
+     yHold = 0, upLatch = up->value(), downLatch = down->value();
+diff --git a/ares/md/m32x/bus-internal.cpp b/ares/md/m32x/bus-internal.cpp
+index 008a9c7..4387af0 100644
+--- a/ares/md/m32x/bus-internal.cpp
++++ b/ares/md/m32x/bus-internal.cpp
+@@ -1,3 +1,4 @@
++extern "C" { int ares_in_fill = 0; }
+ auto M32X::readInternal(n1 upper, n1 lower, n32 address, n16 data) -> n16 {
+   if(address >= 0x0000'0000 && address <= 0x0000'3fff) {
+     if(shm.active()) shm.internalStep(1); if(shs.active()) shs.internalStep(1);
+@@ -29,6 +30,10 @@ auto M32X::readInternal(n1 upper, n1 lower, n32 address, n16 data) -> n16 {
+   }
+ 
+   if(address >= 0x0600'0000 && address <= 0x0603'ffff) {
++    // ARES_UNCSD=n: extra cycles per uncached SDRAM word read (MiSTer: ~11 per word, 29-cycle long reads)
++    static int unc = -1;
++    if(unc < 0) { const char *e = getenv("ARES_UNCSD"); unc = e ? atoi(e) : 0; }
++    if(unc && !ares_in_fill) { if(shm.active()) shm.internalStep(unc); if(shs.active()) shs.internalStep(unc); }
+     return sdram[address >> 1 & 0x1ffff];
+   }
+ 
+diff --git a/ares/md/m32x/m32x.hpp b/ares/md/m32x/m32x.hpp
+index 8013cd3..f7f7809 100644
+--- a/ares/md/m32x/m32x.hpp
++++ b/ares/md/m32x/m32x.hpp
+@@ -69,6 +69,7 @@ struct M32X {
+     } irq;
+ 
+     s32 cyclesUntilSh2Sync = 0;
++    u64 profClock = 0;
+     s32 cyclesUntilM68kSync = 0;
+     s32 minCyclesBetweenSh2Syncs = 0;
+     s32 minCyclesBetweenM68kSyncs = 0;
+diff --git a/ares/md/m32x/sh7604.cpp b/ares/md/m32x/sh7604.cpp
+index aea26fd..0cc51dd 100644
+--- a/ares/md/m32x/sh7604.cpp
++++ b/ares/md/m32x/sh7604.cpp
+@@ -38,9 +38,34 @@ auto M32X::SH7604::main() -> void {
+     #undef raise
+   }
+ 
++  // profiling hack (ARES_SHPROF=file): cycles per PC of the master SH-2
++  static const char *pf = getenv("ARES_SHPROF");
++  static u32 *rom_h, *ram_h, *rom_n, *ram_n, *rom_f, *ram_f; static u64 lastDump;
++  static const char *pa = getenv("ARES_PHASE_ADDR");    // optional: only profile while this SDRAM word != 0
++  static u32 phaseAddr = pa ? strtoul(pa, 0, 16) : 0;
++  static bool slaveProf = getenv("ARES_SHPROF_SLAVE") != nullptr;
++  bool prof = pf && this == (slaveProf ? &m32x.shs : &m32x.shm) && (!phaseAddr || m32x.sdram[(phaseAddr >> 1) & 0x1ffff]);
++  u32 ppc = SH2::regs.PC - 4; u64 c0 = profClock;
++  u32 f0[5]; for(int k = 0; k < 5; k++) f0[k] = SH2::profFills[k];
+   SH2::instruction();
+   SH2::intc.run();
+   SH2::dmac.run();
++  if(prof) {
++    if(!rom_h) { rom_h = (u32*)calloc(1 << 21, 4); ram_h = (u32*)calloc(1 << 17, 4); rom_n = (u32*)calloc(1 << 21, 4); ram_n = (u32*)calloc(1 << 17, 4); rom_f = (u32*)calloc(5 << 21, 4); ram_f = (u32*)calloc(5 << 17, 4); }
++    u32 d = (u32)(profClock - c0);
++    u32 a = ppc & 0x1FFFFFFF;
++    if(a >= 0x02000000 && a < 0x02400000) { rom_h[(a - 0x02000000) >> 1] += d; rom_n[(a - 0x02000000) >> 1]++; for(int k = 0; k < 5; k++) rom_f[((a - 0x02000000) >> 1) * 5 + k] += SH2::profFills[k] - f0[k]; }
++    else if(a >= 0x06000000 && a < 0x06040000) { ram_h[(a - 0x06000000) >> 1] += d; ram_n[(a - 0x06000000) >> 1]++; for(int k = 0; k < 5; k++) ram_f[((a - 0x06000000) >> 1) * 5 + k] += SH2::profFills[k] - f0[k]; }
++    static u64 dumpEvery = getenv("ARES_SHPROF_EVERY") ? strtoull(getenv("ARES_SHPROF_EVERY"), 0, 0) : (1ull << 28);
++    if(profClock - lastDump > dumpEvery) {
++      lastDump = profClock;
++      if(FILE *o = fopen(pf, "w")) {
++        for(u32 i = 0; i < (1u << 21); i++) if(rom_h[i]) fprintf(o, "%08X %u %u %u %u %u %u %u\n", 0x02000000 + i * 2, rom_h[i], rom_n[i], rom_f[i*5], rom_f[i*5+1], rom_f[i*5+2], rom_f[i*5+3], rom_f[i*5+4]);
++        for(u32 i = 0; i < (1u << 17); i++) if(ram_h[i]) fprintf(o, "%08X %u %u %u %u %u %u %u\n", 0x06000000 + i * 2, ram_h[i], ram_n[i], ram_f[i*5], ram_f[i*5+1], ram_f[i*5+2], ram_f[i*5+3], ram_f[i*5+4]);
++        fclose(o);
++      }
++    }
++  }
+   if(m32x.shm.active()) m32x.shm.dmac.dreq[1] = 0;
+   if(m32x.shs.active()) m32x.shs.dmac.dreq[1] = 0;
+ }
+@@ -59,6 +84,7 @@ auto M32X::SH7604::internalStep(u32 clocks) -> void {
+ }
+ 
+ auto M32X::SH7604::step(u32 clocks) -> void {
++  profClock += clocks;
+   SH2::frt.run(clocks);
+   SH2::wdt.run(clocks);
+   Thread::step(clocks);
+diff --git a/ares/md/system/serialization.cpp b/ares/md/system/serialization.cpp
+index 794af5e..b5adf86 100644
+--- a/ares/md/system/serialization.cpp
++++ b/ares/md/system/serialization.cpp
+@@ -30,7 +30,7 @@ auto System::unserialize(serializer& s) -> bool {
+   s(description);
+ 
+   if(signature != SerializerSignature) return false;
+-  if(string{version} != SerializerVersion) return false;
++  if(string{version} != SerializerVersion && !getenv("ARES_ANYVER")) return false;
+ 
+   if(synchronize) power(/* reset = */ false);
+   serialize(s, synchronize);
+diff --git a/ares/md/vdp/vdp.cpp b/ares/md/vdp/vdp.cpp
+index b2a10cd..53ce540 100644
+--- a/ares/md/vdp/vdp.cpp
++++ b/ares/md/vdp/vdp.cpp
+@@ -97,7 +97,9 @@ auto VDP::pixels() -> u32* {
+   return output+megaLDExtraOverscanBorder;
+ }
+ 
++extern "C" { unsigned ares_frame_no; }
+ auto VDP::frame() -> void {
++  ares_frame_no++;
+   if(latch.interlace == 0) screen->setProgressive(0);
+   if(latch.interlace == 1) screen->setInterlace(field());
+   auto yScale = latch.interlace ? 2 : 1;
+diff --git a/desktop-ui/program/platform.cpp b/desktop-ui/program/platform.cpp
+index 4f49c5a..0b41111 100644
+--- a/desktop-ui/program/platform.cpp
++++ b/desktop-ui/program/platform.cpp
+@@ -77,9 +77,33 @@ auto Program::status(string_view message) -> void {
+   showMessage(message);
+ }
+ 
++extern "C" { extern unsigned ares_frame_no; }
+ auto Program::video(ares::Node::Video::Screen node, const u32* data, u32 pitch, u32 width, u32 height) -> void {
+   if(screens.empty()) return;
+ 
++  { // (test hack) ARES_DUMP=dir [ARES_DUMP_FROM, ARES_DUMP_TO, ARES_DUMP_EVERY]: frames as PPM, x scaled to 320
++    static const char* dd = getenv("ARES_DUMP");
++    static unsigned f0 = getenv("ARES_DUMP_FROM") ? atoi(getenv("ARES_DUMP_FROM")) : 0;
++    static unsigned f1 = getenv("ARES_DUMP_TO") ? atoi(getenv("ARES_DUMP_TO")) : 0xFFFFFFFF;
++    static unsigned ev = getenv("ARES_DUMP_EVERY") ? atoi(getenv("ARES_DUMP_EVERY")) : 1;
++    unsigned f = ares_frame_no;
++    if(dd && f >= f0 && f <= f1 && (f - f0) % ev == 0 && width >= 320) {
++      char fn[512]; snprintf(fn, sizeof fn, "%s/f%06u.ppm", dd, f);
++      if(FILE* o = fopen(fn, "wb")) {
++        static int hs = getenv("ARES_DUMP_HALF") ? 2 : 1;
++        u32 W = 320 / hs, H = height / hs, sx = width / W;
++        fprintf(o, "P6\n%u %u\n255\n", W, H);
++        for(u32 y = 0; y < H; y++) {
++          const u32* row = (const u32*)((const u8*)data + y * hs * pitch);
++          for(u32 x = 0; x < W; x++) { u32 v = row[x * sx]; u8 rgb[3] = {(u8)(v >> 16), (u8)(v >> 8), (u8)v}; fwrite(rgb, 1, 3, o); }
++        }
++        fclose(o);
++      }
++    }
++    static unsigned quitAt = getenv("ARES_QUIT_AT") ? atoi(getenv("ARES_QUIT_AT")) : 0;
++    if(quitAt && f >= quitAt) _exit(0);
++  }
++
+   if(requestScreenshot) {
+     requestScreenshot = false;
+     captureScreenshot(data, pitch, width, height);

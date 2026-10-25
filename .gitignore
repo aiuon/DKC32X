@@ -1,0 +1,35 @@
+# --- never commit game data ---
+# SNES ROM images (and archives that usually hold them)
+*.sfc
+*.smc
+*.swc
+*.fig
+*.zip
+*.7z
+# built 32X ROMs and intermediate binaries
+*.32x
+*.bin
+!tools/prebuilt/md.bin
+*.elf
+*.o
+# emulator saves and save states
+*.srm
+*.sav
+*.st
+*.state
+*.state[0-9]*
+# captured data (snapshots, surveys, lamp / weather captures, frame dumps)
+*.npz
+*.wai
+*.ppm
+
+# --- build output ---
+/build/
+/out/
+/work/
+/emu/
+sh/spceng_gen.c
+sh/comp.s
+__pycache__/
+*.pyc
+last conversion log.txt

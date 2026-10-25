@@ -1,0 +1,10 @@
+# native replacements for 65816 routines (sh/game_hle.c): PC NAME [mode: (P & 0x30) >> 4]
+8AB4E6 hle_apu_upload 0   # song data upload to the SPC700 (the 32X has its own music engine)
+8AB4FF hle_apu_block 0    # the block loop itself (engine / sample uploads)
+8AB4FF hle_apu_block_m2 2 # (8-bit A)
+80A203 hle_oam_clear 0    # OAM clear loop (hot: ~640 65816 insns per frame)
+BBA849 hle_oam_build 0   # sprite OAM builder (native, byte-exact)
+BBA845 hle_oam_pose845 0 # its single-sprite entry (JSR BBAADF; RTL)
+80C246 hle_cam_clamp 0   # camera target clamp + CODE_B8A853 (camera blocks): keeps the block's X range for the renderer
+80A7ED hle_rope_col 0    # vertical ropes as tile columns (CODE_80A7BE list): across the 32X's wider view (I11)
+B88344 hle_spr_sort 0   # sprite draw-order sort (two bubble passes over $0AB1..; I13)
