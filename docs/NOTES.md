@@ -1612,3 +1612,11 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
 - I18b checks: plain build md5 1c4d611f...; Linux convert.py from bundle15 = Wine .bat run = that ROM;
   MiSTer-model GAMEBOT 9000 frames (bot18b): no flash events; PicoDrive GAMEBOT 12000 frames fine;
   DBG_HANG page shows the live 68000 column (VBL counting).
+- I18c music on MiSTer (user: "victory fanfare garbled"): scratchpad musstat.py (MiSTer-model ares,
+  SDRAM dump: music_halfs / music_skips / music_maxdt, -DMUSHIST refill-time histograms, -DMUSRESET=f
+  counts from game frame f).  25 s of gameplay: every refill runs at half rate (the adaptive
+  music_light: levels below 57 fps), typical refill 25-50 % of a 5.8 ms buffer, a tail to 1.6x
+  (9-13 underruns = short silent buffers, 50-100 "slow refill" events).  The I17 sources measure the
+  same (not a regression).  The music's CPU cost is the limit on MiSTer; open (HANDBOOK 8).
+- I18c checks: plain build md5 457a361e...; see BUGLOG I18c for the SRAM tests.
+  I18c: Linux convert.py from bundle16 = Wine .bat = 457a361e...; MiSTer-model GAMEBOT 9000 frames (bot18c): no flash events.

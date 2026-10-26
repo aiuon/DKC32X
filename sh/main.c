@@ -4173,9 +4173,12 @@ static void sram_save(void)
     const uint8_t *d = game_sram();
     uint32_t h = sram_hash(d);
     if (h == sram_hash_saved) { game_sram_dirty = 0; return; }   /* (I18b: nothing new) */
-    {   /* (I18b) only with the 68000 idle: a command still running would overwrite 0x9F01 */
+    {   /* (I18b) only with the 68000 idle: a command still running would overwrite 0x9F01;
+           (I18c) and the slave idle - on MiSTer the cartridge SRAM covers the whole upper cart
+           (the level / front-end banks) while it is on: a slave job reading them then drew
+           garbage tiles (that stayed in the tile caches) */
         uint32_t v0 = vcount;
-        while (COMM(C_CMD) & 0x8000)
+        while ((COMM(C_CMD) & 0x8000) || *UNCACHED(&s_job_now) || COMM(C_DONE) != COMM(C_TOKEN))
             if (vcount - v0 > 120) return;
     }
     uint32_t sum = 0;
@@ -4200,6 +4203,11 @@ static void sram_save(void)
     sram_wait(&COMM(C_CMD), 0);
     game_sram_dirty = 0;
     sram_hash_saved = h;
+    /* (I18c) whatever was read from the upper cart meanwhile is not kept: both CPUs drop their caches
+       (the slave on its next job: epoch) */
+    CCR = 0x10;
+    CCR = *UNCACHED(&comp) ? 0x19 : 0x11;
+    UNCACHED(&shared_state)->epoch++;
 }
 /* -> 1 if the cartridge held a valid save (copied into the game's SRAM) */
 static int sram_load(void)
@@ -5229,6 +5237,12 @@ void m_main(void)
                 for (int i = 0; i < SCREEN_H; i++) *UNCACHED(&sky_ram[i]) = 0x8000;
                 continue;
             }
+#ifdef MUSRESET
+            if (game_stats.frames == MUSRESET) {   /* (test: music refill counters from here on) */
+                extern volatile uint32_t music_stat_rst;
+                *UNCACHED(&music_stat_rst) = 1;     /* (the slave's music interrupt clears them) */
+            }
+#endif
 #ifdef SRAMPOKE
             if (game_stats.frames == SRAMPOKE) { game_sram()[100] ^= 0x5A; game_sram_dirty = 1; }   /* (test: new save data) */
 #endif

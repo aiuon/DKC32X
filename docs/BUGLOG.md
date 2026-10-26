@@ -929,3 +929,20 @@ User photo: STUCK page, M STAGE 3, ENT 0006, M PC 0200EFA8 = load_level's final 
 - STUCK page: a second column with the 68000's side - CMD (COMM6), C2 / C4 (the SRAM handshake),
   VBL (the 68000's vblank-numbered pad sample) - refreshed every half second (the page loops in the
   V interrupt): a counting VBL = the 68000's interrupts still run.
+### I18c (2026-10-26): MiSTer - garbage tiles after starting a new game
+User photos (MiSTer): the player-select screen without its tiles, then Cranky's intro and Jungle
+Hijinxs with scrambled tiles; Start (a reload) fixed it.  ares fine.
+- Cause (MiSTer core, rtl/CART/cart.sv): while the cartridge SRAM is on ($A130F1 = 1) EVERY access
+  with cart A21 set - $200000-$3FFFFF - goes to the SRAM, for the SH-2s too: the level / front-end
+  banks (windows 6 / 7) and the resident SNES pages above 2 MB.  A new game writes new save data,
+  the save ran at the next screen-off while a slave job (front-end picture) was still reading its
+  tiles from window 7 - and the SRAM stayed on for the whole word-by-word handshake (tens of ms).
+  The garbage stayed in the tile caches.
+- Fix: md sram_xfer hands the data over through a 2 KB buffer in 68000 RAM with the SRAM OFF; the
+  SRAM is on only for the 2 KB burst (read for a load, write for a complete save: a few ms).
+  sram_save waits for an idle slave (no job, C_DONE == C_TOKEN) as well as an idle 68000 (else it
+  tries again at the next screen-off) and purges both CPUs' caches afterwards (epoch).
+  PicoDrive: save (SRAMPOKE: the changed byte, checksum right) and load (a second run started from
+  that SRAM flips the loaded byte back) both work.
+- Music refill counters (music_halfs / music_skips / music_maxdt, sh/music.c) for the "garbled
+  victory fanfare on MiSTer" report - see NOTES I18c.

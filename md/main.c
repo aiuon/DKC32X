@@ -232,22 +232,35 @@ static RAM_CODE void pf_update(int16_t gx, int16_t gy)
 /* battery SRAM (the game's 2 KB save data): the master SH-2 sends / receives it a word at a time
    through COMM0 (data), COMM2 (its sequence number, 0xFFFF = end) and COMM4 (the receiver's
    acknowledge).  SRAM: byte n at $900001 + 2n with the 32X bank register on bank 2 and $A130F1 = 1
-   (works with the SSF2 mapper in ares / PicoDrive / MiSTer; MiSTer shows SRAM over the whole cart
-   $200000-$3FFFFF meanwhile: the SH-2s wait in their cached loops).  Interrupts are off here. */
+   (works with the SSF2 mapper in ares / PicoDrive / MiSTer).  Interrupts are off here.
+   (I18c) MiSTer shows the SRAM over the WHOLE cart $200000-$3FFFFF while it is on - for the SH-2s
+   too (their level / front-end banks, the resident SNES pages): the handshake runs with the SRAM
+   off, through a copy in 68000 RAM, and the SRAM is on only for the 2 KB burst (a few ms, the SH-2s
+   wait for it in their cached loops). */
 #define SRAM8(n) (*(volatile uint8_t *)(0x900001UL + 2UL * (n)))
 #define SRAM_WORDS 1028
+static uint8_t sram_buf[SRAM_WORDS * 2];
+static RAM_CODE void sram_on(void)
+{
+    *(volatile uint8_t *)0xA130F1 = 1;
+    BANKREG = 2;
+}
 static RAM_CODE void sram_xfer(uint16_t op)
 {
     uint16_t bank = BANKREG;
-    *(volatile uint8_t *)0xA130F1 = 1;
-    BANKREG = 2;
     COMM(4) = 0;
+    if (op != 1) {                          /* load: SRAM -> buffer first */
+        sram_on();
+        for (uint16_t n = 0; n < SRAM_WORDS * 2; n++) sram_buf[n] = SRAM8(n);
+        BANKREG = bank;
+        *(volatile uint8_t *)0xA130F1 = 0;
+    }
     COMM(C_CMD) = 0x9FF0;                   /* ready */
     /* (I18b) never wait forever with interrupts off: the SH-2 gives up after 2 s (sram_wait), so give
        up too after ~4 s of no progress (and leave COMM(C_CMD) alone if the SH-2 has sent something
        new meanwhile) - a lost handshake hung every later command (STUCK in load_level) */
     uint32_t idle = 0;
-    if (op == 1) {                          /* save: SH-2 -> SRAM */
+    if (op == 1) {                          /* save: SH-2 -> buffer, then the buffer -> SRAM */
         uint16_t last = 0;
         for (;;) {
             uint16_t s;
@@ -256,27 +269,29 @@ static RAM_CODE void sram_xfer(uint16_t op)
             idle = 0;
             if (s == 0xFFFF || s > SRAM_WORDS) break;
             uint16_t w = COMM(0), n = (uint16_t)((s - 1) * 2);
-            SRAM8(n) = (uint8_t)(w >> 8);
-            SRAM8(n + 1) = (uint8_t)w;
+            sram_buf[n] = (uint8_t)(w >> 8);
+            sram_buf[n + 1] = (uint8_t)w;
             COMM(4) = s;
             last = s;
         }
-    } else {                                /* load: SRAM -> SH-2 */
+        if (last == SRAM_WORDS) {           /* (only a complete save) */
+            sram_on();
+            for (uint16_t n = 0; n < SRAM_WORDS * 2; n++) SRAM8(n) = sram_buf[n];
+            BANKREG = bank;
+            *(volatile uint8_t *)0xA130F1 = 0;
+        }
+    } else {                                /* load: buffer -> SH-2 */
         for (uint16_t i = 0; i < SRAM_WORDS; i++) {
-            COMM(0) = (uint16_t)(SRAM8(2 * i) << 8 | SRAM8(2 * i + 1));
+            COMM(0) = (uint16_t)(sram_buf[2 * i] << 8 | sram_buf[2 * i + 1]);
             COMM(2) = (uint16_t)(i + 1);
             while (COMM(4) != (uint16_t)(i + 1))
                 if (++idle > 1500000UL) goto out;
             idle = 0;
         }
     }
-    BANKREG = bank;
-    *(volatile uint8_t *)0xA130F1 = 0;
     COMM(C_CMD) = 0;
     return;
 out:
-    BANKREG = bank;
-    *(volatile uint8_t *)0xA130F1 = 0;
     if (COMM(C_CMD) == 0x9FF0) COMM(C_CMD) = 0;
 }
 

@@ -325,6 +325,8 @@ Open:
 - Coral small fish / Necky one-frame tile (not reproduced; possibly the 60FPS MODE race fixed in
   I18); K. Rool fight not bot-played to the end.
 - Millstone Mayhem with a millstone on screen: ~22 pictures a second on MiSTer (game speed fine).
+- MiSTer music: always half-rate voices in levels below 57 fps, and ~10 short dropouts a 25 s stretch
+  (refills over a 5.8 ms buffer; NOTES I18c) - the slave's music mixing needs to get cheaper.
 
 ---------------------------------------------------------------------------------------------------
 ## 9. 60 fps: trade-offs of a dual-processor redesign
