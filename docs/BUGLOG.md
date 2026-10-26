@@ -912,3 +912,20 @@ in the Rambi bonus, the pause menu rippling in water levels, small tile glitches
   (picture always fully on screen), MiSTer model: 20.8 -> 22.5 fps (frame skip), 60FPS MODE 23.8;
   MSNODRAW bound 27.9 - the rest is the canvas restore under the picture and the logic (~14 ms a
   game frame here).  No bigger lever without memory for pre-baked rows (SDRAM full).
+### I18b (2026-10-26): MiSTer STUCK entering Jungle Hijinxs' first bonus room
+User photo: STUCK page, M STAGE 3, ENT 0006, M PC 0200EFA8 = load_level's final wait for the 68000
+(COMM6 bit 15 never cleared); ares fine.  Not reproduced (ares, PicoDrive, MiSTer-model ares).
+- Found on the way: the game writes its SRAM during play - $6057 = $61, then $60 again (sim log,
+  e.g. JH frames 2247 / 3957): content unchanged, but game_sram_dirty was set, so a full cartridge
+  save ran at the next screen-off - typically a bonus room's entry.  On MiSTer the cartridge SRAM is
+  mapped over the whole upper 2 MB of the cart while it is enabled (rtl/CART/cart.sv SRAM_EN: any
+  access with A21 set), for the SH-2s too; and the 68000's sram_xfer waited forever with interrupts
+  off if the SH-2 gave up its side of the handshake (2 s timeouts) - every later command then hung,
+  exactly the photo's state.  Fixes: (1) sram_save compares an FNV hash of the 2 KB with what the
+  cartridge holds (after the load / the last save) and skips unchanged data; (2) it starts only with
+  the 68000 idle (no command pending); (3) md sram_xfer gives up after ~4 s without progress and
+  then clears COMM6 only if it still holds its own 0x9FF0.  Saves with new data still write
+  (SRAMPOKE test: PicoDrive SRAM dump with the changed byte, checksum right).
+- STUCK page: a second column with the 68000's side - CMD (COMM6), C2 / C4 (the SRAM handshake),
+  VBL (the 68000's vblank-numbered pad sample) - refreshed every half second (the page loops in the
+  V interrupt): a counting VBL = the 68000's interrupts still run.

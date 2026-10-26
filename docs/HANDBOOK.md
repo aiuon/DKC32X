@@ -248,6 +248,10 @@ them. Keep this file current when something structural changes.
 - (I18) Data shared by both CPUs and written only at a level load can be read cached if each CPU
   purges once per load (spr_ms_gen / spr_ms_sync); uncached reads in an inner loop cost ~11 cycles
   each on MiSTer (the millstone LUT).
+- (I18b) Any 68000 <-> SH-2 handshake must be able to give up on BOTH sides: the 68000 waited
+  forever (interrupts off) in the SRAM transfer after the SH-2 timed out - every later command hung.
+  On MiSTer, cartridge SRAM enabled = the whole cart range 0x200000-0x3FFFFF is SRAM for all CPUs.
+  The game writes its SRAM during play without changing it: saves go by content (hash), not writes.
 - (I18) The 60FPS MODE overlaps the slave's picture N with the master's logic N+1: everything the
   slave reads for N must be a copy taken before N+1 starts (spr_list, spr_ck, obj_tile_dr).
 

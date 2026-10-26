@@ -243,12 +243,17 @@ static RAM_CODE void sram_xfer(uint16_t op)
     BANKREG = 2;
     COMM(4) = 0;
     COMM(C_CMD) = 0x9FF0;                   /* ready */
+    /* (I18b) never wait forever with interrupts off: the SH-2 gives up after 2 s (sram_wait), so give
+       up too after ~4 s of no progress (and leave COMM(C_CMD) alone if the SH-2 has sent something
+       new meanwhile) - a lost handshake hung every later command (STUCK in load_level) */
+    uint32_t idle = 0;
     if (op == 1) {                          /* save: SH-2 -> SRAM */
         uint16_t last = 0;
         for (;;) {
             uint16_t s;
             while ((s = COMM(2)) == last)
-                ;
+                if (++idle > 1500000UL) goto out;
+            idle = 0;
             if (s == 0xFFFF || s > SRAM_WORDS) break;
             uint16_t w = COMM(0), n = (uint16_t)((s - 1) * 2);
             SRAM8(n) = (uint8_t)(w >> 8);
@@ -261,12 +266,18 @@ static RAM_CODE void sram_xfer(uint16_t op)
             COMM(0) = (uint16_t)(SRAM8(2 * i) << 8 | SRAM8(2 * i + 1));
             COMM(2) = (uint16_t)(i + 1);
             while (COMM(4) != (uint16_t)(i + 1))
-                ;
+                if (++idle > 1500000UL) goto out;
+            idle = 0;
         }
     }
     BANKREG = bank;
     *(volatile uint8_t *)0xA130F1 = 0;
     COMM(C_CMD) = 0;
+    return;
+out:
+    BANKREG = bank;
+    *(volatile uint8_t *)0xA130F1 = 0;
+    if (COMM(C_CMD) == 0x9FF0) COMM(C_CMD) = 0;
 }
 
 static void load_md(const uint16_t *md);

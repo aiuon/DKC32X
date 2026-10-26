@@ -1604,3 +1604,11 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   README.txt 14 MB / versions) -> scratchpad DKC32X_Builder.zip.  scanbundle: only unicodedata.pyd.
   Linux convert.py from the bundle sources (/tmp/claude-0/linapp18, 114 s) = the plain build.py ROM
   (md5 c909431a...); Wine .bat run (wtest18, 138 s): byte-identical.
+- I18b (MiSTer STUCK at JH bonus 1): BUGLOG "I18b".  Tools: scratchpad-free host check of SRAM writes
+  (copy of sh/game.c with a printf at the SRAM store, sim BOT=0): the game toggles $6057 during play.
+  MiSTer core source /opt/ref/s32x_mister rtl/CART/cart.sv: SRAM_EN = (SRAM_BANK || ...) && A21 &&
+  !CE0 - with 0xA130F1 = 1 the whole cart range 0x200000-0x3FFFFF is SRAM for every bus master.
+  Test flags: -DSRAMPOKE=f (flip a save byte at game frame f), -DDBG_HANG (watchdog page at 400).
+- I18b checks: plain build md5 1c4d611f...; Linux convert.py from bundle15 = Wine .bat run = that ROM;
+  MiSTer-model GAMEBOT 9000 frames (bot18b): no flash events; PicoDrive GAMEBOT 12000 frames fine;
+  DBG_HANG page shows the live 68000 column (VBL counting).

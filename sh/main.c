@@ -2140,6 +2140,13 @@ static void hang_page(void)
     text(24, 178, "M PC", 255); hexs(b, m_irq_pc, 8); text(150, 178, b, 255);
     text(24, 194, "S PC", 255); hexs(b, *UNCACHED(&s_irq_pc), 8); text(150, 194, b, 255);
     text(24, 210, "STK", 255); hexs(b, canary_bad(), 2); text(150, 210, b, 255);
+    /* (I18b) the 68000's side, refreshed every half second (hang_show): its command register, the
+       SRAM handshake words, and its vblank counter (the pad sample number: still counting = its
+       interrupts run) */
+    text(232, 50, "CMD", 255); hexs(b, COMM(C_CMD), 4); text(272, 50, b, 255);
+    text(232, 66, "C2", 255); hexs(b, COMM(2), 4); text(272, 66, b, 255);
+    text(232, 82, "C4", 255); hexs(b, COMM(4), 4); text(272, 82, b, 255);
+    text(232, 98, "VBL", 255); hexs(b, COMM(C_PAD) >> 8, 2); text(272, 98, b, 255);
 }
 static void hang_show(void)
 {
@@ -2156,8 +2163,19 @@ static void hang_show(void)
             ;
         cur_fb ^= 1;
     }
-    for (;;)
-        ;
+    for (;;) {                                  /* (I18b) keep the 68000's values live */
+        for (int v = 0; v < 30; v++) {
+            while (REG16(VDP_FBCTL) & VDP_VBLK)
+                ;
+            while (!(REG16(VDP_FBCTL) & VDP_VBLK))
+                ;
+        }
+        hang_page();
+        REG16(VDP_FBCTL) = cur_fb ^ 1;
+        while ((REG16(VDP_FBCTL) & 1) == cur_fb)
+            ;
+        cur_fb ^= 1;
+    }
 }
 
 
@@ -4132,6 +4150,17 @@ static void map_frame(void)
    below 2 MB / in SDRAM). */
 #define SRAM_WORDS 1028
 static int sram_ok;                       /* the cartridge's save was loaded at power-on */
+/* (I18b) hash of the save data the cartridge holds (after the load / the last save): the game writes
+   its SRAM during play too ($6057 = $61 then $60 again, e.g. when a bonus room is entered) - the
+   content does not change, so no save is made (each one stopped the 68000 for a moment and, on
+   MiSTer, a save at a bonus room's entry was followed by a hang) */
+static uint32_t sram_hash_saved = 0xFFFFFFFFu;
+static uint32_t sram_hash(const uint8_t *d)
+{
+    uint32_t h = 2166136261u;
+    for (int i = 0; i < 2048; i++) h = (h ^ d[i]) * 16777619u;
+    return h;
+}
 static int sram_wait(volatile uint16_t *r, uint16_t v)
 {
     uint32_t v0 = vcount;
@@ -4142,6 +4171,13 @@ static int sram_wait(volatile uint16_t *r, uint16_t v)
 static void sram_save(void)
 {
     const uint8_t *d = game_sram();
+    uint32_t h = sram_hash(d);
+    if (h == sram_hash_saved) { game_sram_dirty = 0; return; }   /* (I18b: nothing new) */
+    {   /* (I18b) only with the 68000 idle: a command still running would overwrite 0x9F01 */
+        uint32_t v0 = vcount;
+        while (COMM(C_CMD) & 0x8000)
+            if (vcount - v0 > 120) return;
+    }
     uint32_t sum = 0;
     for (int i = 0; i < 2048; i++) sum += d[i];
     COMM(2) = 0; COMM(4) = 0;
@@ -4163,6 +4199,7 @@ static void sram_save(void)
     COMM(2) = 0xFFFF;
     sram_wait(&COMM(C_CMD), 0);
     game_sram_dirty = 0;
+    sram_hash_saved = h;
 }
 /* -> 1 if the cartridge held a valid save (copied into the game's SRAM) */
 static int sram_load(void)
@@ -4385,6 +4422,8 @@ void m_main(void)
         }
 #endif
         sram_ok = sram_load();             /* (the battery save, if the cartridge has one) */
+        sram_hash_saved = sram_hash(game_sram());   /* (I18b: what the cartridge holds now - a blank
+                                              cartridge is saved once the game writes real data) */
         game_sram_dirty = 0;
 #ifdef SRAMTEST
         game_sram_dirty = 1;               /* (test: write it back at once) */
@@ -5190,6 +5229,9 @@ void m_main(void)
                 for (int i = 0; i < SCREEN_H; i++) *UNCACHED(&sky_ram[i]) = 0x8000;
                 continue;
             }
+#ifdef SRAMPOKE
+            if (game_stats.frames == SRAMPOKE) { game_sram()[100] ^= 0x5A; game_sram_dirty = 1; }   /* (test: new save data) */
+#endif
             if (game_fblank && !go_menu && game_sram_dirty && full_game) {
                 /* new save data (Candy's, the file select): to the cartridge once the game has finished
                    writing (no level is drawn: the slave is idle) */
