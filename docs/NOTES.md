@@ -1620,3 +1620,11 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   same (not a regression).  The music's CPU cost is the limit on MiSTer; open (HANDBOOK 8).
 - I18c checks: plain build md5 457a361e...; see BUGLOG I18c for the SRAM tests.
   I18c: Linux convert.py from bundle16 = Wine .bat = 457a361e...; MiSTer-model GAMEBOT 9000 frames (bot18c): no flash events.
+- I18d, 32X Hardware Manual (user's PDF, text in /tmp/claude-0/hwman/man.txt): timing table 4.4 -
+  cart ROM 6-15 waits a word for the SH-2 (a 16-byte line fill ~64-136 cycles), frame buffer write 1
+  wait min with a 4-word FIFO (5 clocks when full), FB read 5-12 waits, palette 1 line wait when the
+  VDP is busy, VDP registers 5 waits, system registers 1, SDRAM line fill 12 clocks / 8 words (real
+  hardware; the MiSTer core is slower: the model uses 30), writes 2 clocks a word.  Auto Fill (VDP,
+  up to 256 words, 7 + 3 x length cycles, no SH-2 FB access meanwhile) is not used by the port.
+  Applied: mapper writes with RV = 1 (BUGLOG I18d).
+  I18d: plain build md5 817e7458...; MiSTer-model GAMEBOT 9000 frames (bot18d): no flash events.

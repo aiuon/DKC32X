@@ -150,14 +150,30 @@ static const uint8_t vdp_regs[19] = {
     0x00, 0x00,
 };
 
+/* (I18d) the cartridge's SSF2 mapper registers ($A130F1-$A130FF): the 32X hardware manual (4.1, "ROM
+   access competition") asks for RV = 1 (DREQ control $A15107 bit 0) while they are written.  RV = 1
+   also maps the cartridge at $000000 for the 68000 (not $880000 / $900000) and holds the SH-2s' ROM
+   reads until RV = 0 again: RAM code, interrupts off for those few cycles. */
+static RAM_CODE __attribute__((noinline)) void mapper_w(uint32_t reg, uint8_t v)
+{
+    uint16_t sr;
+    __asm__ volatile("move.w %%sr,%0\n\tmove.w #0x2700,%%sr" : "=d"(sr));
+    volatile uint8_t *dreq = (volatile uint8_t *)0xA15107;
+    uint8_t d = *dreq;
+    *dreq = (uint8_t)(d | 1);
+    *(volatile uint8_t *)reg = v;
+    *dreq = (uint8_t)(d & ~1);
+    __asm__ volatile("move.w %0,%%sr" : : "d"(sr));
+}
+
 volatile uint16_t dbg_stage;
 void md_setup(void)
 {
     md_pal = VDP_CTRL & 1;
     dbg_stage = 1;
-    *(volatile uint8_t *)0xA130F1 = 0;          /* SSF2 mapper: SRAM off, window 7 = bank 7 */
-    *(volatile uint8_t *)0xA130FF = 7;
-    *(volatile uint8_t *)0xA130FD = 6;          /* (I16) window 6 = world bank 0, as the SH-2 assumes
+    mapper_w(0xA130F1, 0);          /* SSF2 mapper: SRAM off, window 7 = bank 7 */
+    mapper_w(0xA130FF, 7);
+    mapper_w(0xA130FD, 6);          /* (I16) window 6 = world bank 0, as the SH-2 assumes
                                                    (cur_bank6): a reset in another world kept its bank */
     for (int i = 0; i < 19; i++)
         VDP_CTRL = 0x8000 | (i << 8) | vdp_regs[i];
@@ -242,7 +258,7 @@ static RAM_CODE void pf_update(int16_t gx, int16_t gy)
 static uint8_t sram_buf[SRAM_WORDS * 2];
 static RAM_CODE void sram_on(void)
 {
-    *(volatile uint8_t *)0xA130F1 = 1;
+    mapper_w(0xA130F1, 1);
     BANKREG = 2;
 }
 static RAM_CODE void sram_xfer(uint16_t op)
@@ -253,7 +269,7 @@ static RAM_CODE void sram_xfer(uint16_t op)
         sram_on();
         for (uint16_t n = 0; n < SRAM_WORDS * 2; n++) sram_buf[n] = SRAM8(n);
         BANKREG = bank;
-        *(volatile uint8_t *)0xA130F1 = 0;
+        mapper_w(0xA130F1, 0);
     }
     COMM(C_CMD) = 0x9FF0;                   /* ready */
     /* (I18b) never wait forever with interrupts off: the SH-2 gives up after 2 s (sram_wait), so give
@@ -278,7 +294,7 @@ static RAM_CODE void sram_xfer(uint16_t op)
             sram_on();
             for (uint16_t n = 0; n < SRAM_WORDS * 2; n++) SRAM8(n) = sram_buf[n];
             BANKREG = bank;
-            *(volatile uint8_t *)0xA130F1 = 0;
+            mapper_w(0xA130F1, 0);
         }
     } else {                                /* load: buffer -> SH-2 */
         for (uint16_t i = 0; i < SRAM_WORDS; i++) {
@@ -321,7 +337,7 @@ static void do_command(uint16_t cmd)
     if ((cmd & 0xE100) == 0xA100) {
         /* SH-2: show ROM bank n in cart window 6 (0x300000: the world bank - its SNES page table and
            pages; the 68000 reads nothing there) */
-        *(volatile uint8_t *)0xA130FD = (uint8_t)(cmd & 0x3F);
+        mapper_w(0xA130FD, (uint8_t)(cmd & 0x3F));
         COMM(C_CMD) = 0;
         return;
     }
@@ -334,7 +350,7 @@ static void do_command(uint16_t cmd)
         hv_on = 0;
         gl_on = 0;
         wx_tab = 0;
-        *(volatile uint8_t *)0xA130FF = (uint8_t)(cmd & 0xFF);
+        mapper_w(0xA130FF, (uint8_t)(cmd & 0xFF));
         COMM(C_CMD) = 0;
         return;
     }

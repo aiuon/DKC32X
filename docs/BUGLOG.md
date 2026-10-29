@@ -946,3 +946,13 @@ Hijinxs with scrambled tiles; Start (a reload) fixed it.  ares fine.
   that SRAM flips the loaded byte back) both work.
 - Music refill counters (music_halfs / music_skips / music_maxdt, sh/music.c) for the "garbled
   victory fanfare on MiSTer" report - see NOTES I18c.
+### I18d (2026-10-29): mapper writes with RV = 1 (32X hardware manual)
+The user sent Sega's 32X Hardware Manual (1994).  Section 4.1 ("ROM access competition"): the
+cartridge bank registers $A130F1-$A130FF (the SSF2 mapper this ROM uses for windows 6 / 7 and the
+SRAM switch) are to be written with RV = 1 (DREQ control $A15107 bit 0).  Emulators and the MiSTer
+core accept them either way; real hardware / flash carts might not.  md mapper_w: RAM code, interrupts
+off, RV = 1, the write, RV = 0.  It must NOT be inlined into ROM code: with RV = 1 the cartridge sits at
+$000000 for the 68000 and $880000 is gone - the first build inlined it into md_setup and ares (which
+models that) fetched garbage: the SH-2s never saw window 6 = bank 6 (red screen).  PicoDrive does not
+model it.  The SH-2s' ROM reads wait while RV = 1 (a few cycles).  Checked: ares (normal and MiSTer
+model) boots and loads levels from several banks, PicoDrive SRAM save + load, MiSTer-model bot run.

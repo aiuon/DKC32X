@@ -252,6 +252,8 @@ them. Keep this file current when something structural changes.
   forever (interrupts off) in the SRAM transfer after the SH-2 timed out - every later command hung.
   On MiSTer, cartridge SRAM enabled = the whole cart range 0x200000-0x3FFFFF is SRAM for all CPUs.
   The game writes its SRAM during play without changing it: saves go by content (hash), not writes.
+- (I18d) 68000 code that sets RV = 1 must run from RAM (the cart moves to $000000 for the 68000; ares
+  models it, PicoDrive does not).  The SSF2 mapper registers are written with RV = 1 (md mapper_w).
 - (I18) The 60FPS MODE overlaps the slave's picture N with the master's logic N+1: everything the
   slave reads for N must be a copy taken before N+1 starts (spr_list, spr_ck, obj_tile_dr).
 
