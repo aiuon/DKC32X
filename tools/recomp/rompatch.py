@@ -114,3 +114,21 @@ def apply(rom):
         assert bytes(d[a:a + len(old)]) == old, 'rompatch: unexpected bytes at %06X' % a
         d[a:a + len(new)] = new
     return bytes(d)
+
+
+# (I21) OBJECT RANGE option (pause menu): the game's horizontal sprite spawn / keep-alive windows,
+# camx - $20 .. camx + $120 on the SNES (its view + 32 px each side), widened at RUN TIME by
+# r65_ws[] (main.c: 0 = SNES; WIDE = the 32X view + 32 px each side, following the view offset d).
+# Translated code reads (imm + r65_ws[kind]) at these PCs, the interpreter adds the same (r65_ws_tab).
+# kind 0: the window's left edge (SBC: lo = camx - imm - L), kind 1: its width (ADC: hi = lo + imm +
+# L + R), kind 2: the right edge from camx (ADC camx + imm + R; "acts while on screen" CMP rel < imm + R)
+WS_TUNE = {}
+for _a in (0xBDF5AE, 0xBDF5FC, 0xBDF705, 0xBDF757, 0xBDF792, 0xBDF88E, 0xBDF8D9, 0xBDF9A6, 0xBDF9EC,
+           0xBDFA35, 0xBDFADF, 0xBDFB11, 0xBDFBA9, 0xBDFCD0, 0xBDFD04, 0xBDFE95, 0xBDFF29, 0xBDFFB1,
+           0xBDFA01, 0xBDFA18, 0xB69A60):
+    WS_TUNE[_a] = 0
+for _a in (0xBDF605, 0xBDF710, 0xBDF79D, 0xBDF89C, 0xBDF8E2, 0xBDF9B7, 0xBDF9F5, 0xBDFA3E, 0xBDFAE8,
+           0xBDFB1E, 0xBDFCD9, 0xBDFD0D, 0xBDFF37, 0xBDFFBE, 0xBDFA0A, 0xBDFA21, 0xB69A69):
+    WS_TUNE[_a] = 1
+for _a in (0xBDF595, 0xBDFB8E, 0xBED5B2):
+    WS_TUNE[_a] = 2

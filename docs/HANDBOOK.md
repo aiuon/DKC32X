@@ -272,6 +272,14 @@ them. Keep this file current when something structural changes.
   may rewrite the old table only after its fb_sync.
 
 ---------------------------------------------------------------------------------------------------
+- A BYTE write of 0 to the 32X frame buffer is not stored (ares, as the overwrite area's rule): erase
+  with word / long writes (I21 B-FBZERO).
+- The synchronous present() waits for the vblank after the next one (the swap request lands in the
+  vblank it waited for): any screen that needs 60 pictures a second presents asynchronously
+  (present2(..., 1), palettes written after waiting for the vblank - fescr.c rfx_show).
+- In I21 tests an ARES_PADSCRIPT Start did not open the pause menu in PERFREC builds (cause not
+  looked into); check menus in a plain build or offline (a mock-up from the font table).
+
 ## 7. Performance picture (MiSTer model, I13 -> I14)
 
 - I19 (devkit/perf/perf.py, frame skip on, fps; I18d -> I19): JH 36.9 -> 42.0, Reptile Rumble
@@ -349,12 +357,17 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   buffer of silence; Genesis plane dither (B-PLANEDITHER).
 - I20: Genesis planes per-cell shadow (more dark shades, no new tiles), the I19 dither replaced by
   rare neighbour-level checkerboards, Blackout Basement's lights go out (BUGLOG "I20").
+- I21: plane scroll follows the view offset (Galleon island on its shadow), water camera blocks need
+  8 stable frames, Ropey's storm trees without colour math, pause menu OBJECT RANGE (WIDE default /
+  SNES), small menu font, the Rare logo's own 60 fps effect + zoom, front-end catch-up carried over,
+  plane clears by VDP DMA fill (BUGLOG "I21").
 Open:
-- Objects vanish at the 32X picture's edge (the game's keep-alive window camx - 32 .. camx + 288 is
-  exactly the 32X view; on the SNES it reaches 32 px past its picture).  Widening it is a game-logic
-  change (I15: widened spawn windows broke a barrel group in Barrel Cannon Canyon); the active-sprite
-  keep-alive check is B6:9A5F (camx - $20 / + $140, despawn JML BDF44B); the spawn-point windows in
-  bank BD are separate.  Waiting for the user's choice (an option, default SNES).
+- OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch
+  WS_TUNE / r65_ws): waiting for the user's playthrough.  If a level breaks (I15: a barrel group in
+  Barrel Cannon Canyon lost a member when only the spawn windows were widened), SNES restores the
+  original logic; consider a per-level exception list.
+- The Nintendo logo's first picture (hi-res mode 5, every line) still takes ~16 vblanks; the game
+  catches up afterwards (fe debt), the picture appears ~0.1 s late.
 - Poison Pond: one line of sprite pixels repeated at ripple band ends (sprites share the rippled
   canvas); workaround RIPPLE OFF.
 - Ropey rain section F20 on MiSTer (game speed fine); Torchlight F15-18.

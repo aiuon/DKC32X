@@ -14,6 +14,8 @@ import sys, re, os, re, bisect, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ops65 import OPS, oplen
 import disparse
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from rompatch import WS_TUNE
 
 def rom_off(a):
     return a & 0x3FFFFF
@@ -444,7 +446,11 @@ class Emitter:
             if M8: return 'a = (a & 0xFF00) | ((%s) & 0xFF);' % v
             return 'a = (%s) & 0xFFFF;' % v
         def opnd(w):
-            if md in ('immM', 'immX'): return H(arg)
+            if md in ('immM', 'immX'):
+                k = WS_TUNE.get(pc)
+                if k is not None and md == 'immM' and not M8:     # (I21) OBJECT RANGE option
+                    return '((%s + r65_ws[%d]) & 0xFFFF)' % (H(arg), k)
+                return H(arg)
             return self.rd(self.ea(i), w)
         if mn in ('LDA', 'LDX', 'LDY'):
             if mn == 'LDA':
@@ -1096,6 +1102,13 @@ def main():
             ln = ln.split('#')[0].strip()
             if ln: k = int(ln.split()[0], 16); tl.append((k & 0xFFFFFF, k >> 24))
     hdr, srcs = em.run(nfiles=a.files, translate=tl)
+    # (I21) OBJECT RANGE: the tunable immediates for the interpreter (pc | kind << 24, 0-terminated);
+    # checked against the ROM (16-bit SBC / ADC / CMP immediates)
+    for pc, k in WS_TUNE.items():
+        op = an.rom.b(pc)
+        assert op in ((0xE9,), (0x69,), (0x69, 0xC9))[k], 'WS_TUNE: %06X is %02X' % (pc, op)
+    srcs[0] += '\n#ifdef R65_SH2\n__attribute__((section(".lowtext.wstab")))\n#endif\nconst uint32_t r65_ws_tab[] = { %s, 0 };\n' % ', '.join(
+        '0x%08X' % (pc | k << 24) for pc, k in sorted(WS_TUNE.items()))
     os.makedirs(a.out, exist_ok=True)
     open(os.path.join(a.out, 'game65.h'), 'w').write(hdr)
     for j, src in enumerate(srcs):

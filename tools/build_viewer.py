@@ -334,6 +334,10 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
     info = []
     day_cgs = (day['cgs'] if 'cgs' in day else [day['cg']]) if day is not None else []
     all_cgs = [cg] + list(day_cgs)
+    # (I21) keyframes (indices into all_cgs) shown without the colour math: Ropey's storm - the SNES
+    # shows BG2's storm colours as they are (snes9x: 96 % of the treetop pixels = palette colours); the
+    # level's math (BG2 - fixed (4, 4, 4), halved) made them 1-2 dark Genesis levels (one flat colour)
+    nomath = set(day.get('nomath', ())) if day is not None else set()
     specs = ([] if not anim else [anim] if isinstance(anim, tuple) else list(anim))
 
     def anim_spec(t, layer):
@@ -482,8 +486,9 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         """Genesis colour of SNES colour base + v (a tuple over the keyframes for weather levels)."""
         if pi['layer'] == dyn_layer and v == 1:
             return 'DYN'
-        ks = tuple(gen_level(apply_colormath(snes_rgb(q[(base + v) * 2] | q[(base + v) * 2 + 1] << 8), regs, pi['layer']),
-                             sh) for q in all_cgs)
+        ks = tuple(gen_level(snes_rgb(q[(base + v) * 2] | q[(base + v) * 2 + 1] << 8) if qi in nomath else
+                             apply_colormath(snes_rgb(q[(base + v) * 2] | q[(base + v) * 2 + 1] << 8), regs, pi['layer']),
+                             sh) for qi, q in enumerate(all_cgs))
         return ks if day is not None else ks[0]
     # palette lines: line 0 colours 1..15 shared, lines 1..3
     canon = {}
@@ -2025,7 +2030,7 @@ def build_level(L, lv, tilesets):
                 bb = ((c & 0x7C00) << 1) & 0xFFFF
                 w = ((c >> 1) & 0x01EF) | (0x7C00 if bb & 0x8000 else bb)
                 cg_flash[i * 2], cg_flash[i * 2 + 1] = w & 0xFF, w >> 8
-            night = {'cgs': [cg_night, bytes(cg_flash)]}
+            night = {'cgs': [cg_night, bytes(cg_flash)], 'nomath': (1, 2)}
         eo = None
         if rainy:
             # after the storm BG3 shows the distant treeline map at $2400 (= Jungle Hijinxs' BG3):
@@ -2496,6 +2501,48 @@ def screen_image(L, m):
 FE_GPLANE = {0xEEA3}
 
 
+def fe_rare_fx(vr, rg, cg7):
+    """(I21) the Rare logo's own 32X effect (sh/fescr.c rare_fx), from the captured mode 3 screen (NMI
+    BC7B): BG1 (8bpp) is the wireframe - each line pixel's colour index is its place in the drawing
+    order (the game lights entries 32-143 and 144-255 one a frame each) - and BG2 (4bpp, colours 1-31)
+    the logo, its final colours = the mode 7 screen's CGRAM 0-31.  Block: u16 x0 y0 w h, 32 x u16
+    colours (SNES BGR555), w x h bytes logo colour (0 none), w x h bytes wire index (0 none)."""
+    def layer(sc, chrw, bpp):
+        out = {}
+        for ty in range(28):
+            for tx in range(32):
+                a = ((sc + ty * 32 + tx) * 2) & 0xFFFF
+                e = vr[a] | vr[a + 1] << 8
+                t, pal, hf, vf = e & 0x3FF, (e >> 10) & 7, e & 0x4000, e & 0x8000
+                base = (chrw * 2 + t * 8 * bpp) & 0xFFFF
+                b = vr[base:base + 8 * bpp]
+                for y in range(8):
+                    for x in range(8):
+                        v = 0
+                        for q in range(bpp):
+                            v |= ((b[(q // 2) * 16 + y * 2 + (q & 1)] >> (7 - x)) & 1) << q
+                        if v:
+                            sx, sy = (7 - x if hf else x), (7 - y if vf else y)
+                            out[(tx * 8 + sx, ty * 8 + sy)] = v + (pal * 16 if bpp == 4 else 0)
+        return out
+    if (rg[0x2105] & 7) != 3:
+        return None
+    wire = layer((rg[0x2107] & 0xFC) << 8, (rg[0x210B] & 15) << 12, 8)
+    logo = layer((rg[0x2108] & 0xFC) << 8, (rg[0x210B] >> 4) << 12, 4)
+    pts = list(wire) + list(logo)
+    if not pts or any(v >= 32 for v in logo.values()) or any(v < 32 for v in wire.values()):
+        return None
+    x0, x1 = min(x for x, y in pts), max(x for x, y in pts)
+    y0, y1 = min(y for x, y in pts), max(y for x, y in pts)
+    w, h = x1 - x0 + 1, y1 - y0 + 1
+    blk = bytearray(be16(x0) + be16(y0) + be16(w) + be16(h))
+    blk += b''.join(be16(cg7[i * 2] | cg7[i * 2 + 1] << 8) for i in range(32))
+    blk += bytes(logo.get((x0 + i % w, y0 + i // w), 0) for i in range(w * h))
+    blk += bytes(wire.get((x0 + i % w, y0 + i // w), 0) for i in range(w * h))
+    print('pack: Rare logo effect %dx%d at (%d, %d), %d logo / %d wire pixels' % (w, h, x0, y0, len(logo), len(wire)))
+    return bytes(blk)
+
+
 def fe_bg2_plane(vr, cg, rg):
     """the 68000's plane block (md_block layout: plane B only, scroll = BG2's H / V offset as posted by
     the 32X) for a front-end screen's BG2 - None if the layer does not qualify"""
@@ -2888,6 +2935,7 @@ def write_pack(built, tilesets, L, out):
         frec = b''
         fl = json.load(open(fj))
         fmd = b''
+        off_rfx = 0
         for e in fl:
             vr = open(os.path.join(paths.SURVEY, 'fe', e['name'] + '.vram'), 'rb').read()
             assert len(vr) == 65536
@@ -2897,16 +2945,28 @@ def write_pack(built, tilesets, L, out):
                 rgp = os.path.join(paths.SURVEY, 'fe', e['name'] + '.regs')
                 if os.path.exists(cgp) and os.path.exists(rgp):
                     md = fe_bg2_plane(vr, open(cgp, 'rb').read(), open(rgp, 'rb').read())
+            # (I21) the Rare logo's own effect (fe_rare_fx): with the mode 3 screen of NMI BC7B
+            rfx = None
+            if e['nmi'] == 0xBC7B and e['mode'] == 3:
+                try:
+                    S = lambda n, x: open(os.path.join(paths.SURVEY, 'fe', n + x), 'rb').read()
+                    rfx = fe_rare_fx(vr, S(e['name'], '.regs'), S('BC7B_7', '.cgram'))
+                except (OSError, IndexError):
+                    rfx = None
             # (its Genesis plane block in the same bank: window 7 shows both while the screen is up)
-            bank, (o_v, o_md) = into_bank(lambda bk: (bk.add(vr, 16), bk.add(md, 4) if md else 0))
+            bank, (o_v, o_md, o_rfx) = into_bank(lambda bk: (bk.add(vr, 16), bk.add(md, 4) if md else 0,
+                                                             bk.add(rfx, 4) if rfx else 0))
+            if o_rfx:
+                off_rfx = o_rfx
             # (an entrance-keyed screen - the credits: mode 0x80 | its world bank, patched in below)
             frec += be16(e['nmi']) + bytes([e['mode'] if e['mode'] < 0x80 else 0x80, 7 + bank]) + be32(o_v)
             fmd += be32(o_md)
             if md:
                 print('pack: front-end screen %s: BG2 as a Genesis plane (%d bytes)' % (e['name'], len(md)))
         p.align(4)
-        # u32 n, n x (u16 nmi, u8 mode, u8 bank, u32 off_vram), then (I11) n x u32 off_md (0: none)
-        off_fe = p.add(be32(len(fl)) + frec + fmd)
+        # u32 n, n x (u16 nmi, u8 mode, u8 bank, u32 off_vram), then (I11) n x u32 off_md (0: none),
+        # (I21) u32 off_rarefx (0: none)
+        off_fe = p.add(be32(len(fl)) + frec + fmd + be32(off_rfx))
         print('pack: %d front-end screens' % len(fl))
     p.buf[0:52] = b'DKCP' + be32(nlev) + be32(nworld) + be32(off_levels) + be32(off_worlds) + be32(off_font) + \
         be32(off_music) + be32(off_rooms) + be32(off_maps) + be32(off_screens) + be32(off_tfont) + be32(off_boot) + \

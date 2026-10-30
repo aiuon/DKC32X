@@ -252,8 +252,9 @@ static void fe_setup(int i)
             x[b * 2] = h; x[b * 2 + 1] = l;
         }
     }
-    {   /* mode 7 (the Rare logo): the box of the map's non-blank tiles - fe_m7 draws only the part of a
-           line that falls in it (the logo is a few tiles in a 128 x 128 map) */
+    if ((e->mode & 0x87) == 7) {   /* mode 7 (the Rare logo): the box of the map's non-blank tiles - fe_m7 draws only
+           the part of a line that falls in it (the logo is a few tiles in a 128 x 128 map).  (I21: mode 7
+           screens only - 48k cartridge reads in every screen's set-up) */
         uint8_t *blank = FE_LB;                     /* (scratch: 256 flags) */
         for (int t = 0; t < 256; t++) {
             uint32_t any = 0;
@@ -1200,9 +1201,238 @@ static void fe_line_clean(int y, int bi, int obj)
     }
 }
 
+
+#ifndef FEHOST                            /* (the host simulation draws the game's own picture) */
+/* ---- (I21) the Rare logo's own effect (user request: the wireframe drawn through the SNES PPU path -
+   two layers and colour sums - "looked bad, ran slow and delayed the music": the game logic ran behind
+   the music).  The screen (NMI BC7B, mode 3) is drawn from a small block (build_viewer fe_rare_fx: the
+   logo's pixels, the wireframe's drawing order, the final colours) in a few thousand byte writes a
+   picture, so the game keeps 60 frames a second and the Nintendo logo comes on the music's beat again.
+   The game's own palette keeps it in step: the wire entries it has lit (32-143 and 144-255, one each a
+   frame) say how far each stroke is drawn, its logo colours coming on start the fill.
+   - strokes: laser lines in the logo's own colours (brightened), a white-hot point cooling behind it
+   - fill: a diagonal sweep with a white shine edge turns the line art into the logo
+   - then the gold turns once through the spectrum (the blue face stays) and settles back to gold
+     before the game's mode 7 zoom takes over (fescr's renderer again, the same picture). */
+#define RFX_NEON  32                      /* 32-63: the line colours (logo colour j brightened) */
+#define RFX_GLOW  64                      /* 64-159: 3 x 32 the stroke's hot point cooling (age 0-2) */
+#define RFX_SHINE 160                     /* 160-255: 3 x 32 the fill's shine edge */
+static const int16_t rfx_sin[65] = { 0, 101, 201, 301, 401, 501, 601, 700, 799, 897, 995, 1092, 1189, 1285, 1380,
+    1474, 1567, 1660, 1751, 1842, 1931, 2019, 2106, 2191, 2276, 2359, 2440, 2520, 2598, 2675, 2751, 2824, 2896, 2967,
+    3035, 3102, 3166, 3229, 3290, 3349, 3406, 3461, 3513, 3564, 3612, 3659, 3703, 3745, 3784, 3822, 3857, 3889, 3920,
+    3948, 3973, 3996, 4017, 4036, 4052, 4065, 4076, 4085, 4091, 4095, 4096 };
+static int32_t rfx_sinq(uint32_t a)       /* sin, a in 1/256 turns, Q12 */
+{
+    a &= 255;
+    int32_t v = rfx_sin[(a & 64) ? 64 - (a & 63) : (a & 63)];
+    if ((a & 63) == 0 && (a & 64)) v = 4096;
+    return a & 128 ? -v : v;
+}
+static uint32_t rfx_f0, rfx_clr, rfx_seen;   /* the game frame the fill started (0: not yet); buffers
+                                             cleared; our effect ran (the zoom after it is ours too) */
+static uint16_t rfx_mix(uint32_t c, uint32_t w, uint32_t k)   /* c -> white (w = 1) or black by k / 8 */
+{
+    uint32_t r = c & 31, g = (c >> 5) & 31, b = (c >> 10) & 31, t = w ? 31 : 0;
+    r = (r * (8 - k) + t * k) >> 3; g = (g * (8 - k) + t * k) >> 3; b = (b * (8 - k) + t * k) >> 3;
+    return (uint16_t)(0x8000 | r | g << 5 | b << 10);
+}
+/* the zoom away (mode 7, after our effect): the logo's box only, every line, every picture (fescr's
+   renderer budgets its lines: the zoom moved in steps of 3-4 frames) */
+static uint16_t rfx_span[2][SCREEN_H][2];  /* per picture parity and line: the SNES x span drawn */
+static uint16_t rfx_pal[256], rfx_cram[256];   /* this picture's colours; the ones in CRAM */
+static uint32_t rfx_cram_ok, rfx_par;
+/* the picture: an asynchronous swap (the synchronous one waits for the vblank after the next: 30
+   pictures a second), then the colours that changed - in the vblank of that swap */
+static void rfx_show(uint16_t *frame_no)
+{
+    if (!rfx_cram_ok) {
+        rfx_cram_ok = 1;
+        for (int i = 0; i < SCREEN_H; i++) *UNCACHED(&sky_ram[i]) = 0x8000;
+        for (int i = 0; i < 256; i++) rfx_cram[i] = (uint16_t)~rfx_pal[i];
+    }
+    present2(0, 0, frame_no, 1);
+    int any = 0;
+    for (int i = 0; i < 256 && !any; i++) any = rfx_pal[i] != rfx_cram[i];
+    if (!any) return;
+    while (!(REG16(VDP_FBCTL) & VDP_VBLK))
+        ;
+    for (int i = 0; i < 256; i++)
+        if (rfx_pal[i] != rfx_cram[i]) CRAM[i] = rfx_cram[i] = rfx_pal[i];
+}
+static void fe_m7(uint8_t *lb, int y);
+static void rfx_m7span(int y, int32_t *pxa, int32_t *pxb)
+{
+    int32_t a = FE_L16[L_M7A][y], b = FE_L16[L_M7B][y], c = FE_L16[L_M7C][y], d = FE_L16[L_M7D][y];
+    int32_t cx = fe_ppu.m7[4], cy = fe_ppu.m7[5];
+    int32_t hs = (int16_t)(FE_L16[L_H1][y] << 3) >> 3, vs = (int16_t)(FE_L16[L_V1][y] << 3) >> 3;
+    int32_t xx = hs - cx, yy = y + 1 + vs - cy;
+    int32_t X = a * xx + b * yy + (cx << 8), Y = c * xx + d * yy + (cy << 8);
+    int32_t xa = 0, xb = 256;
+    int32_t lo[2] = { FE->m7x0 << 8, FE->m7y0 << 8 }, hi[2] = { FE->m7x1 << 8, FE->m7y1 << 8 };
+    int32_t p0[2] = { X, Y }, dp[2] = { a, c };
+    *pxa = *pxb = 0;
+    for (int k = 0; k < 2; k++) {
+        if (dp[k] == 0) { if (p0[k] < lo[k] || p0[k] >= hi[k]) return; continue; }
+        int32_t e0, e1;
+        if (dp[k] > 0) { e0 = (lo[k] - p0[k] + dp[k] - 1) / dp[k]; e1 = (hi[k] - p0[k] + dp[k] - 1) / dp[k]; }
+        else { e0 = (p0[k] - hi[k]) / -dp[k] + 1; e1 = (p0[k] - lo[k]) / -dp[k] + 1; }
+        if (lo[k] - p0[k] > 0 && dp[k] > 0 && e0 < 0) e0 = 0;
+        if (e0 > xa) xa = e0;
+        if (e1 < xb) xb = e1;
+    }
+    if (xa < 0) xa = 0;
+    if (xb > 256) xb = 256;
+    if (xa < xb) { *pxa = xa; *pxb = xb; }
+}
+static int rare_m7(uint16_t *frame_no)
+{
+    fb_sync();                            /* (the last picture's swap first: the window is the back buffer) */
+    int bi = cur_fb ^ 1;
+    if (!(rfx_clr & (4u << bi))) {        /* (this buffer's first zoom picture: the effect's box off) */
+        rfx_clr |= 4u << bi;
+        for (uint32_t a = FB_BASE; a < FB_BASE + SCREEN_H * CV_P; a += 4) *(volatile uint32_t *)((uint32_t)FB8 + a) = 0;
+        for (int y = 0; y < SCREEN_H; y++) FB16[y] = (uint16_t)((FB_BASE + y * CV_P + CV_XOFF) >> 1);
+    }
+    uint8_t *lb = FE_LB;
+    for (int y = 0; y < SCREEN_H; y++) {
+        int32_t xa, xb;
+        if ((FE_L8[L_MODE][y] & 7) == 7) rfx_m7span(y, &xa, &xb); else xa = xb = 0;
+        /* the union of this span and the last two pictures' (whichever buffer this is, nothing of them
+           stays), whole words: a byte write of 0 to the frame buffer is not stored (ares; the 32X's
+           overwrite rule) */
+        int32_t ua = xa < xb ? xa : 256, ub = xa < xb ? xb : 0;
+        for (int q = 0; q < 2; q++) {
+            int32_t oa = rfx_span[q][y][0], ob = rfx_span[q][y][1];
+            if (oa < ob) { if (oa < ua) ua = oa; if (ob > ub) ub = ob; }
+        }
+        ua &= ~1; ub = (ub + 1) & ~1;
+        if (ua < ub) {
+            for (int32_t x = ua; x < ub; x++) lb[8 + x] = 0;
+            if (xa < xb) fe_m7(lb, y);
+            volatile uint16_t *d = (volatile uint16_t *)(FB8 + FB_BASE + y * CV_P + CV_XOFF + 32 + ua);
+            for (int32_t x = ua; x < ub; x += 2) *d++ = (uint16_t)(lb[8 + x] << 8 | lb[9 + x]);
+        }
+        rfx_span[rfx_par][y][0] = (uint16_t)xa; rfx_span[rfx_par][y][1] = (uint16_t)xb;
+    }
+    rfx_par ^= 1;
+    uint16_t *P = rfx_pal;
+    uint32_t br = game_dark() ? 0 : (game_inidisp & 15) + 1;
+    P[0] = 0x8000;
+    P[FE_BORDER] = 0x8000;
+    for (int i = 1; i < 128; i++) P[i] = fe_scale(spr_bgpal[i], br);
+    spr_pal_dirty = 0; spr_bgpal_dirty = 0; pending_pal = 0;   /* (ours: the swap may go asynchronously) */
+    rfx_show(frame_no);
+    fe_palsum = 0xFFFFFFFF;
+    return 1;
+}
+static int rare_fx(uint16_t *frame_no)
+{
+    const uint32_t *t = PK(uint32_t, hdr->off_fe);
+    uint32_t n = FE_U32(t[0]);
+    const fescr_t *e = (const fescr_t *)(t + 1) + fe_idx;
+    if (FE_U16(e->nmi) == 0xBC7B && e->mode == 7 && rfx_seen) return rare_m7(frame_no);
+    if (FE_U16(e->nmi) != 0xBC7B || e->mode != 3) { rfx_f0 = 0; rfx_clr = 0; rfx_seen = 0; rfx_cram_ok = 0; return 0; }
+    rfx_seen = 1;
+    uint32_t off = FE_U32(t[1 + 3 * n]);
+    if (!off) return 0;
+    const uint8_t *blk = PACK + off;
+    const uint16_t *hd = (const uint16_t *)blk;
+    int32_t x0 = FE_U16(hd[0]), y0 = FE_U16(hd[1]), w = FE_U16(hd[2]), h = FE_U16(hd[3]);
+    const uint16_t *col = hd + 4;
+    const uint8_t *lg = blk + 72, *wr = lg + w * h;
+    /* the game's progress: lit wire entries per stroke, the logo colours on */
+    uint32_t na = 0, nb = 0, lit = 0;
+    for (int i = 32; i < 128; i++) na += (spr_bgpal[i] & 0x7FFF) != 0;
+    for (int i = 128; i < 144; i++) na += (spr_pal[i - 128] & 0x7FFF) != 0;
+    for (int i = 144; i < 256; i++) nb += (spr_pal[i - 128] & 0x7FFF) != 0;
+    for (int i = 1; i < 32; i++) lit |= spr_bgpal[i] & 0x7FFF;
+    if (!lit) rfx_f0 = 0;
+    else if (!rfx_f0) rfx_f0 = game_stats.frames | 1;
+    int32_t tf = rfx_f0 ? (int32_t)(game_stats.frames - rfx_f0) : -1;
+    if (tf >= 0) na = nb = 112;           /* (the game turns the wires off after the fill: ours are gone) */
+    fb_sync();
+    int bi = cur_fb ^ 1;
+    if (!(rfx_clr & (1u << bi))) {        /* this buffer's first picture: black, the line table */
+        rfx_clr |= 1u << bi;
+        for (uint32_t a = FB_BASE; a < FB_BASE + SCREEN_H * CV_P; a += 4) *(volatile uint32_t *)((uint32_t)FB8 + a) = 0;
+        for (int y = 0; y < SCREEN_H; y++) FB16[y] = (uint16_t)((FB_BASE + y * CV_P + CV_XOFF) >> 1);
+    }
+    /* per wire entry: the colour family (0 = not drawn yet) */
+    uint8_t *A = FE_LB;                   /* (scratch, 256 + 16) */
+    for (int k = 0; k < 256; k++) {
+        int32_t s = k < 144 ? k - 32 : k - 144, nl = k < 144 ? (int32_t)na : (int32_t)nb, age = nl - 1 - s;
+        A[k] = k < 32 || age < 0 ? 0 : age < 3 ? (uint8_t)(RFX_GLOW + age * 32) : RFX_NEON;
+    }
+    /* the fill: diagonal u = x + y, swept over 24 frames; the shine edge 3 diagonal bands of 3 */
+    int32_t umax = w + h, S = tf < 0 ? -100 : tf * (umax + 12) / 24;
+    uint8_t *F = FE_SB;                   /* (scratch: per u, 0 = not filled, 1 = filled, else shine base) */
+    for (int32_t u = 0; u < umax && u < 272; u++) {
+        int32_t d = S - u;
+        F[u] = d < 0 ? 0 : d < 9 ? (uint8_t)(RFX_SHINE + (d / 3) * 32) : 1;
+    }
+    uint8_t *rb = FE_SRC;                 /* (one row, from an even SNES x: word writes - see rare_m7) */
+    int32_t xe = x0 & ~1, ne = ((x0 + w + 1) & ~1) - xe;
+    for (int32_t y = 0; y < h; y++) {
+        int32_t row = y0 - 1 + y;
+        if (row < 0 || row >= SCREEN_H) continue;
+        const uint8_t *L = lg + y * w, *W = wr + y * w;
+        const uint8_t *Fu = F + y;
+        uint8_t *o8 = rb + (x0 - xe);
+        rb[0] = rb[ne - 1] = 0;
+        for (int32_t x = 0; x < w; x++) {
+            uint32_t j = L[x], f = Fu[x], o;
+            if (f == 1) o = j;
+            else if (f) o = j ? f + j : 0;
+            else { uint32_t k = W[x], a = A[k]; o = a ? a + (j ? j : 15) : 0; }
+            o8[x] = (uint8_t)o;
+        }
+        volatile uint16_t *d = (volatile uint16_t *)(FB8 + FB_BASE + row * CV_P + CV_XOFF + 32 + xe);
+        for (int32_t x = 0; x < ne; x += 2) *d++ = (uint16_t)(rb[x] << 8 | rb[x + 1]);
+    }
+    /* the colours: the logo's (turning through the spectrum 34-94 frames into the fill), the strokes',
+       the shine's */
+    uint16_t base[32], *P = rfx_pal;
+    int32_t ang = tf >= 34 && tf < 94 ? (tf - 34) * 256 / 60 : 0;
+    int32_t c = rfx_sinq((uint32_t)ang + 64), sn = rfx_sinq((uint32_t)ang) * 2365 >> 12, kk = (4096 - c) / 3;
+    int32_t ma = c + kk, mb = kk - sn, md = kk + sn;
+    for (int i = 0; i < 32; i++) {
+        uint32_t v = FE_U16(col[i]) & 0x7FFF;
+        int32_t r = v & 31, g = (v >> 5) & 31, b = (v >> 10) & 31;
+        if (ang && r >= b) {              /* (the warm colours: the gold) */
+            int32_t r2 = (ma * r + mb * g + md * b) >> 12, g2 = (md * r + ma * g + mb * b) >> 12, b2 = (mb * r + md * g + ma * b) >> 12;
+            r = r2 < 0 ? 0 : r2 > 31 ? 31 : r2; g = g2 < 0 ? 0 : g2 > 31 ? 31 : g2; b = b2 < 0 ? 0 : b2 > 31 ? 31 : b2;
+        }
+        base[i] = (uint16_t)(r | g << 5 | b << 10);
+    }
+    P[0] = 0x8000;
+    P[FE_BORDER] = 0x8000;
+    for (int i = 1; i < 32; i++) {
+        uint32_t v = base[i], r = v & 31, g = (v >> 5) & 31, b = (v >> 10) & 31;
+        P[i] = (uint16_t)(0x8000 | v);
+        /* neon: brighter, a floor so the darkest blues still read as lines */
+        r = r * 3 / 2 + 4; g = g * 3 / 2 + 5; b = b * 3 / 2 + 8;
+        uint16_t ne = (uint16_t)((r > 31 ? 31 : r) | (g > 31 ? 31 : g) << 5 | (b > 31 ? 31 : b) << 10);
+        P[RFX_NEON + i] = (uint16_t)(0x8000 | ne);
+        P[RFX_GLOW + i] = 0xFFFF;
+        P[RFX_GLOW + 32 + i] = rfx_mix(ne, 1, 5);
+        P[RFX_GLOW + 64 + i] = rfx_mix(ne, 1, 2);
+        P[RFX_SHINE + i] = rfx_mix(v, 1, 4);           /* (the edge: appearing, the flash, settling) */
+        P[RFX_SHINE + 32 + i] = rfx_mix(v, 1, 7);
+        P[RFX_SHINE + 64 + i] = rfx_mix(v, 1, 3);
+    }
+    spr_pal_dirty = 0; spr_bgpal_dirty = 0; pending_pal = 0;   /* (ours: the swap may go asynchronously) */
+    rfx_show(frame_no);
+    fe_palsum = 0xFFFFFFFF;               /* (fescr's own palette again after us) */
+    return 1;
+}
+
+#endif
 static void fe_frame(uint16_t *frame_no)
 {
     FEDBG_MARK(0);
+#ifndef FEHOST
+    if (hdr->off_fe && rare_fx(frame_no)) return;
+#endif
 #ifdef FEPHASE
     {   extern uint16_t ares_phase; *(volatile uint16_t *)&ares_phase = fe_idx == FEPHASE; }   /* (test: ares profile of one screen) */
 #endif

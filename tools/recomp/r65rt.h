@@ -45,6 +45,9 @@ uint32_t r65_callx3(uint32_t key, uint32_t exp);
 uint32_t r65_rts(uint32_t base);
 uint32_t r65_rtl(uint32_t mode);
 extern const int r65_ndkeys;
+/* (I21) OBJECT RANGE: added to the game's spawn / keep-alive window immediates (rompatch WS_TUNE) */
+extern uint32_t r65_ws[3];
+extern const uint32_t r65_ws_tab[];
 
 uint32_t io_rd(uint32_t ea);
 void io_wr(uint32_t ea, uint32_t v);

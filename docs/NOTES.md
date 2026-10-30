@@ -1686,3 +1686,46 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   MiSTer-model GAMEBOT 9000 frames (bot20): one weak flash (5970: the whole picture 1 px for one
   frame, all layers alike - the game camera, as in I17 / I19).  PicoDrive GAMEBOT 12000 + STACKCHK:
   master 1960 / 4080, slave 1364 / 2048.  ARES_MISALIGN 8000 frames: only the 0xaffe line.
+## 2026-10-30: I21 - Galleon island, water camera, Ropey trees, OBJECT RANGE, menu font, Rare logo (BUGLOG "I21")
+- Galleon: C_FRAME = picture counter | view offset d << 9 (sh/main.c cframe(); lamp levels keep the
+  game frame there, lc_on on the 68000 side); md update_scroll(camx, camy, d) works out every plane's
+  H scroll for the game camera (camx + d) and subtracts d.  Galleon's BG2 band 60-99 (zero H scroll
+  in the SNES HDMA table) is now d instead of 0.
+- Water camera: camlog (the user's .bs1 + the I20 ROM: F, camx, $1B23/$1B25, hle_cam_xmin/xmax,
+  hle_cam_frame, spr_xoff every other frame) replayed in Python with the old / new view-offset rules:
+  6 jumps > 4 px -> none.  (A new ROM cannot run the user's state: the SDRAM code image differs.)
+- OBJECT RANGE: rompatch.WS_TUNE {pc: kind}; r65.py emits ((imm + r65_ws[kind]) & 0xFFFF) for those
+  16-bit immediates and appends r65_ws_tab (pc | kind << 24) to game65_00.c; r65interp.c adds the same
+  for interpreted code (banks B6 / BD / BE, only while r65_ws is non-zero).  main.c sets r65_ws before
+  each picture's logic steps: L = clamp(spr_xoff, 0, 64), width 64, R = 64 - L (in levels, WIDE).
+  The bank BD windows with $80 / $200 and $C0 / $280 (big objects) already reach 96+ px past the
+  32X view: unchanged.  Vertical windows unchanged (same picture height).
+- Ropey storm colour math: snes9x CGRAM + picture at the level start - 96 % of the treetop pixels
+  are storm-palette colours as they are, 0 % match (c - 4) / 2.  The jungle day levels (same CGADSUB
+  $C2) were not changed.
+- Rare logo: SNES timeline (snes9x, frames from power-on): 74 screen on, 76-186 two strokes lit one
+  entry a frame each (CGRAM 32-143 and 144-255: white, $7E10, then green $01C0), 196 the logo's BG2
+  colours come on (flash), 228-282 the wires go off 4 entries a frame, ~300 mode 7 zoom away, 348
+  the Nintendo logo.  The port follows the game's palette (lit entries, logo colours on) and its
+  frame counter from the fill on.  Data block 15 KB in the BC7B_3 screen's bank (the resident ROM
+  had no room: 3 MB limit).
+- ares 32X: byte writes of 0 to the frame buffer are dropped (the mode 7 zoom's erase); sync
+  present() = 30 pictures a second at best (waits for the vblank after the next).
+- fe timing: per-iteration ring (vcount, game frames, map_mode) showed one iteration of 23 vblanks
+  at the Nintendo logo: fe_setup 6 + the first hi-res picture 16 (fe debt now carries the frames the
+  12-step cap dropped).
+- Resident ROM: with the builder's 15 front-end screens the resident region ended 96 bytes over the
+  3 MB limit (the OBJECT RANGE code) - r65_ws_tab moved to .lowtext and four front-end / start-up
+  functions (80:D199, 80:CCB6, 80:C093, 80:F31F) added to data/lowrom.txt: resident end 0x2FCBB0
+  (13 KB free), sh.bin 239 KB of 256 KB.
+- Optimization survey: IKEYPROF (MiSTer model, 1500 frames) - gameplay interpreted code is down to
+  < 300 instructions per level (levels 0-5 checked; the I19 work).  Ropey (MiSTer model, F21-27):
+  the master waits ~12 % for the slave (C_DONE) and ~9 % in present2's vblank wait; SYNCWHY: 55 of 307
+  pictures synchronous for sky_next / wx_dirty (the storm's palette changes); rain_half 10 % (an FB
+  read per rain pixel for its restore list).  Not changed this round.
+- I21 checks: plain build md5 95537cce...; Linux convert.py from bundle21 (linapp21, 136 s) and the
+  Wine .bat run (wtest21, 173 s): byte-identical.  Host reg.py: 309/309 jobs WRAM-identical to the
+  I19 translation set (r65_ws = 0).  40-level ares sweep I20 vs I21 at frame 700: only parallax
+  offsets moved.  MiSTer-model GAMEBOT 9000 frames (bot21): no flash events.  PicoDrive GAMEBOT 12000
+  + STACKCHK: master 1964 / 4080, slave 1364 / 2048; PicoDrive reset at 3000: the Rare logo again.
+  ARES_MISALIGN 8000 frames: none.  scanbundle: only unicodedata.pyd.

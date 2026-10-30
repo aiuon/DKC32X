@@ -360,8 +360,19 @@ static void do_command(uint16_t cmd)
     VDP_CTRL = 0x8134;                      /* display off */
     active = 0;
     if (idx == 0x7FFF) {
-        vram_w(VRAM_PLANE_A);
-        for (uint32_t i = 0; i < 0x4000; i++)  /* both planes */
+        /* both planes: (I21) a VDP DMA fill (the CPU loop took ~3 frames the SH-2 waited for at every
+           screen change); the last 16 bytes by the CPU (no fill length quirk can reach the sprites) */
+        VDP_CTRL = 0x8F01;                  /* auto-increment 1 */
+        VDP_CTRL = 0x9300 | (0x7FF0 & 0xFF);
+        VDP_CTRL = 0x9400 | (0x7FF0 >> 8);
+        VDP_CTRL = 0x9780;                  /* DMA fill */
+        VDP_CTRL32 = 0x40000080UL | ((uint32_t)(VRAM_PLANE_A & 0x3FFF) << 16) | (VRAM_PLANE_A >> 14);
+        VDP_DATA = 0;
+        while (VDP_CTRL & 2)                /* (DMA busy) */
+            ;
+        VDP_CTRL = 0x8F02;
+        vram_w(VRAM_PLANE_A + 0x7FF0);
+        for (int i = 0; i < 8; i++)
             VDP_DATA = 0;
         cram_w(0);
         for (int i = 0; i < 64; i++)
@@ -612,11 +623,18 @@ static uint16_t sval(uint16_t cam, const uint16_t *s, int vert)
     }
 }
 
-static void update_scroll(uint16_t camx, uint16_t camy)
+/* (I21) camx = the 32X view's left edge = the game's camera - dd (dd = the SH-2's spr_xoff, sent in
+   C_FRAME bits 9-15): the SNES draws a plane at H = f(game camera) on its 256 columns, which the 32X shows
+   dd columns to the right - so the Genesis H is f(camx + dd) - dd.  Before I21 the planes used f(camx):
+   off by dd - f(dd) (24 px for a 1/4-speed layer), which only showed where a plane must line up with
+   the 32X layer - Gang-Plank Galleon's island (a sprite) over its shadow (plane A).  Lamp levels keep
+   the old formula (their frame counter needs all 16 bits: dd = 0). */
+static void update_scroll(uint16_t camx, uint16_t camy, uint16_t dd)
 {
     uint16_t ha = 0, va = 0, hb = 0, vb = 0;
-    if (planes & 1) { ha = sval(camx, scA, 0); va = sval(camy, scA + 2, 1) + 1; }
-    if (planes & 2) { hb = sval(camx, scB, 0); vb = sval(camy, scB + 2, 1) + 1; }
+    uint16_t cx = (uint16_t)(camx + dd);
+    if (planes & 1) { ha = (uint16_t)(sval(cx, scA, 0) - (fx == 2 ? 0 : dd)); va = sval(camy, scA + 2, 1) + 1; }
+    if (planes & 2) { hb = (uint16_t)(sval(cx, scB, 0) - dd); vb = sval(camy, scB + 2, 1) + 1; }
     uint16_t a = (uint16_t)(-ha) & 0x3FF;
     if (lc_on) {
         /* plane A = the cones in level coordinates (64 x 64 cells); the nearest lamp's swing */
@@ -671,11 +689,11 @@ static void update_scroll(uint16_t camx, uint16_t camy)
         /* plane A: BG1 (streamed), ripple x per line; plane B: BG2 perspective (as fx 3) */
         int16_t gx = (int16_t)(camx - pf_ox0), gy = (int16_t)(camy + 1 - pf_oy0);
         static uint16_t hl[80];
-        uint16_t A = (uint16_t)(camx - 0x280) >> 1;
+        uint16_t A = (uint16_t)(cx - 0x280) >> 1;
         uint16_t nA = (uint16_t)-A;
         uint16_t step = nA + (nA >> 1);
         uint16_t acc = (uint16_t)(A << 8 | A >> 8);
-        for (int d = 0; d < 80; d++) { hl[d] = (uint16_t)(-(acc >> 8)) & 0x3FF; acc += step; }
+        for (int d = 0; d < 80; d++) { hl[d] = (uint16_t)(-(acc >> 8) + dd) & 0x3FF; acc += step; }
         uint16_t a0 = (uint16_t)(-gx) & 0x3FF, a1 = (uint16_t)(-gx - 1) & 0x3FF;
         uint16_t ph = last_frame;
         VDP_CTRL = 0x8F02;
@@ -686,7 +704,7 @@ static void update_scroll(uint16_t camx, uint16_t camy)
         for (int l = 0; l < 224; l++) {
             uint16_t q = (l - ph) & 63;          /* underwater ripple: 22 on, 11 off, 10 on, 21 off */
             VDP_DATA = (!no_ripple && (q < 22 || (q >= 33 && q < 43))) ? a1 : a0;
-            VDP_DATA = l < 80 ? hl[l] : l < 144 ? 0 : hl[223 - l];
+            VDP_DATA = l < 80 ? hl[l] : l < 144 ? (dd & 0x3FF) : hl[223 - l];
         }
         pf_update(gx, gy);
         return;
@@ -697,9 +715,9 @@ static void update_scroll(uint16_t camx, uint16_t camy)
            + ~(camx + camx / 16) / 256 per line towards the horizon (64 lines each); lines 64-96 (the
            island, its shadow) 0; the table ends at line 128 (lines below keep line 127's) */
         static uint16_t hl[64];
-        uint16_t v = camx >> 2, d = (uint16_t)~((camx >> 4) + camx);
+        uint16_t v = cx >> 2, d = (uint16_t)~((cx >> 4) + cx);
         for (int k = 0; k < 64; k++) {
-            hl[k] = (uint16_t)(-(v & 0xFF)) & 0x3FF;
+            hl[k] = (uint16_t)(-(v & 0xFF) + dd) & 0x3FF;
             uint16_t w = (uint16_t)((v << 8 | v >> 8) + d);
             v = (uint16_t)(w << 8 | w >> 8);
         }
@@ -707,7 +725,7 @@ static void update_scroll(uint16_t camx, uint16_t camy)
         VDP_CTRL = 0x8F02;
         vram_w(VRAM_HSCROLL);
         for (int l = 0; l < 64; l++) { VDP_DATA = hl[l]; VDP_DATA = bb; }
-        for (int l = 64; l < 97; l++) { VDP_DATA = 0; VDP_DATA = bb; }
+        for (int l = 64; l < 97; l++) { VDP_DATA = dd & 0x3FF; VDP_DATA = bb; }
         for (int l = 97; l < 128; l++) { VDP_DATA = hl[160 - l]; VDP_DATA = bb; }
         for (int l = 128; l < 224; l++) { VDP_DATA = hl[33]; VDP_DATA = bb; }
         vsram_w(0);
@@ -720,16 +738,16 @@ static void update_scroll(uint16_t camx, uint16_t camy)
            start (camx - $280) / 2 at the bottom / top line, step -1.5 x that per line towards the
            middle; lines 80-143 scroll 0.  Line scroll mode, plane A/B word pairs. */
         static uint16_t hl[80];
-        uint16_t A = (uint16_t)(camx - 0x280) >> 1;
+        uint16_t A = (uint16_t)(cx - 0x280) >> 1;
         uint16_t nA = (uint16_t)-A;
         uint16_t step = nA + (nA >> 1);
         uint16_t acc = (uint16_t)(A << 8 | A >> 8);
-        for (int d = 0; d < 80; d++) { hl[d] = (uint16_t)(-(acc >> 8)) & 0x3FF; acc += step; }
+        for (int d = 0; d < 80; d++) { hl[d] = (uint16_t)(-(acc >> 8) + dd) & 0x3FF; acc += step; }
         uint16_t bb = (uint16_t)(-hb) & 0x3FF;
         VDP_CTRL = 0x8F02;
         vram_w(VRAM_HSCROLL);
         for (int l = 0; l < 80; l++) { VDP_DATA = hl[l]; VDP_DATA = bb; }
-        for (int l = 80; l < 144; l++) { VDP_DATA = 0; VDP_DATA = bb; }
+        for (int l = 80; l < 144; l++) { VDP_DATA = dd & 0x3FF; VDP_DATA = bb; }
         for (int l = 144; l < 224; l++) { VDP_DATA = hl[223 - l]; VDP_DATA = bb; }
         vsram_w(0);
         VDP_DATA = va;
@@ -743,11 +761,11 @@ static void update_scroll(uint16_t camx, uint16_t camy)
     vram_w(VRAM_HSCROLL + 2);
     if (fx == 1) {
         /* jungle BG3: 4 parallax bands (CODE_809AD4) */
-        uint16_t x2 = camx << 1;
-        uint16_t b0 = (uint16_t)(-((x2 >> 4) & 0xFF)) & 0x3FF;
-        uint16_t b1 = (uint16_t)(-(((x2 + camx) >> 4) & 0xFF)) & 0x3FF;
-        uint16_t b2 = (uint16_t)(-(((x2 + x2) >> 4) & 0xFF)) & 0x3FF;
-        uint16_t b3 = (uint16_t)(-(((x2 + x2 + camx) >> 4) & 0xFF)) & 0x3FF;
+        uint16_t x2 = cx << 1;
+        uint16_t b0 = (uint16_t)(-((x2 >> 4) & 0xFF) + dd) & 0x3FF;
+        uint16_t b1 = (uint16_t)(-(((x2 + cx) >> 4) & 0xFF) + dd) & 0x3FF;
+        uint16_t b2 = (uint16_t)(-(((x2 + x2) >> 4) & 0xFF) + dd) & 0x3FF;
+        uint16_t b3 = (uint16_t)(-(((x2 + x2 + cx) >> 4) & 0xFF) + dd) & 0x3FF;
         for (int r = 0; r < 9; r++) VDP_DATA = b0;
         VDP_DATA = b1;
         VDP_DATA = b2;
@@ -956,10 +974,11 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
             if (lc_on) lc_d = 0xFFFF;           /* (the lamp colours again) */
         }
         if (lc_on) lc_colours();
-        uint16_t f = COMM(C_FRAME);
+        uint16_t cf = COMM(C_FRAME);
+        uint16_t f = lc_on ? cf : (cf & 0x1FF);  /* (I21: bits 9-15 = the view offset, see update_scroll) */
         if (f != last_frame) {
             last_frame = f;
-            update_scroll(COMM(C_CAMX), COMM(C_CAMY));
+            update_scroll(COMM(C_CAMX), COMM(C_CAMY), lc_on ? 0 : (uint16_t)(cf >> 9));
             if (bm_lvl) bm_write();
         }
         if (hv_on) {                            /* blizzard (CODE_808B1F): frames, wind drift + sway */

@@ -7,6 +7,7 @@ uint32_t r65_a, r65_x, r65_y, r65_s, r65_z, r65_c;
 #endif
 int32_t r65_n;
 uint32_t r65_d, r65_db, r65_mx, r65_v, r65_fd, r65_fi;
+uint32_t r65_ws[3];                    /* (I21) OBJECT RANGE: 0 = the SNES's windows */
 
 #ifdef R65_HOST
 long r65_nxcall, r65_nxinterp;

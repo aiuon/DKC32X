@@ -1888,7 +1888,7 @@ static uint32_t pm_req;                   /* (I12) the button the menu sends the
 static int start_block;                   /* (I12) Start still held from our level menu: not the game's */
 static int pm_shown, pm_frz;              /* (I12) pictures with the menu as it is (pm_key); no new pictures */
 static uint32_t pm_key;
-#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7)
+#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8)
 /* 60 FPS mode (menu option, off by default: it adds a frame of input lag): the slave draws the whole
    picture of game frame N (BG strips, sprites, line table, HUD: job 5 with every row) while the master
    runs the logic of frame N + 1; the picture is shown once that logic is done.  Simple canvas levels
@@ -1912,22 +1912,97 @@ static int32_t pipe_gx, pipe_gy, pipe_bi;  /* the slave's picture: canvas origin
 static uint32_t pm_exit_addr;             /* exit to map: the level's "cleared" byte we set, restored later */
 static uint8_t pm_exit_orig;
 static int32_t pm_exit_wait;
-#define PM_N 7
-/* text through the back buffer's line table (canvas levels), colours on / shadow as CRAM indices */
-static void text_cv(int x, int y, const char *s, uint8_t on, uint8_t sh)
+/* (I21) the menu's items (drawn in the small font, 10 lines apart) */
+enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_OBJ, PM_EXIT, PM_LEVELS, PM_N };
+/* (I21) OBJECT RANGE: WIDE (default) = the game's sprite spawn / keep-alive windows follow the 32X's
+   wider view (+32 px past each side, as the SNES's own windows reach past its 256 px view): objects no
+   longer vanish / pop in at the picture's edges.  SNES = the original windows (game logic exactly as
+   the SNES's; objects can vanish just inside the 32X picture).  r65_ws (rompatch WS_TUNE). */
+#ifndef OBJ_WIDE_DEFAULT
+#define OBJ_WIDE_DEFAULT 1
+#endif
+static int obj_wide = OBJ_WIDE_DEFAULT;
+/* (I21) 5x7 menu font, characters 32..95, one byte per row (bit 4 = left column) */
+static const uint8_t font57[64][7] = {
+    {0x00,0x00,0x00,0x00,0x00,0x00,0x00},   /* ' ' */
+    {0x04,0x04,0x04,0x04,0x04,0x00,0x04},   /* '!' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '"' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '#' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '$' */
+    {0x18,0x19,0x02,0x04,0x08,0x13,0x03},   /* '%' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '&' */
+    {0x04,0x04,0x08,0x00,0x00,0x00,0x00},   /* "'" */
+    {0x02,0x04,0x08,0x08,0x08,0x04,0x02},   /* '(' */
+    {0x08,0x04,0x02,0x02,0x02,0x04,0x08},   /* ')' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '*' */
+    {0x00,0x04,0x04,0x1F,0x04,0x04,0x00},   /* '+' */
+    {0x00,0x00,0x00,0x00,0x0C,0x04,0x08},   /* ',' */
+    {0x00,0x00,0x00,0x1F,0x00,0x00,0x00},   /* '-' */
+    {0x00,0x00,0x00,0x00,0x00,0x0C,0x0C},   /* '.' */
+    {0x00,0x01,0x02,0x04,0x08,0x10,0x00},   /* '/' */
+    {0x0E,0x11,0x13,0x15,0x19,0x11,0x0E},   /* '0' */
+    {0x04,0x0C,0x04,0x04,0x04,0x04,0x0E},   /* '1' */
+    {0x0E,0x11,0x01,0x02,0x04,0x08,0x1F},   /* '2' */
+    {0x1F,0x02,0x04,0x02,0x01,0x11,0x0E},   /* '3' */
+    {0x02,0x06,0x0A,0x12,0x1F,0x02,0x02},   /* '4' */
+    {0x1F,0x10,0x1E,0x01,0x01,0x11,0x0E},   /* '5' */
+    {0x06,0x08,0x10,0x1E,0x11,0x11,0x0E},   /* '6' */
+    {0x1F,0x01,0x02,0x04,0x08,0x08,0x08},   /* '7' */
+    {0x0E,0x11,0x11,0x0E,0x11,0x11,0x0E},   /* '8' */
+    {0x0E,0x11,0x11,0x0F,0x01,0x02,0x0C},   /* '9' */
+    {0x00,0x0C,0x0C,0x00,0x0C,0x0C,0x00},   /* ':' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* ';' */
+    {0x02,0x04,0x08,0x10,0x08,0x04,0x02},   /* '<' */
+    {0x00,0x00,0x1F,0x00,0x1F,0x00,0x00},   /* '=' */
+    {0x08,0x04,0x02,0x01,0x02,0x04,0x08},   /* '>' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '?' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '@' */
+    {0x0E,0x11,0x11,0x1F,0x11,0x11,0x11},   /* 'A' */
+    {0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E},   /* 'B' */
+    {0x0E,0x11,0x10,0x10,0x10,0x11,0x0E},   /* 'C' */
+    {0x1C,0x12,0x11,0x11,0x11,0x12,0x1C},   /* 'D' */
+    {0x1F,0x10,0x10,0x1E,0x10,0x10,0x1F},   /* 'E' */
+    {0x1F,0x10,0x10,0x1E,0x10,0x10,0x10},   /* 'F' */
+    {0x0E,0x11,0x10,0x17,0x11,0x11,0x0F},   /* 'G' */
+    {0x11,0x11,0x11,0x1F,0x11,0x11,0x11},   /* 'H' */
+    {0x0E,0x04,0x04,0x04,0x04,0x04,0x0E},   /* 'I' */
+    {0x07,0x02,0x02,0x02,0x02,0x12,0x0C},   /* 'J' */
+    {0x11,0x12,0x14,0x18,0x14,0x12,0x11},   /* 'K' */
+    {0x10,0x10,0x10,0x10,0x10,0x10,0x1F},   /* 'L' */
+    {0x11,0x1B,0x15,0x15,0x11,0x11,0x11},   /* 'M' */
+    {0x11,0x11,0x19,0x15,0x13,0x11,0x11},   /* 'N' */
+    {0x0E,0x11,0x11,0x11,0x11,0x11,0x0E},   /* 'O' */
+    {0x1E,0x11,0x11,0x1E,0x10,0x10,0x10},   /* 'P' */
+    {0x0E,0x11,0x11,0x11,0x15,0x12,0x0D},   /* 'Q' */
+    {0x1E,0x11,0x11,0x1E,0x14,0x12,0x11},   /* 'R' */
+    {0x0F,0x10,0x10,0x0E,0x01,0x01,0x1E},   /* 'S' */
+    {0x1F,0x04,0x04,0x04,0x04,0x04,0x04},   /* 'T' */
+    {0x11,0x11,0x11,0x11,0x11,0x11,0x0E},   /* 'U' */
+    {0x11,0x11,0x11,0x11,0x11,0x0A,0x04},   /* 'V' */
+    {0x11,0x11,0x11,0x15,0x15,0x15,0x0A},   /* 'W' */
+    {0x11,0x11,0x0A,0x04,0x0A,0x11,0x11},   /* 'X' */
+    {0x11,0x11,0x0A,0x04,0x04,0x04,0x04},   /* 'Y' */
+    {0x1F,0x01,0x02,0x04,0x08,0x10,0x1F},   /* 'Z' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '[' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '\\' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* ']' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '^' */
+    {0x0E,0x11,0x01,0x02,0x04,0x00,0x04},   /* '_' */
+};
+/* (I21) the pause menu in the small font: 6 px per character, 7 rows + the shadow */
+static void text57_cv(int x, int y, const char *s, uint8_t on, uint8_t sh)
 {
-    for (; *s; s++) {
+    for (; *s; s++, x += 6) {
         int c = *s - 32;
-        if (c < 0 || c > 95) c = 0;
-        const uint8_t *g = font + c * 11;
-        for (int r = 0; r < 10; r++) {
-            uint8_t bits = g[1 + r];
+        if (c < 0 || c > 63) c = 31;
+        const uint8_t *g = font57[c];
+        for (int r = 0; r < 7; r++) {
+            uint32_t bits = g[r];
             if (!bits) continue;
             uint32_t a0 = (uint32_t)FB16[y + r] * 2 + x, a1 = (uint32_t)FB16[y + r + 1] * 2 + x;
-            for (int b = 0; b < 8; b++)
-                if (bits & (0x80 >> b)) { FB8[a1 + b + 1] = sh; FB8[a0 + b] = on; }
+            for (int b = 0; b < 5; b++)
+                if (bits & (0x10 >> b)) { FB8[a1 + b + 1] = sh; FB8[a0 + b] = on; }
         }
-        x += g[0];
     }
 }
 static void box_cv(int x, int y, int w, int h, uint8_t c)
@@ -2889,6 +2964,15 @@ static int flip_async = FLIP_ASYNC;
 #ifdef SYNCWHY
 volatile uint32_t sync_why[16] __attribute__((used));
 #endif
+/* (I21) C_FRAME: the picture counter, bits 9-15 the view offset spr_xoff (0..127) for the 68000's plane
+   scroll (md update_scroll) - except in the lamp levels, whose cone flicker needs the game's whole $28 */
+static uint16_t cframe(uint16_t f)
+{
+    extern int32_t spr_xoff;
+    if (lamp_n) return f;
+    int32_t d = spr_xoff < 0 ? 0 : spr_xoff > 127 ? 127 : spr_xoff;
+    return (uint16_t)((f & 0x1FF) | (uint32_t)d << 9);
+}
 static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async)
 {
     dbg_presents++;
@@ -2944,7 +3028,7 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
             uint16_t f = (uint16_t)(game_wram16(0x28) - 1);
             if (f != (uint16_t)(*frame_no - 1)) *frame_no = f;
         }
-        COMM(C_FRAME) = *frame_no;
+        COMM(C_FRAME) = cframe(*frame_no);
         af_shift = comp ? (comp_P & 1) : cv_x0par >= 0 ? cv_x0par : (camx & 1);
         af_sft = ripple ? sft_tab[cur_fb ^ 1] : 0;  /* (the table rendered with the buffer shown next) */
         (void)*(volatile uint16_t *)0x24000000;     /* (the frame buffer write FIFO drained: wait_flip) */
@@ -2973,7 +3057,7 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
         uint16_t f = (uint16_t)(game_wram16(0x28) - 1);
         if (f != (uint16_t)(*frame_no - 1)) *frame_no = f;
     }
-    COMM(C_FRAME) = *frame_no;
+    COMM(C_FRAME) = cframe(*frame_no);
     while (!(REG16(VDP_FBCTL) & VDP_VBLK))
         ;
     wait_flip();
@@ -4686,9 +4770,19 @@ void m_main(void)
                     fsteps = owed > 3 ? 3 : owed;   /* PAL: keep 60 logic frames a second */
                 if (map_mode == 1 && (game_wram16(0xE89) | game_wram16(0xEF1)))
                     fsteps = MAP_FAST;            /* (G12) the map Kong walking (MapDK X/Y speed): faster */
-                if (map_mode == 4 && owed >= 2 && owed <= 16)
-                    fsteps = owed > 12 ? 12 : owed; /* front-end screens (fescr.c): keep the game's pace (light
-                                                     logic; a picture under big sprites can take 4-6 frames) */
+                {   /* front-end screens (fescr.c): keep the game's pace (light logic; a picture under big
+                       sprites can take 4-6 frames).  (I21) What one picture cannot catch up (12 logic frames)
+                       is carried to the next pictures: a screen's set-up and first picture (the Nintendo
+                       logo after the Rare logo: ~22 vblanks) put the game - and the next screen - behind
+                       the music, which runs in real time */
+                    static int32_t fe_debt;
+                    if (map_mode == 4 && owed >= 1 && owed <= 64) {
+                        int32_t want = owed + fe_debt;
+                        if (want > 64) want = 64;
+                        fsteps = want > 12 ? 12 : want;
+                        fe_debt = want - fsteps;
+                    } else fe_debt = 0;
+                }
 #ifdef FS_FORCE
                 fsteps = FS_FORCE;                /* (test: always skip) */
 #endif
@@ -4773,11 +4867,12 @@ void m_main(void)
                     if (press & PAD_DOWN) pm_sel = (pm_sel + 1) % PM_N;
                     if (press & (PAD_A | PAD_B | PAD_C)) {
                         switch (pm_sel) {
-                        case 0: g = SNES_START; break;                      /* resume */
-                        case 1: fskip ^= 1; break;
-                        case 2: pipe_mode ^= 1; break;
-                        case 3: fg_on ^= 1; pm_fg_reload = 1; break;
-                        case 4: {                                            /* exit to the map */
+                        case PM_RESUME: g = SNES_START; break;
+                        case PM_FSKIP: fskip ^= 1; break;
+                        case PM_PIPE: pipe_mode ^= 1; break;
+                        case PM_FG: fg_on ^= 1; pm_fg_reload = 1; break;
+                        case PM_OBJ: obj_wide ^= 1; break;
+                        case PM_EXIT: {                                      /* exit to the map */
                             uint32_t lv = game_wram16(0x563) & 0xFF;
                             if (lv == 0xEA) lv = 1;
                             extern uint8_t wram_lo[];
@@ -4787,8 +4882,8 @@ void m_main(void)
                             pm_exit_wait = 600;
                             break;
                         }
-                        case 5: rip_on ^= 1; pm_fg_reload = 1; break;       /* (reload, as FG) */
-                        case 6: go_menu = 1; break;                          /* our level menu */
+                        case PM_RIPPLE: rip_on ^= 1; pm_fg_reload = 1; break;   /* (reload, as FG) */
+                        case PM_LEVELS: go_menu = 1; break;                  /* our level menu */
                         }
                     }
                     if ((press & PAD_START) && !pm_hold) g = SNES_START;
@@ -4807,6 +4902,14 @@ void m_main(void)
                 if (game_in_main_loop()) { wram_lo[0x575] = 0xFF; wram_lo[0x576] = 0xFF; }
             }
 #endif
+            {   /* (I21) OBJECT RANGE: the windows follow the view offset d (view = camx - d .. + 320):
+                   camx - d - 32 .. camx - d + 352 (SNES: camx - 32 .. camx + 288) */
+                extern uint32_t r65_ws[3];
+                extern int32_t spr_xoff;
+                int32_t L = spr_xoff < 0 ? 0 : spr_xoff > 64 ? 64 : spr_xoff;
+                if (!obj_wide || !in_level) L = 0;
+                r65_ws[0] = (uint32_t)L; r65_ws[1] = (obj_wide && in_level) ? 64 : 0; r65_ws[2] = r65_ws[1] - (uint32_t)L;
+            }
             for (int st = 0; st < fsteps; st++) {
                 if (st && (game_fblank || !game_in_main_loop()) && !(map_mode == 1 && game_wai_pc() == 0x80E90E) &&
                     !(map_mode == 2 && map_cab >= 0 && !game_dark()) &&     /* (I14: cabins - Funky's barrel ran slow) */
@@ -5082,6 +5185,7 @@ void m_main(void)
                    sprites move right instead (no empty columns past the level) */
                 extern int32_t spr_xoff;
                 uint32_t c = game_wram16(0x88B), mn = game_wram16(0x1B23), mx = game_wram16(0x1B25);
+                const uint32_t lvl_mn = mn;          /* (I21) the level's own first camera x */
                 {   /* the current camera block's range (game_hle.c: CODE_80C246 / CODE_B8A853) - (I18) only
                        a block narrower than the 32X view (Coral Capers' shafts: centred).  The view used
                        to stop at every block's ends too: in the water levels, whose camera blocks change
@@ -5091,11 +5195,19 @@ void m_main(void)
                        camera stays inside the block (frames without the camera routine kept switching
                        to the level's range). */
                     extern volatile uint32_t hle_cam_xmin, hle_cam_xmax, hle_cam_frame;
-                    static uint32_t lastf, nb_mn, nb_mx, nb_on;
+                    static uint32_t lastf, nb_mn, nb_mx, nb_on, nb_cmn, nb_cmx, nb_stable;
                     if (hle_cam_frame != lastf) {
                         lastf = hle_cam_frame;
-                        nb_mn = hle_cam_xmin; nb_mx = hle_cam_xmax;
-                        nb_on = nb_mx < nb_mn + 64 && nb_mn >= mn && nb_mx <= mx;
+                        /* (I21) only a range that stays the same: in the water levels the clamp range
+                           moves every frame while the camera chases DK (xmin 884, 878, 883 .. 917 in the
+                           user's Coral Capers state) - each frame's "narrow block" moved the view, 12 px
+                           jumps.  A real shaft's range is fixed: 8 camera frames unchanged */
+                        if (hle_cam_xmin == nb_cmn && hle_cam_xmax == nb_cmx) { if (nb_stable < 255) nb_stable++; }
+                        else { nb_cmn = hle_cam_xmin; nb_cmx = hle_cam_xmax; nb_stable = 0; }
+                        if (!nb_on && nb_stable >= 8) {
+                            nb_mn = nb_cmn; nb_mx = nb_cmx;
+                            nb_on = nb_mx < nb_mn + 64 && nb_mn >= mn && nb_mx <= mx;
+                        }
                     }
                     if (nb_on && (c < nb_mn || c > nb_mx || game_fblank)) nb_on = 0;
                     if (nb_on) { mn = nb_mn; mx = nb_mx; }
@@ -5153,7 +5265,9 @@ void m_main(void)
                     if (!game_fblank && game_in_main_loop() && over > d && over <= 64 && !pillar_l) d = over;
                     /* (I16) nor left of the level's first camera x (the easing lags while the
                        camera goes back to the level's start) */
-                    if (!pillar_l && c >= mn && d > (int32_t)(c - mn) && d <= WS_CENTER) d = (int32_t)(c - mn);
+                    /* (I21: the LEVEL's start, not a narrow camera block's - inside Coral Capers' shafts
+                       this clamp cut the eased d at once: the view jumped 12 px entering / leaving them) */
+                    if (!pillar_l && c >= lvl_mn && d > (int32_t)(c - lvl_mn) && d <= WS_CENTER) d = (int32_t)(c - lvl_mn);
                 }
                 spr_xoff = d;
 #ifdef CAMLOG
@@ -6271,19 +6385,24 @@ void m_main(void)
         if (pm_open && local.cv >= 1 && local.cv <= 3 && in_level) {   /* (I11: also the fog levels, 2 / 3) */
             if (pm_key != PM_KEY()) { pm_key = PM_KEY(); pm_shown = 0; }
             pm_shown++;
-            static const char *const it[PM_N] = { "RESUME", "FRAME SKIP", "60FPS MODE", "FOREGROUND", "EXIT TO MAP", "RIPPLE", "LEVEL SELECT" };
+            static const char *const it[PM_N] = { "RESUME", "FRAME SKIP", "60FPS MODE", "FOREGROUND", "RIPPLE",
+                                                  "OBJECT RANGE", "EXIT TO MAP", "LEVEL SELECT" };
             int32_t gx = CV_GX(sh, camx), gy = CV_GY(sh, camy);
-            const int bx = 84, by = 56, bw = 152, bh = 18 + PM_N * 16;
+            /* (I21) small font: 6 px characters, 10 px lines */
+            const int bx = 92, by = 64, bw = 136, bh = 22 + PM_N * 10;
             box_cv(bx, by, bw, bh, 96);
-            text_cv(bx + 40, by + 4, "OPTIONS", 112, 96);
+            text57_cv(bx + 47, by + 5, "OPTIONS", 112, 96);
             for (int i = 0; i < PM_N; i++) {
-                int yy = by + 20 + i * 16;
-                if (i == pm_sel) text_cv(bx + 6, yy, ">", 112, 96);
-                text_cv(bx + 18, yy, it[i], 112, 96);
-                if (i == 1) text_cv(bx + 110, yy, fskip ? "ON" : "OFF", 112, 96);
-                if (i == 2) text_cv(bx + 110, yy, pipe_mode ? "ON" : "OFF", 112, 96);
-                if (i == 3) text_cv(bx + 110, yy, fg_on ? "ON" : "OFF", 112, 96);
-                if (i == 5) text_cv(bx + 110, yy, rip_on ? "ON" : "OFF", 112, 96);
+                int yy = by + 18 + i * 10;
+                const char *v = 0;
+                if (i == pm_sel) text57_cv(bx + 6, yy, ">", 112, 96);
+                text57_cv(bx + 16, yy, it[i], 112, 96);
+                if (i == PM_FSKIP) v = fskip ? "ON" : "OFF";
+                if (i == PM_PIPE) v = pipe_mode ? "ON" : "OFF";
+                if (i == PM_FG) v = fg_on ? "ON" : "OFF";
+                if (i == PM_RIPPLE) v = rip_on ? "ON" : "OFF";
+                if (i == PM_OBJ) v = obj_wide ? "WIDE" : "SNES";
+                if (v) text57_cv(bx + 100, yy, v, 112, 96);
             }
             /* restore the whole area next time this buffer is drawn (with the HUD's); the fog canvases
                have no HUD restore: the whole buffer then (the game is paused) */

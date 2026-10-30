@@ -110,6 +110,10 @@ uint32_t interp(uint32_t key)
         int immA = (op & 0x1F) == 0x09 && op != 0x89 ? 1 : 0;
         if (op == 0x89) immA = 1;
         if (immA) { v = m8 ? b1 : w; len = m8 ? 2 : 3; }
+        if (immA && !m8 && (r65_ws[1] | r65_ws[2]) && ((pc >> 16) == 0xBD || (pc >> 16) == 0xB6 || (pc >> 16) == 0xBE)) {
+            for (const uint32_t *t = r65_ws_tab; *t; t++)      /* (I21) OBJECT RANGE (rompatch WS_TUNE) */
+                if ((*t & 0xFFFFFF) == pc) { v = (v + r65_ws[*t >> 24]) & 0xFFFF; break; }
+        }
         (void)lo; (void)grp;
         switch (op) {
         /* ---- ORA / AND / EOR / ADC / CMP / SBC / LDA / STA */

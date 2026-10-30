@@ -1032,3 +1032,52 @@ don't go out, instead the sprites disappear".  Objects still vanish near the scr
   from the game's last all-channel $2132 write (game_coldata, >= 16 = dark).  The sprites stay.
   The "vanishing sprites" part was not reproduced (ares runs of the I19 build: the Kongs left the
   picture only by falling into a pit); with the lights going out now, the sprites stay as on the SNES.
+### I21 (2026-10-30): Galleon island, water camera, Ropey trees, object range, menu font, Rare logo
+User: "looks much better".  Final boss: the DK island in the distance still drifts from its shadow on
+the water.  The underwater camera jumps again (save state from Coral Capers).  Ropey Rampage: the back
+trees are one colour.  Make the object range (things vanishing at the screen edge) a setting for a
+playthrough test.  Smaller pause menu text.  The Rare logo's lines look bad, run slow and push the
+Nintendo logo far behind the fanfare.  More optimization.
+- B-GALLEON3: the island is a SNES sprite (drawn by the 32X, placed in the 32X view, camx - d), its
+  shadow is BG2 (the Genesis plane, scrolled for the game camera camx): the two were d pixels apart
+  times (1 - parallax factor).  The view offset d (spr_xoff 0..127) now goes to the 68000 in C_FRAME
+  bits 9-15 (cframe(); the lamp levels keep their game-frame counter there) and md update_scroll()
+  computes every plane's H scroll for the game camera and subtracts d (all fx: line, band and cell
+  scroll tables).  Every background now lines up with the SNES picture at SNES x 0; the Galleon island
+  sits on its shadow.  40-level ares sweep I20 vs I21: only parallax offsets moved.
+- B-WATERCAM2: hle_cam_xmin / xmax change while swimming (the game's camera blocks); I16's narrow-block
+  rule adopted a range the moment it was narrow and the left clamp used the block's start, so the view
+  offset jumped 12 px at block changes (user's state: frames 46, 63, 359).  Now a narrow block is
+  used only after its range stayed the same for 8 camera frames, and the left clamp uses the level's
+  own start.  Replay of the logged camera (camlog) with the old / new rules: jumps 6 -> 0.
+- B-ROPEYTREES: the storm palette (CODE_80AC8B: r 5/16, g 5/8, b = g) was then put through the
+  level's colour math (BG2 - fixed (4, 4, 4), halved) - snes9x shows the storm's BG2 colours
+  unmodified (96 % of the treetop pixels are palette colours), so the treetops fell to 1-2 Genesis
+  levels: one flat teal.  genesis_planes(day={'nomath': (1, 2)}): the storm and lightning keyframes
+  skip the math; the treetops now have 4-5 shades (pdprev: 2 -> 10 colours on the plane).
+- B-OBJRANGE (option): pause menu OBJECT RANGE = WIDE (default) / SNES.  WIDE moves the game's
+  sprite spawn / keep-alive windows (SNES: camx - 32 .. camx + 288, its view + 32 each side) to the
+  32X view + 32 each side: camx - d - 32 .. camx - d + 352.  41 immediates (rompatch WS_TUNE: bank BD
+  spawn windows, B6:9A5F keep-alive, BE:D5B2 "acts while on screen") read imm + r65_ws[kind] in the
+  translated code; the interpreter adds the same (r65_ws_tab).  SNES = r65_ws 0 = the original game
+  logic (host regression 309/309 WRAM-identical).  I15's broken barrel group came from widening the
+  spawn windows but not the keep-alive check (objects killed inside the spawn window never came
+  back); WIDE moves both together.  Game logic change: for the user's playthrough test.
+- B-MENUFONT: the pause menu in a 5 x 7 font (6 px characters, 10 px lines; 8 items in a 136 x 102
+  box, was 7 in 152 x 130).
+- B-RARE: the Rare logo (NMI BC7B, mode 3: BG1 8bpp wireframe whose colour index is the drawing
+  order, BG2 the logo, colour math) went through the general screen renderer: two layers and colour
+  sums every frame, ~30 pictures a second, the game logic behind the real-time music.  Now its own
+  effect (fescr.c rare_fx, data from build_viewer fe_rare_fx in the screen's bank): the strokes are
+  drawn in the game's order (its lit palette entries) as lines in the logo's own colours with a
+  white-hot point, a diagonal shine sweep fills the logo, the gold turns once through the spectrum,
+  and the game's mode 7 zoom away is drawn by rare_m7 (the logo's box only, every picture).  60
+  pictures a second, asynchronous swaps, colours written in the vblank.
+- B-FBZERO: a BYTE write of 0 to the 32X frame buffer is not stored (ares; the overwrite rule) - the
+  zoom's erase left trails.  Effect rows are written as words.
+- B-FEDEBT: front-end screens catch up at most 12 logic frames per picture; the Nintendo logo's set-up
+  and first picture took ~22 vblanks, so the game (and its screens) fell behind the music for good.
+  The rest is now carried to the next pictures.  fe_setup's mode 7 box scan (48 K cartridge reads)
+  runs only for mode 7 screens; the 68000 clears its planes with a VDP DMA fill (was a 16 K-word CPU
+  loop, ~3 frames the SH-2 waited at every screen change).  Nintendo logo: ~41 -> ~6 frames after
+  the SNES timing.
