@@ -1020,6 +1020,8 @@ def main():
     tr = Trace(a.tracedir)
     _raw = open(a.rom, 'rb').read()
     insns, labels, named, refs = disparse.parse(rom=_raw[0x200:] if len(_raw) % 0x8000 == 0x200 else _raw)
+    import rompatch
+    rompatch.dis_fix(insns)            # (I21d) the patched instructions' boundaries
     an = Analyzer.__new__(Analyzer)
     an.dis_labels = sorted(labels.values())
     Analyzer.__init__(an, rom, tr, insns)

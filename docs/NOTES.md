@@ -1743,3 +1743,15 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   load, 15 = data bit.  ARES checks: plain md5 ac5e9dfe...; linapp21 (fresh captures) / wtest21
   byte-identical; MiSTer-model GAMEBOT 9000 (bot21c): no flash events; PicoDrive GAMEBOT 12000 +
   STACKCHK 1960 / 1364.
+- I21d: the stump colours were identified by matching the screenshot's colours (5-bit) against every
+  15-colour window in bank BC: best = DATA_BC89C2 (Sprite_BlueKrusha) for both the stump and the
+  bananas.  Manic Mincers slot table at its start: 86F2 (bananas) / 849A (DK) / 8440 (Diddy) / 8A1C /
+  881E (tire = mincers) / 872E (barrel); the stump = DATA_BC88D2 (Sprite_CavePlatform, CODE_B5854C).
+  Sim (devkit copy of /opt/work/sim3/sim.c) gained env tests: WS=L,W (OBJECT RANGE windows), PALOVF
+  (slot high-water mark + $1E3D overflow marker), PALCHK (port colours vs the slot's ROM palette),
+  PALREUSE (a live object's slot reassigned - false positives from sprite 44, the off-screen spawner
+  placeholder that keeps a stale attribute), SLOTLOG.  Bots never reached an overflow on their own (they
+  die at the first mincer); POKE of 4 dummy slots forces one.  $0535 = 1 / 2 (the free movement
+  debug) does not move the Kong in snes9x with a plain d-pad; 2 also stops sprite spawning.
+- Misty perf variant (fog3): misty_frame's flat path returns before the old wave code (still used by
+  the non-perf compositor path comp_fog).  mw_I = 31 at setup.

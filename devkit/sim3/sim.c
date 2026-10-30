@@ -5,6 +5,7 @@
 #include <string.h>
 #include "game.h"
 extern uint32_t sim_cur_f;
+extern uint32_t mrd8(uint32_t);
 static void simhook(void) { static uint32_t lf = 0xFFFFFFFF; if (lf != game_stats.frames && getenv("HOOKLOG")) { lf = game_stats.frames; printf("HOOK f %u 51A %02X inidisp %02X 3E %04X\n", game_stats.frames, game_wram16(0x51A) & 0xFF, game_inidisp, game_wram16(0x3E)); } }
 #include "sprites.h"
 uint16_t fbmem[0x10000];
@@ -188,6 +189,17 @@ int main(int argc, char **argv)
                 const char *n = strchr(g, ','); if (!n) break; g = n + 1;
             }
         }
+        if (getenv("WS")) {   /* (I21d) WS=L,W: the OBJECT RANGE windows (r65_ws) held at L / W / W - L */
+            extern uint32_t r65_ws[3]; int l = 0, w = 0; sscanf(getenv("WS"), "%d,%d", &l, &w);
+            r65_ws[0] = l; r65_ws[1] = w; r65_ws[2] = w - l;
+        }
+        if (getenv("PALOVF")) {   /* (I21d) sprite palette slots: the most in use, every overflow ($1E3D = $78) */
+            extern uint8_t wram_lo[]; static int mx;
+            int c = 0; for (int k = 0; k < 8; k++) if (wram_lo[0x1AD3 + 2 * k] | wram_lo[0x1AD4 + 2 * k]) c++;
+            uint32_t x = wram_lo[0xB1B] | wram_lo[0xB1C] << 8, cx = wram_lo[0x88B] | wram_lo[0x88C] << 8;
+            if (c > mx) { mx = c; printf("PAL f %d slots %d kx %u cam %u\n", f, c, x, cx); }
+            if (wram_lo[0x1E3D] == 0x78) printf("PAL f %d OVERFLOW pal %04X kx %u cam %u\n", f, wram_lo[0x1E35] | wram_lo[0x1E36] << 8, x, cx);
+        }
         if (getenv("TP")) {   /* TP=start,every,dx: move slot-0 sprite (the Kong) right (exploration) */
             int t0 = 0, ev = 60, dx = 128; sscanf(getenv("TP"), "%d,%d,%d", &t0, &ev, &dx);
             if (f >= t0 && (f - t0) % ev == 0) {
@@ -271,6 +283,72 @@ int main(int argc, char **argv)
             for (int p = 0; p < 8; p++) { printf("pal %d:", p); for (int i = 0; i < 16; i++) printf(" %04X", spr_pal[p * 16 + i]); printf("\n"); }
             extern uint8_t wram_lo[];
             for (int i = 0; i < 128; i++) if (wram_lo[0x201 + i * 4] < 224) printf("oam %d x %d y %d t %02X a %02X\n", i, wram_lo[0x200 + i * 4], wram_lo[0x201 + i * 4], wram_lo[0x202 + i * 4], wram_lo[0x203 + i * 4]);
+        }
+        if (getenv("PALCHK") && !game_fblank && game_in_main_loop() && !(game_wram16(0x1E15) & 0x10)) {
+            /* (I21d) every loaded sprite palette ($1AD3 slots) against the port's colours (spr_pal):
+               a slot that stays different for 4+ frames is reported once per run of frames */
+            extern uint16_t spr_pal[128]; static int bad[8], room;
+            int r = game_wram16(0x3E);
+            if (r != room) { room = r; printf("PALCHK f %d entrance %02X\n", f, r); }
+            for (int k = 0; k < 8; k++) {
+                uint32_t p = game_wram16(0x1AD3 + 2 * k); int d = 0;
+                if (p) for (int j = 0; j < 15; j++) {
+                    uint32_t c = mrd8(0xBC0000 + p + 2 * j) | mrd8(0xBC0000 + p + 2 * j + 1) << 8;
+                    if (spr_pal[k * 16 + 1 + j] != ((c & 0x7FFF) | 0x8000)) d++;
+                }
+                if (d) { if (++bad[k] == 4) printf("PALCHK f %d slot %d pal %04X: %d colours differ (refs %d) kx %d\n", f, k, p, d, game_wram16(0x1AE3 + 2 * k), game_wram16(0xB1B)); }
+                else { if (bad[k] >= 4) printf("PALCHK f %d slot %d ok again after %d frames\n", f, k, bad[k]); bad[k] = 0; }
+            }
+        }
+        if (getenv("PALUSE") && !game_fblank && game_in_main_loop()) {
+            /* (I21d) objects whose palette slot is free, or more users than the slot's count */
+            static int rep[8]; int use[8] = {0}; int fr[8] = {0};
+            for (int i = 2; i < 26; i++) {
+                if (!game_wram16(0xD45 + 2 * i)) continue;
+                int sl = (game_wram16(0xC69 + 2 * i) >> 9) & 7;
+                use[sl]++;
+                if (!game_wram16(0x1AD3 + 2 * sl)) fr[sl]++;
+            }
+            for (int k = 0; k < 8; k++) {
+                int refs = (int16_t)game_wram16(0x1AE3 + 2 * k);
+                int b = fr[k] || use[k] > refs;
+                if (b && !rep[k]) printf("PALUSE f %d slot %d pal %04X refs %d users %d free-users %d kx %d entrance %02X\n", f, k, game_wram16(0x1AD3 + 2 * k), refs, use[k], fr[k], game_wram16(0xB1B), game_wram16(0x3E));
+                rep[k] = b;
+            }
+        }
+        if (getenv("SLOTLOG")) {   /* (I21d) the palette slot table whenever it changes */
+            static uint16_t ps[8], pr[8];
+            int ch = 0;
+            for (int k = 0; k < 8; k++) if (ps[k] != game_wram16(0x1AD3 + 2 * k) || pr[k] != game_wram16(0x1AE3 + 2 * k)) ch = 1;
+            if (ch) {
+                printf("SLOT f %d:", f);
+                for (int k = 0; k < 8; k++) { ps[k] = game_wram16(0x1AD3 + 2 * k); pr[k] = game_wram16(0x1AE3 + 2 * k); printf(" %04X/%d", ps[k], (int16_t)pr[k]); }
+                printf("\n");
+            }
+        }
+        if (getenv("PALREUSE") && !game_fblank && game_in_main_loop()) {
+            /* (I21d) a live object whose palette slot was given to another palette meanwhile */
+            static uint16_t mid[26], mptr[26]; static uint8_t mk[26]; static int nrep;
+            for (int i = 2; i < 26; i++) {
+                uint16_t id = game_wram16(0xD45 + 2 * i);
+                int k = (game_wram16(0xC69 + 2 * i) >> 9) & 7;
+                uint16_t p = game_wram16(0x1AD3 + 2 * k);
+                if (!id || id != mid[i] || k != mk[i] || !mptr[i]) { mid[i] = id; mk[i] = k; mptr[i] = p; continue; }
+                if (p != mptr[i]) {
+                    if (nrep++ < 40) printf("PALREUSE f %d obj %d id %04X slot %d pal %04X -> %04X refs %d x %d kx %d entrance %02X\n", f, i, id, k, mptr[i], p,
+                        game_wram16(0x1AE3 + 2 * k), game_wram16(0xB19 + 2 * i), game_wram16(0xB1B), game_wram16(0x3E));
+                    mptr[i] = p;
+                }
+            }
+        }
+        if (getenv("WRAMHASH")) {   /* (I16) per frame: FNV-1a of the same bytes WRAMDUMP writes (regressions) */
+            static FILE *hf; if (!hf) hf = fopen(getenv("WRAMHASH"), "w");
+            extern uint8_t wram_lo[]; extern uint8_t wram_pool[][256]; extern const int game_npool; extern const int game_nring;
+            uint64_t h = 1469598103934665603ULL;
+            for (int i = 0; i < 0x2000; i++) { h ^= wram_lo[i]; h *= 1099511628211ULL; }
+            for (int i = 0; i < game_npool * 256; i++) { h ^= ((uint8_t *)wram_pool)[i]; h *= 1099511628211ULL; }
+            for (int i = 0; i < game_nring * 256; i++) { h ^= ((uint8_t *)ring_ent)[i]; h *= 1099511628211ULL; }
+            fprintf(hf, "%d %016llx\n", f, (unsigned long long)h);
         }
         if (getenv("WRAMDUMP")) {
             static FILE *wf; if (!wf) wf = fopen(getenv("WRAMDUMP"), "wb");

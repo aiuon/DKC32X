@@ -105,9 +105,35 @@ def gfxskip_sources(rom):
     return _gfxskip(bytearray(rom))
 
 
+def _palfix(d):
+    """(I21d) PALFIX (env, default 1): the sprite palette allocator (CODE_BDF1F4) with all 8 OBJ palette
+    slots in use returns slot 0 WITHOUT counting the new user (CODE_BDF22B), but that object frees slot 0
+    when it goes ($1AE3 - 1): two such objects and slot 0 (the bananas' palette) is released while the
+    bananas still use it - the next palette loaded there (a Krusha's) recoloured the bananas and every
+    overflowed object (Manic Mincers, OBJECT RANGE WIDE: more objects alive, more palettes).  The new
+    user is counted now (INC $1AE3 in place of the debug display's LDA $8C / STA $1E35)."""
+    if os.environ.get('PALFIX', '1') != '1':
+        return
+    a, old, new = 0x3DF231, bytes([0xA5, 0x8C, 0x8D, 0x35, 0x1E]), bytes([0xEE, 0xE3, 0x1A, 0xEA, 0xEA])
+    assert bytes(d[a:a + 5]) == old, 'rompatch: unexpected bytes at %06X' % a
+    d[a:a + 5] = new
+
+
+def dis_fix(insns):
+    """the disassembly's instruction boundaries (disparse: pc -> (mnemonic, operand bytes, ..)) for the
+    patched code, so r65.py's static discovery follows it (untraced code must match the disassembly)"""
+    if os.environ.get('PALFIX', '1') != '1':
+        return
+    insns.pop(0xBDF233, None)
+    insns[0xBDF231] = ('INC', 2, 0, 'INC')
+    insns[0xBDF234] = ('NOP', 0, 0, 'NOP')
+    insns[0xBDF235] = ('NOP', 0, 0, 'NOP')
+
+
 def apply(rom):
     d = bytearray(rom)
     _gfxskip(d)
+    _palfix(d)
     if os.environ.get('WIDESCREEN', '1') == '0':
         return bytes(d)
     for a, old, new in _ws():

@@ -2793,6 +2793,21 @@ static void misty_palette(void)
 
 static void misty_frame(uint32_t f, int32_t X, int32_t Y)
 {
+    if (fog3) {
+        /* (I21d) the game's Misty Mine mist as Poison Pond's fog: ONE offset for the whole layer (no
+           per-band wave: its bands tore / bounced against each other however they were rounded, user)
+           - the SNES's scroll rates (x 1.25, y 1) plus the steady drift of its wave (half a pixel per
+           frame down-right), the sway left out.  (x + y) kept even, as Poison Pond's layer does
+           (write_line_table_cv): the checkerboard keeps its screen phase, each framebuffer shows the
+           other half - a clean alternation.  Full density from the start (no fade-in: its palette
+           steps forced a synchronous flip every 32 frames for 16 s). */
+        int32_t d = (int32_t)(f >> 1);
+        int32_t x = (int32_t)(uint16_t)(((uint16_t)X >> 2) + X) + d;
+        int32_t y = Y + 1 + d;
+        if ((x + y) & 1) x++;
+        for (int i = 0; i < SCREEN_H / 4; i++) { comp_wave[i][0] = x; comp_wave[i][1] = y; }
+        return;
+    }
 #ifdef MISTY_I0
     if (0) {
 #else
@@ -3626,7 +3641,7 @@ static void load_level(int idx, shared_t *sh)
         if (fog3) {
             mw_sway = (const uint8_t *)(ft + ntl * 16);
             mw_fresh = 1;
-            mw_I = 0;
+            mw_I = 31;                    /* (I21d: no fade-in - misty_frame) */
             cv_xbase = 0;
             for (int i = 0; i < 256; i++) comp_palbuf[i] = fpal[i];
         }
@@ -4915,9 +4930,17 @@ void m_main(void)
                    camx - d - 32 .. camx - d + 352 (SNES: camx - 32 .. camx + 288) */
                 extern uint32_t r65_ws[3];
                 extern int32_t spr_xoff;
+                /* (I21d) the SNES has 8 sprite palettes; the wider windows keep more objects (and their
+                   palettes) alive: with 7 of the 8 in use the windows go back to the SNES ones (the
+                   32X view at mid-level) until no more than 5 are in use (the game's slot table $1AD3) */
+                static int ws_tight;
+                int used = 0;
+                for (int k = 0; k < 8; k++) used += game_wram16(0x1AD3 + 2 * k) != 0;
+                if (used >= 7) ws_tight = 1; else if (used <= 5) ws_tight = 0;
+                int wide = obj_wide && in_level && !ws_tight;
                 int32_t L = spr_xoff < 0 ? 0 : spr_xoff > 64 ? 64 : spr_xoff;
-                if (!obj_wide || !in_level) L = 0;
-                r65_ws[0] = (uint32_t)L; r65_ws[1] = (obj_wide && in_level) ? 64 : 0; r65_ws[2] = r65_ws[1] - (uint32_t)L;
+                if (!wide) L = 0;
+                r65_ws[0] = (uint32_t)L; r65_ws[1] = wide ? 64 : 0; r65_ws[2] = r65_ws[1] - (uint32_t)L;
             }
             for (int st = 0; st < fsteps; st++) {
                 if (st && (game_fblank || !game_in_main_loop()) && !(map_mode == 1 && game_wai_pc() == 0x80E90E) &&

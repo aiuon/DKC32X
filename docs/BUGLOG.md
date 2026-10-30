@@ -1118,3 +1118,28 @@ frame; wants the frame rate / SH-2 / 68000 load readout back as a pause menu opt
   pictures a second, master / slave SH-2 load, 68000 load.  The 68000 measures its V interrupt and idle
   work (VDP V counter, + an estimate per H interrupt) per 60 frames and sends the % 1 bit a vblank in
   C_PAD bits 15 / 14 (the pad sample number is now 6 bits).
+
+### I21d (2026-10-30): Manic Mincers sprite colours, Misty Mine mist
+User: after leaving Manic Mincers' Klaptrap room, a tree-stump platform in completely wrong colours
+(and wrong colours in a TNT barrel's explosion), OBJECT RANGE WIDE; Misty Mine's mist still tears /
+bounces between bands - "use the exact same misty foreground from Poison Pond ... just the auto-scroll".
+- B-PALOVF: the screenshot's stump AND the bananas above it were drawn in the Blue Krusha's colours
+  (matched against every sprite palette in the ROM: BC:89C2).  Cause, in the game itself: the SNES has 8
+  sprite palettes; the allocator (CODE_BDF1F4) with all 8 in use returns palette 0 WITHOUT counting the
+  new user (CODE_BDF22B, the debug "out of palettes" marker), but that object releases palette 0 when it
+  goes.  Two such objects and palette 0 (the bananas') was freed while the bananas still used it; the next
+  palette loaded (the Krusha's) went there and recoloured the bananas and every object that had been
+  given palette 0.  On the SNES's 256-px windows Rare never runs out; WIDE keeps more objects (and
+  palettes) alive, and the Klaptrap room's palettes are kept over the room change for its fade.
+  Fixes: (1) rompatch PALFIX - the overflow now counts its user (INC $1AE3 in place of the debug
+  display's LDA $8C / STA $1E35; r65.py learns the new instruction boundaries via rompatch.dis_fix), so
+  palette 0 can no longer be freed under its users; (2) main.c: with 7 of the 8 palettes in use the
+  OBJECT RANGE windows go back to the SNES ones until no more than 5 are in use (at mid-level the SNES
+  windows are exactly the 32X's 320 columns).  Host check: 8 palettes forced full in the sim - the
+  overflowed barrel now holds a count on palette 0 (2 -> 4 instead of 3).  reg.py: 309/309 coverage jobs
+  WRAM-identical to I21 (the patch only acts when the palettes run out).
+- B-MISTWAVE2: the game's Misty fog is one offset for the whole layer now, as Poison Pond's: the SNES's
+  scroll rates (x 1.25, y 1) plus its wave's steady drift (half a pixel a frame, down-right); the
+  per-band wave and its sway are gone, so no band can tear or bounce against another.  (x + y) kept
+  even as in Poison Pond's layer (the checkerboard keeps its screen phase).  No fade-in: full density
+  from the start (its palette steps forced a synchronous flip every 32 frames for 16 s).

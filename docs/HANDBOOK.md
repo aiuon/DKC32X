@@ -224,6 +224,11 @@ them. Keep this file current when something structural changes.
   (harness with retro_reset).
 - HLE functions must not use r65_mx (stale inside generated code).
 - Sprite palette 7 (CRAM 253-255) is game data, not free HUD colours.
+- The SNES has 8 sprite palettes (slot table $1AD3, counts $1AE3).  Anything that keeps more objects
+  alive (OBJECT RANGE WIDE) can run out; the game's own overflow path freed palette 0 under its users
+  (I21d B-PALOVF: rompatch PALFIX + WIDE backs off at 7 palettes in use).  A rompatch that changes
+  instruction boundaries needs rompatch.dis_fix too (r65.py only follows untraced code that matches the
+  disassembly: otherwise BADJUMP -> err 20xxxxxx at run time).
 - ROM patches must never touch game logic (I15): the widescreen patch had widened the sprite spawn /
   keep-alive windows - the game diverged from the SNES and Barrel Cannon Canyon lost a barrel.  Any
   patch to the game's code: A/B it in snes9x (same inputs, original vs patched ROM, compare the sprite
@@ -364,6 +369,10 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   8 stable frames, Ropey's storm trees without colour math, pause menu OBJECT RANGE (WIDE default /
   SNES), small menu font, the Rare logo's own 60 fps effect + zoom, front-end catch-up carried over,
   plane clears by VDP DMA fill (BUGLOG "I21").
+- I21d: sprite palette overflow fixed in the game code (rompatch PALFIX) and WIDE backs off under
+  palette pressure (B-PALOVF); Misty Mine's mist = one flat layer like Poison Pond's, drift only, no
+  fade-in (B-MISTWAVE2).  Open idea: a per-line wave on the flat mist (whole-word line-table moves only,
+  PicoDrive applies per-line SFT 2 lines early).
 Open:
 - OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch
   WS_TUNE / r65_ws): waiting for the user's playthrough.  If a level breaks (I15: a barrel group in
