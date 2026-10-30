@@ -263,6 +263,10 @@ them. Keep this file current when something structural changes.
   pack, so shrinking SH-2 code does not move it.  The first 256 KB has its own room (~38 KB after
   I19): put functions there with data/lowrom.txt (LOWROM_FN).  Each translated key also adds a
   16-byte dispatch entry to the resident region (~0.4 KB free there now).
+- (I20) Genesis S/H: a pixel is shadowed only if both planes' cells there are low priority (even
+  transparent ones), and a high-priority plane B cell is drawn over a low plane A cell: per-cell
+  shadow works for one plane, or for two when plane B is shadowed throughout.
+- (I20) The harness's load / state file names are relative to its output folder.
 - (I19) Asynchronous swaps: anything per-line the interrupts read (the ripple shift table) must
   switch in the V interrupt of the swap's vblank (af_sft next to af_shift), and the next picture
   may rewrite the old table only after its fb_sync.
@@ -343,7 +347,14 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
 - I19: performance round (HANDBOOK 7, BUGLOG I19): async swap for late and ripple pictures, level-load
   and per-frame interpreted code translated (data/lowrom.txt), one late music refill no longer adds a
   buffer of silence; Genesis plane dither (B-PLANEDITHER).
+- I20: Genesis planes per-cell shadow (more dark shades, no new tiles), the I19 dither replaced by
+  rare neighbour-level checkerboards, Blackout Basement's lights go out (BUGLOG "I20").
 Open:
+- Objects vanish at the 32X picture's edge (the game's keep-alive window camx - 32 .. camx + 288 is
+  exactly the 32X view; on the SNES it reaches 32 px past its picture).  Widening it is a game-logic
+  change (I15: widened spawn windows broke a barrel group in Barrel Cannon Canyon); the active-sprite
+  keep-alive check is B6:9A5F (camx - $20 / + $140, despawn JML BDF44B); the spawn-point windows in
+  bank BD are separate.  Waiting for the user's choice (an option, default SNES).
 - Poison Pond: one line of sprite pixels repeated at ripple band ends (sprites share the rippled
   canvas); workaround RIPPLE OFF.
 - Ropey rain section F20 on MiSTer (game speed fine); Torchlight F15-18.

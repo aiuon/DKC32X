@@ -117,6 +117,9 @@ R65_HOT uint32_t io_rd(uint32_t ea)
    it has reloaded the tile cache: the load-only WRAM pages alias it, see mkgame.py; the NMI blanks
    the screen during its DMAs every frame, so only the value left at the end of a frame counts) */
 uint8_t game_inidisp = 0x0F, game_fblank;
+/* (I20) the fixed colour the game last wrote to all three channels ($2132 with bits 5-7 set):
+   Blackout Basement's lights (4 on, 30 off) */
+uint8_t game_coldata;
 
 #ifdef IOCOUNT
 uint32_t io_wcnt[0x10000], io_rcnt[0x10000];
@@ -143,6 +146,7 @@ R65_HOT void io_wr(uint32_t ea, uint32_t v)
         case 0x2183: wmadd = (wmadd & 0x0FFFF) | (v & 1) << 16; break;
         case 0x211B: m7_a = (m7_a >> 8) | v << 8; fe_reg(a, v); break;
         case 0x2100: game_inidisp = v; break;
+        case 0x2132: if ((v & 0xE0) == 0xE0) game_coldata = (uint8_t)(v & 31); game_ppu_hook(a, v); break;
         default: game_ppu_hook(a, v); break;
         }
         return;

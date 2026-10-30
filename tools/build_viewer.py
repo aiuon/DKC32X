@@ -322,7 +322,7 @@ def _planes_clustered(info, anim):
 
 
 def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_override=None, noshadow=False, day=None,
-                   normal=False):
+                   normal=False, sh_cells=False):
     """planes: list of (plane letter, snes layer).  Returns tiles, maps, cram, anim slots.
     anim = (layer, first snes tile, count, [frame bytes] [, group split]): those tiles change every
     frame pair; returns [(genesis tile (| 0x8000 = second group), [frame tiles])] for the 68000.
@@ -413,6 +413,54 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
     if a and b and not a[0]['shadow'] and b[0]['shadow']:
         b[0]['shadow'] = False
 
+    # (I20) per-cell shadow in the ordinary levels: S/H is on (md 0x8C89), so a low-priority cell shows its
+    # palette at half brightness - the finer dark levels 0 29 52 70 87 101 116 130 instead of 0 52 87 116.
+    # DKC's backgrounds are mostly dark: every cell whose colours all fit the shadow range is shadowed,
+    # the brighter cells stay normal (high priority).  A pixel is shadowed only when BOTH planes' cells
+    # there are low priority (even transparent ones), and a high-priority plane B cell would be drawn over
+    # a low plane A cell - so with two planes: B all dark -> B all shadowed, A per cell (a bright A cell
+    # with transparent pixels would un-shadow B under it: such cells are shadowed too, clipped); otherwise
+    # (B has bright cells) the old rule stays.
+    sh_saved = [(pi['shadow'], pi.get('bright')) for pi in info]
+    sh_mode = False
+    if PLANE_SH and sh_cells and not normal and not noshadow and not any(pi['letter'] == 'S' for pi in info):
+        def cell_err(pi, k, sh):
+            px, vs, base = pi['cols'][k]
+            n = {}
+            for v in px:
+                if v and not (pi['layer'] == dyn_layer and v == 1):
+                    n[v] = n.get(v, 0) + 1
+            e = 0.0
+            for v, c in n.items():
+                c5 = apply_colormath(snes_rgb(cg[(base + v) * 2] | cg[(base + v) * 2 + 1] << 8), regs, pi['layer'])
+                T = [min(31, x) * 255.0 / 31 for x in c5]
+                G = cgen(gen_level(c5, sh), sh)
+                e += c * sum(w * (x - y) ** 2 for w, x, y in zip((3, 4, 2), G, T))
+            return e
+
+        def cdark(pi, k):
+            """shadowed cell: its colours at least as close in the shadow levels as in the normal ones"""
+            return cell_err(pi, k, True) <= cell_err(pi, k, False)
+        ab = [pi for pi in info if pi['letter'] in ('A', 'B')]
+        pa = [pi for pi in ab if pi['letter'] == 'A']
+        pb = [pi for pi in ab if pi['letter'] == 'B']
+        if len(ab) == 1 and len(info) == 1:
+            pi = ab[0]
+            pi['shadow'] = True
+            pi['bright'] = set(k for k in pi['cols'] if not cdark(pi, k))
+            sh_mode = True
+        elif pa and pb and all(cdark(pb[0], k) for k in pb[0]['cols']):
+            pb[0]['shadow'] = True
+            pb[0]['bright'] = set()
+            pa[0]['shadow'] = True
+            pa[0]['bright'] = set(k for k in pa[0]['cols'] if not cdark(pa[0], k) and 0 not in pa[0]['cols'][k][0])
+            sh_mode = True
+    if os.environ.get('GPSTAT'):
+        for pi in info:
+            dk = sum(1 for k, (px, vs, base) in pi['cols'].items()
+                     if all(max(apply_colormath(snes_rgb(cg[(base + v) * 2] | cg[(base + v) * 2 + 1] << 8), regs, pi['layer'])) <= 16 for v in vs))
+            print('   GPSTAT %02X %s layer %d maxc %.1f shadow %s cells %d dark %d' % (lv.get('entrance', 0), pi['letter'], pi['layer'],
+                  pi['maxc'], pi['shadow'], len(pi['cols']), dk))
     def tsh(pi, k):
         """shadowed cell (low priority under S/H)"""
         return pi['shadow'] and k not in pi.get('bright', ())
@@ -446,6 +494,43 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
             c = canon[c]
         return c
 
+    dp_cache = {}
+
+    def dpair(pi, base, v, sh):
+        """(I20) a SNES colour between two Genesis levels: (CRAM word low, high) one level apart in the
+        channels that fall between levels (the others at their nearest level) - or None when the nearest
+        colour is close enough or the mix not clearly better"""
+        if pi['layer'] == dyn_layer and v == 1:
+            return None
+        c5 = tuple(apply_colormath(snes_rgb(cg[(base + v) * 2] | cg[(base + v) * 2 + 1] << 8), regs, pi['layer']))
+        ck = (c5, sh)
+        if ck in dp_cache:
+            return dp_cache[ck]
+        lv8 = [GEN_LEVELS[j] if sh else GEN_LEVELS[j * 2] for j in range(8)]
+        W = (3.0, 4.0, 2.0)
+        en = em = 0.0
+        lo = hi = 0
+        split = False
+        for ch in range(3):
+            t = min(31, c5[ch]) * 255.0 / 31
+            j = max(q for q in range(8) if lv8[q] <= t + 1e-9)
+            jn = j if j == 7 or t - lv8[j] <= lv8[j + 1] - t else j + 1
+            dn = abs(t - lv8[jn])
+            en += W[ch] * dn * dn
+            if j < 7 and abs(t - (lv8[j] + lv8[j + 1]) / 2.0) < dn:
+                dm = abs(t - (lv8[j] + lv8[j + 1]) / 2.0)
+                em += W[ch] * dm * dm
+                lo |= j << (1 + ch * 4)
+                hi |= (j + 1) << (1 + ch * 4)
+                split = True
+            else:
+                em += W[ch] * dn * dn
+                lo |= jn << (1 + ch * 4)
+                hi |= jn << (1 + ch * 4)
+        r = (lo, hi) if split and en > PD_MIN_ERR and em < en * PD_GAIN else None
+        dp_cache[ck] = r
+        return r
+
     def allocate():
         lines = [dict() for _ in range(4)]
         if dyn_layer:
@@ -458,7 +543,14 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
                 if tdither(pi, k):
                     sets.append((pi['letter'], k, frozenset(dkey(pi, base, v, i, tsh(pi, k)) for i, v in enumerate(px) if v)))
                 else:
-                    sets.append((pi['letter'], k, frozenset(ckey(pi, base, v, tsh(pi, k)) for v in vs)))
+                    cs = set()
+                    for v in vs:
+                        dp = dpair(pi, base, v, tsh(pi, k)) if use_pairs[0] else None
+                        if dp:
+                            cs.update(dp)
+                        else:
+                            cs.add(ckey(pi, base, v, tsh(pi, k)))
+                    sets.append((pi['letter'], k, frozenset(cs)))
         assign = {}
         if day is not None:
             # weather levels (many keyframe-distinct colours): place each SNES palette's whole colour
@@ -497,7 +589,30 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
 
     def kdist(x, y):
         return sum((((p >> (1 + i * 4)) & 7) - ((q >> (1 + i * 4)) & 7)) ** 2 for p, q in zip(x, y) for i in range(3))
+    pdither = PLANE_DITHER and day is None and not normal
+    use_pairs = [pdither]
     lines, assign, misfit, sets = allocate()
+    if misfit and use_pairs[0]:                  # (I20) no room for the checkerboard pairs: plain colours
+        use_pairs[0] = False
+        lines, assign, misfit, sets = allocate()
+    sh_merged = 0
+    while misfit and sh_mode and day is None and sh_merged < 24:
+        # (I20) shadow + normal colours over the lines' room: merge the two closest colours (as the
+        # weather levels do) a few times before giving the per-cell shadow up
+        used = sorted(set(c for _, _, s_ in sets for c in s_ if c != 'DYN'))
+        x, y = min(((p_, q_) for i_, p_ in enumerate(used) for q_ in used[i_ + 1:]), key=lambda pq: kdist((pq[0],), (pq[1],)))
+        canon[y] = x
+        sh_merged += 1
+        lines, assign, misfit, sets = allocate()
+    if misfit and sh_mode:                       # (I20) still no room for the shadow + normal colours: as before
+        canon.clear()
+        for pi, (sv, bv) in zip(info, sh_saved):
+            pi['shadow'] = sv
+            if bv is None:
+                pi.pop('bright', None)
+            else:
+                pi['bright'] = bv
+        lines, assign, misfit, sets = allocate()
     merged = 0
     while day is not None and misfit and merged < 40:
         # merge the two closest colours (over all keyframes) and pack again
@@ -508,6 +623,9 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         lines, assign, misfit, sets = allocate()
     if merged:
         print('   merged %d near-identical colours to fit the palette lines' % merged)
+    if os.environ.get('GPSTAT'):
+        print('   GPMIS %02X misfit %d of %d cells, %d colours' % (lv.get('entrance', 0), misfit, len(sets),
+              len(set(c for _, _, s_ in sets for c in s_))))
     nk = len(all_cgs)
     crams = [[0] * 64 for _ in range(nk)]
     for li in range(4):
@@ -526,49 +644,22 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         cr = rgb(c)
         best = min(lines[li].items(), key=lambda kv: sum((x - y) ** 2 for x, y in zip(rgb(kv[0]), cr)))
         return best[1]
-    # (I19) palette-constrained ordered dither: a SNES colour the Genesis cannot show is drawn as a
-    # 4x4 ordered mix of two colours ALREADY in the tile's palette line (no new colours, no new tiles:
-    # the pattern is fixed per tile pixel).  The matrix gives both checkerboard halves every other
-    # threshold, so a 50 % checkerboard over it (fog, lamp dots) never lines up with it, at any scroll.
-    pdither = PLANE_DITHER and day is None and not normal
+    # (I19 -> I20) checkerboard dither: see dpair / pd_index (the I19 4x4 ordered mix of any two line
+    # colours looked like noise over big areas - user report)
     pd_cache = {}
 
     def pd_index(li, pi, base, v, i, sh):
-        if pi['layer'] == dyn_layer and v == 1:
+        """(I20) a 50 % checkerboard of the colour's two neighbouring Genesis levels (dpair), when both
+        made it into the tile's palette line; None = the plain nearest colour"""
+        if not use_pairs[0]:
             return None
-        c5 = apply_colormath(snes_rgb(cg[(base + v) * 2] | cg[(base + v) * 2 + 1] << 8), regs, pi['layer'])
-        T = tuple(min(31, x) * 255.0 / 31 for x in c5)
-        ck = (li, T, sh)
-        if ck not in pd_cache:
-            ents = [(ix, cgen(kv, sh)) for kv, ix in lines[li].items() if kv != 'DYN']
-            W = (3.0, 4.0, 2.0)
-
-            def d2(a, b):
-                return sum(w * (x - y) ** 2 for w, x, y in zip(W, a, b))
-            ia, ca = min(ents, key=lambda e: d2(e[1], T))
-            e1 = d2(ca, T)
-            best = None
-            if e1 > PD_MIN_ERR:
-                for j, (ix, cx) in enumerate(ents):
-                    for iy, cy in ents[j + 1:]:
-                        dd = [y - x for x, y in zip(cx, cy)]
-                        n2 = sum(w * q * q for w, q in zip(W, dd))
-                        if not n2:
-                            continue
-                        r = sum(w * q * (t - x) for w, q, t, x in zip(W, dd, T, cx)) / n2
-                        r16 = int(round(r * 16))
-                        if r16 < 1 or r16 > 15:
-                            continue
-                        mix = [x + q * r16 / 16.0 for x, q in zip(cx, dd)]
-                        err = d2(mix, T) + PD_SPREAD * n2
-                        if best is None or err < best[0]:
-                            best = (err, ix, iy, r16)
-            if best is not None and best[0] < e1 * PD_GAIN:
-                pd_cache[ck] = (best[1], best[2], best[3])
-            else:
-                pd_cache[ck] = (ia, ia, 0)
-        a, b, r16 = pd_cache[ck]
-        return b if BAYER4X4[(i >> 3) & 3][i & 3] < r16 else a
+        dp = dpair(pi, base, v, sh)
+        if not dp:
+            return None
+        a, b = lines[li].get(dp[0]), lines[li].get(dp[1])
+        if a is None or b is None:
+            return None
+        return b if ((i >> 3) ^ i) & 1 else a
     maps = {}
     anim_keys = set()
     for pi in info:
@@ -1221,9 +1312,11 @@ LAMP_SPR = {0xD9: (0xFDEE64, 0xFDEFBC), 0x30: (0xFDB658, 0xFDB9C0), 0x2B: (0xFDA
 LAMP_SCRIPT = 0xC5DF          # hanging lamp object (sprite spawn script) in the level sprite lists
 LAMP_DOT, LAMP_PAL0, LAMP_C = 250, 238, 31
 PLANE_DITHER = int(os.environ.get('PLANE_DITHER', '1'))   # (I19) Genesis planes: ordered dither in-line
-PD_MIN_ERR = float(os.environ.get('PD_MIN_ERR', '150'))   # (weighted squared 8-bit error: nearest is good enough)
+PD_MIN_ERR = float(os.environ.get('PD_MIN_ERR', '1500'))  # (I20: weighted squared 8-bit error below which the nearest colour is kept -
+                                                          # with the shadow levels only clear misses get a checkerboard)
 PD_GAIN = float(os.environ.get('PD_GAIN', '0.6'))         # (the mix must be this much better than the nearest)
-PD_SPREAD = float(os.environ.get('PD_SPREAD', '0.03'))    # (penalty for mixing far-apart colours: grain)
+PLANE_SH = int(os.environ.get('PLANE_SH', '1'))            # (I20: per-cell shadow / normal in the ordinary levels)
+PLANE_SH_MAX = float(os.environ.get('PLANE_SH_MAX', '16'))  # (SNES 5-bit channel values the shadow range reaches: 130 / 255)
 LAMP_BRIGHT5 = 17             # (I18) lamp-level BG2 cells with a colour channel above this: normal (lanterns)
 LAMP_NSH = 8                  # lamp shade colours (32X CRAM 128, 144, .. 240)
 LAMP_LV0 = 228                # cone light levels 1-10 -> 32X CRAM 228-237 (checkerboard, flipped per frame)
@@ -1520,6 +1613,11 @@ LIGHTS = {0x31: dict(spr=(0xFDB9C0, 0xFDBE28), base=0xE6F1, keys=((0, 3, 0), (2,
 # (I14) Torchlight's bonus rooms (the barrel room, the claptrap room): the same dark palette and beam -
 # their captures (with the beam on) gave the inverted colours (an icy white cave)
 LIGHTS[0xC1] = LIGHTS[0xC3] = LIGHTS[0x14]
+# (I20) Blackout Basement + its rooms: CGADSUB $A7 subtracts the fixed colour from BG1-3 and the backdrop
+# (never the sprites): 4 with the lights on, 30 off (the game's $2132 writes; flicker 2 = the SH-2 reads
+# that register's last value instead of $0579).  The captures held a dark frame's 30, which the colour
+# math emulation skips (CGWSEL bit 1): the port showed the lit colours all the time.
+LIGHTS[0x41] = LIGHTS[0x64] = LIGHTS[0xA3] = dict(fixed=[], keys=((-4, -4, -4), (-30, -30, -30)), flicker=2)
 # Squawks' flashlight (Torchlight): the SNES window wedge from Squawks, top edge -0.2375 px/px, lower-left
 # edge +0.25 px/px; the viewer has no Squawks, so the apex sits at a fixed screen spot (bobbing 3 px).
 # lit(x, y) = x >= beam_L(y); the SH-2 uses the same integer formula (bm_L)
@@ -1989,7 +2087,7 @@ def build_level(L, lv, tilesets):
         cgk = light_cgs(cg, li['keys'])
         keyk = {'cgs': cgk}
         gtiles, gmaps, _, ganim = genesis_planes(vram, cgk[0], lv, planes, 3 if t.get('fx') == 'jungle' else None,
-                                                 anim, day=keyk)
+                                                 anim, day=keyk, sh_cells='beam' not in li)
         gcram = keyk['crams'][0]
         wx = dict(gkeys=keyk['crams'], pkeys=[[((q[i * 2] | q[i * 2 + 1] << 8) | 0x8000) if i % 16 else 0
                                                for i in range(128)] for q in cgk],
@@ -2013,7 +2111,7 @@ def build_level(L, lv, tilesets):
         sky = [wx['skeys'][0]] * 224
     else:
         gtiles, gmaps, gcram, ganim = genesis_planes(vram, cg, lv, planes, 3 if t.get('fx') == 'jungle' else None, anim,
-                                                     normal=lv['entrance'] in LAMP_SPR)
+                                                     normal=lv['entrance'] in LAMP_SPR, sh_cells=True)
     if comp:
         # plane A: opaque black cells over the side borders (x < 32, x >= 288), fixed scroll, plus the
         # HUD font (the 68000 draws the HUD on plane A for comp levels: tiles 2 + 2*char, 8x16)

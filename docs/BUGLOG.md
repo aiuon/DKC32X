@@ -1004,3 +1004,31 @@ the 352x256 wrapping canvas with line-table scrolling, BUGLOG I3.)
   cycle levels (their own dither and palette animation).  Offline (scratchpad pdprev.py, blurred
   error vs the SNES colours): Coral Capers 143 -> 36, Temple Tempest 79 -> 30-59, Forest Frenzy 13 -> 6-8.
   PLANE_DITHER=0 in the environment turns it off at build time.
+### I20 (2026-10-29): background colours again, Blackout Basement lights
+User: the I19 dither looked awful (repeating noise over large areas, far-apart colour pairs); wanted
+only plain checkerboards between close shades (Super Donkey Kong 99's look) or else the nearest colour;
+asked whether shadow / highlight could give the Genesis more colours.  Blackout Basement: "the lights
+don't go out, instead the sprites disappear".  Objects still vanish near the screen edge (open).
+- B-PLANESH (more colours): S/H was already on in the ordinary levels, but a plane was shadowed only as
+  a whole and only when both planes were dark (max SNES channel <= 15.5).  Now per cell: a cell is
+  shadowed (low priority: half brightness, the finer dark levels 0 29 52 70 87 101 116 130 instead
+  of 0 52 87 116) when its colours are at least as close that way; bright cells stay normal.  A pixel
+  is shadowed only when both planes' cells there are low priority, so with two planes this needs
+  plane B all dark (B shadowed, A per cell; A cells with transparent pixels shadowed too); otherwise
+  the old rule.  When the colours no longer fit the 4 lines, the closest ones are merged (up to 24);
+  failing that the level keeps the old palette.  No new tiles.  Also in the light-switch levels
+  (Stop & Go, Loopy Lights, Blackout Basement), not in the weather / day-cycle / lamp / beam levels.
+  Coral Capers: the sand brown instead of magenta, the water muted like the SNES; the caves, the
+  temple, the factory and Tree Top Town keep their dark detail instead of going black.
+- B-DITHER2: the I19 4x4 ordered mix of any two line colours is gone.  A checkerboard is used only
+  between the two Genesis levels around the SNES value (one level apart per channel), only when the
+  nearest colour is clearly off (weighted error > 1500) and the mix much closer; both colours are
+  added to the cell's palette line (if they do not fit, plain colours).  With the shadow levels this
+  is rare.
+- B-BLACKOUT: CGADSUB $A7 subtracts the fixed colour from BG1-3 and the backdrop, never the sprites:
+  4 with the lights on, 30 off (snes9x: COLDATA $E4 / $FE, CGRAM unchanged).  The captures held a
+  dark frame's 30, which the converter's colour math skips (CGWSEL bit 1), so the port always showed
+  the lit colours.  Now a light-switch level (LIGHTS[0x41] + its rooms): keys -4 / -30, the state
+  from the game's last all-channel $2132 write (game_coldata, >= 16 = dark).  The sprites stay.
+  The "vanishing sprites" part was not reproduced (ares runs of the I19 build: the Kongs left the
+  picture only by falling into a pit); with the lights going out now, the sprites stay as on the SNES.

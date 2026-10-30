@@ -2453,7 +2453,9 @@ __attribute__((noinline)) static void bm_game_setup(const uint16_t *lit, const u
 static void lt_frame(int32_t camx)
 {
     if (lt_game && game_on) {
-        lt_state = (game_wram16(0x579) >> 9) & 1;
+        extern uint8_t game_coldata;
+        /* (I20) Blackout Basement (flicker field 2): the game's fixed colour, 30 = lights off */
+        lt_state = lt_flicker == 2 ? game_coldata >= 16 : (game_wram16(0x579) >> 9) & 1;
         return;
     }
     int32_t c = camx + 160;

@@ -1663,3 +1663,26 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   PicoDrive reset at 3000: Cranky's intro again.  ARES_MISALIGN 8000 frames: only the old 0xaffe line.
   Water levels: async pictures vs FLIP_ASYNC off (pic_eq 22 0:1 / 0:9) differ only where the runs'
   game states diverge (pad timing) - the ripple bands line up in both.
+## 2026-10-29: I20 - per-cell shadow on the Genesis planes, checkerboard dither, Blackout lights (BUGLOG "I20")
+- build_viewer.genesis_planes(sh_cells=True) from the ordinary level path and the LIGHTS path (not
+  the beam): cell_err(pi, k, sh) = weighted error of the cell's pixels at the ideal normal / shadow
+  levels; bright = cells where normal wins.  allocate() fallbacks: pairs off -> up to 24 colour merges
+  (canon) -> the old shadow flags.  Env: PLANE_SH=0 (off), PLANE_DITHER=0, PD_MIN_ERR (1500), PD_GAIN.
+- dpair(pi, base, v, sh): per channel the bracketing levels (lv8 = shadow / normal table); a channel is
+  split when the midpoint is closer than the nearest level; pixel = high colour on ((i >> 3) ^ i) & 1.
+- GPSTAT=1: per plane maxc / shadow / cells / dark cells and GPMIS (misfits, colours) per level.
+  Before I20 most planes used 5-35 of the 60 Genesis colours (9-bit colour collapses DKC's palettes);
+  per-cell shadow raises that (Coral 9 -> 18, the factory 5 -> 13, Tree Top Town 33 -> 41).
+- Offline preview: scratchpad pdprev.py ENT OUT.png (SNES colours | Genesis planes as shown, per-cell
+  shadow from the map priority bit) - PLANE_SH / PLANE_DITHER / PD_* env apply.
+- SNES reference runs: the harness 'load' / 'state' paths are relative to the output directory (an
+  absolute path segfaulted it): copy work/wmap.st into the run folder; pokew 0x40 / 0x3E = entrance.
+  Memory ids: 2 WRAM, 4096 CGRAM, 4097 PPU register fill (last written values; $2132 = COLDATA).
+- Blackout: snes9x frames every 10 (scratchpad-free: /tmp/claude-0/i20/bb), lights off ~60 frames at
+  a time; WRAM has no clean flag for it, the register write is the signal (game.c game_coldata).
+- I20 checks: plain build md5 297be58b...; Linux convert.py from bundle19 (linapp20, 176 s) and the
+  Wine .bat run (wtest20, 236 s): byte-identical.  40-level ares shot sweep I19 vs I20 at frame 700
+  (/tmp/claude-0/i20/sw sheet_*.png): only the Genesis planes' colours changed, no broken planes.
+  MiSTer-model GAMEBOT 9000 frames (bot20): one weak flash (5970: the whole picture 1 px for one
+  frame, all layers alike - the game camera, as in I17 / I19).  PicoDrive GAMEBOT 12000 + STACKCHK:
+  master 1960 / 4080, slave 1364 / 2048.  ARES_MISALIGN 8000 frames: only the 0xaffe line.
