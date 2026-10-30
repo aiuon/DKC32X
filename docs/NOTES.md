@@ -1729,3 +1729,8 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   offsets moved.  MiSTer-model GAMEBOT 9000 frames (bot21): no flash events.  PicoDrive GAMEBOT 12000
   + STACKCHK: master 1964 / 4080, slave 1364 / 2048; PicoDrive reset at 3000: the Rare logo again.
   ARES_MISALIGN 8000 frames: none.  scanbundle: only unicodedata.pyd.
+- I21b: d in C_FRAME only for entrance 68 (cf_view, set in load_level); md uses it only for fx 6, the
+  frame counter unmasked elsewhere (as I20).  The 68000 scroll code with dd = 0 is the I20 code line
+  for line (diff against bundle19).  Checks: plain build md5 44307aa1...; linapp21 / wtest21
+  byte-identical; Galleon boss shot (island on its shadow); PicoDrive GAMEBOT 12000 + STACKCHK
+  1964 / 1364.

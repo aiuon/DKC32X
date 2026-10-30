@@ -1081,3 +1081,11 @@ Nintendo logo far behind the fanfare.  More optimization.
   runs only for mode 7 screens; the 68000 clears its planes with a VDP DMA fill (was a 16 K-word CPU
   loop, ~3 frames the SH-2 waited at every screen change).  Nintendo logo: ~41 -> ~6 frames after
   the SNES timing.
+### I21b (2026-10-30): level backgrounds slide into place at the start
+User: in every level the background shifts into place as you start walking - only the boss fight
+needed the I21 change.
+- B-PLANESLIDE: I21's plane scroll H = f(camx + d) - d follows the view offset d, which eases from 0
+  (level start: the view stops at the level's left edge) to 32 over the first steps - so every
+  parallax layer slid by d (1 - its speed) while the foreground stood still.  Now only the Galleon
+  boss fight (entrance 68, md fx 6: the island sprite over its shadow on the plane) gets d (sh
+  cframe / cf_view, md update_scroll dd = 0 unless fx 6); every other level scrolls exactly as in I20.

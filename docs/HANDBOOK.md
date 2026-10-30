@@ -357,7 +357,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   buffer of silence; Genesis plane dither (B-PLANEDITHER).
 - I20: Genesis planes per-cell shadow (more dark shades, no new tiles), the I19 dither replaced by
   rare neighbour-level checkerboards, Blackout Basement's lights go out (BUGLOG "I20").
-- I21: plane scroll follows the view offset (Galleon island on its shadow), water camera blocks need
+- I21: plane scroll follows the view offset in the Galleon boss fight only (I21b: in every level the
+  backgrounds slid into place at the start), water camera blocks need
   8 stable frames, Ropey's storm trees without colour math, pause menu OBJECT RANGE (WIDE default /
   SNES), small menu font, the Rare logo's own 60 fps effect + zoom, front-end catch-up carried over,
   plane clears by VDP DMA fill (BUGLOG "I21").

@@ -2966,10 +2966,14 @@ volatile uint32_t sync_why[16] __attribute__((used));
 #endif
 /* (I21) C_FRAME: the picture counter, bits 9-15 the view offset spr_xoff (0..127) for the 68000's plane
    scroll (md update_scroll) - except in the lamp levels, whose cone flicker needs the game's whole $28 */
+static int cf_view;                       /* (I21b) the level's planes line up with the 32X view: the
+                                             Galleon boss only (entrance 68) - elsewhere the I20 scroll
+                                             (with d everywhere the backgrounds slid into place at each
+                                             level start as d eased from 0 to 32: user) */
 static uint16_t cframe(uint16_t f)
 {
     extern int32_t spr_xoff;
-    if (lamp_n) return f;
+    if (lamp_n || !cf_view) return f;
     int32_t d = spr_xoff < 0 ? 0 : spr_xoff > 127 ? 127 : spr_xoff;
     return (uint16_t)((f & 0x1FF) | (uint32_t)d << 9);
 }
@@ -3550,6 +3554,7 @@ static void load_level(int idx, shared_t *sh)
     }
     REG16(VDP_DISPMODE) = 0;
     cur_idx = idx;
+    cf_view = (PK(level_t, hdr->off_levels) + idx)->entrance == 0x68;
     fe_take();                            /* (the front-end's map mirror lives in the slave's tile cache) */
     render_state_reset();                 /* (I1: the last screen's sprite state) */
     pv_avg[0] = pv_avg[1] = 0; pv_win = 0; pipe_off = 0;   /* (I7: 60 FPS mode measured again) */

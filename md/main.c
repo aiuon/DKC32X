@@ -629,6 +629,9 @@ static uint16_t sval(uint16_t cam, const uint16_t *s, int vert)
    off by dd - f(dd) (24 px for a 1/4-speed layer), which only showed where a plane must line up with
    the 32X layer - Gang-Plank Galleon's island (a sprite) over its shadow (plane A).  Lamp levels keep
    the old formula (their frame counter needs all 16 bits: dd = 0). */
+/* (I21b) dd = the 32X view offset d, only in the Galleon boss fight (fx 6: the island is a sprite placed
+   in the view, its shadow is on this plane).  Elsewhere 0 = the I20 scroll from the view camera: with d
+   in every level, the backgrounds slid into place at each level start as d eased from 0 to 32 (user) */
 static void update_scroll(uint16_t camx, uint16_t camy, uint16_t dd)
 {
     uint16_t ha = 0, va = 0, hb = 0, vb = 0;
@@ -975,10 +978,10 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
         }
         if (lc_on) lc_colours();
         uint16_t cf = COMM(C_FRAME);
-        uint16_t f = lc_on ? cf : (cf & 0x1FF);  /* (I21: bits 9-15 = the view offset, see update_scroll) */
+        uint16_t f = lc_on || fx != 6 ? cf : (cf & 0x1FF);  /* (I21: Galleon: bits 9-15 = the view offset, see update_scroll) */
         if (f != last_frame) {
             last_frame = f;
-            update_scroll(COMM(C_CAMX), COMM(C_CAMY), lc_on ? 0 : (uint16_t)(cf >> 9));
+            update_scroll(COMM(C_CAMX), COMM(C_CAMY), lc_on || fx != 6 ? 0 : (uint16_t)(cf >> 9));
             if (bm_lvl) bm_write();
         }
         if (hv_on) {                            /* blizzard (CODE_808B1F): frames, wind drift + sway */
