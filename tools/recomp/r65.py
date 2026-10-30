@@ -915,6 +915,7 @@ class Emitter:
         an = self.an
         order = sorted(body, key=lambda k: (k[1], k[0]))
         attr = 'SDRAM_FN ' if e in self.opts.get('sdram', ()) else ''
+        if not attr and e in self.opts.get('lowrom', ()): attr = 'LOWROM_FN '
         if not attr and self.opts.get('hot') is not None and e not in self.opts['hot']: attr = 'COLD_FN '
         o = ['%suint32_t %s(void)' % (attr, self.F(e)), '{', '    uint32_t r; FENTER(%s);' % self.key(*e)]
         if order[0] != e: o.append('    goto %s;' % self.L(*e))
@@ -1007,6 +1008,7 @@ def main():
     ap.add_argument('--sdram', help='file with function keys to place in SDRAM (.sdtext)')
     ap.add_argument('--prof', help='per-PC execution counts (gameplay): never-run code in hot functions gets cold labels')
     ap.add_argument('--hot', help='file with the function keys that run often (the rest: COLD_FN = -Os)')
+    ap.add_argument('--lowrom', help='(I19) file with function keys placed in the first 256 KB of the ROM (.lowtext, -Os)')
     a = ap.parse_args()
     rom = Rom(a.rom)
     tr = Trace(a.tracedir)
@@ -1066,6 +1068,11 @@ def main():
         for ln in open(a.sdram):
             ln = ln.split('#')[0].strip()
             if ln: k = int(ln.split()[0], 16); sd.add((k & 0xFFFFFF, k >> 24))
+    low = set()
+    if a.lowrom and os.path.exists(a.lowrom):
+        for ln in open(a.lowrom):
+            ln = ln.split('#')[0].strip()
+            if ln: k = int(ln.split()[0], 16); low.add((k & 0xFFFFFF, k >> 24))
     hot = None
     if a.hot and os.path.exists(a.hot):
         hot = set()
@@ -1081,7 +1088,7 @@ def main():
             if ln.startswith('#') and m: nfr = int(m.group(1))
             q = ln.split('#')[0].split()
             if len(q) == 2 and int(q[1]): prof[int(q[0], 16)] = int(q[1]) / nfr
-    em = Emitter(an, {'entries': ents, 'hle': hle, 'sdram': sd, 'hot': hot, 'prof': prof})
+    em = Emitter(an, {'entries': ents, 'hle': hle, 'sdram': sd, 'hot': hot, 'prof': prof, 'lowrom': low})
     tl = None
     if a.translate:
         tl = []

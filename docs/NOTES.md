@@ -1628,3 +1628,38 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   up to 256 words, 7 + 3 x length cycles, no SH-2 FB access meanwhile) is not used by the port.
   Applied: mapper writes with RV = 1 (BUGLOG I18d).
   I18d: plain build md5 817e7458...; MiSTer-model GAMEBOT 9000 frames (bot18d): no flash events.
+## 2026-10-29: I19 - late / ripple pictures async, interpreted level-load code, plane dither (BUGLOG "I19")
+- Perf builds (as I17): DKC_SURVEY=work/survey python3 tools/build.py /opt/work/dkc.sfc OUT --snaps
+  work/snaps --extra-shflags "-DPERFREC -DNOHUD" (work/snaps + work/survey = the builder's own
+  captures: 15 front-end screens; the older /tmp/claude-0/e2e2 set has only 8).  Baseline I18d:
+  /tmp/claude-0/i18/base19.txt; I19 runs p19a.txt (late + ripple async).
+- -DSYNCWHY: sync_why[16] counts per present2 reason (0 eligible, 1 sky_next, 2 ripple, 3 sft_show,
+  4 disp_pending, 5 pending_pal, 6 spr_pal_dirty, 7 bm_cram, 8 comp_pal, 9 wx_dirty, 10 lamp,
+  11 glow, 12 VBLK at entry, 13 line >= 208, 14 not a gameplay picture); read with scratchpad
+  symdump.py ROM ELF FRAMES sync_why:16 levels... (two frame counts subtracted = a window).
+  After I19, JH frames 1200-2000: palettes ~1 %, 208-221 window ~6 % (that sync wait is short).
+- -DIKEYPROF survey (scratchpad symdump.py ... ikp_key:48,ikp_n:48,ikp_c:48 + ikread.py): gameplay
+  interpreted code is small everywhere except Stop & Go Station (81:9B78 per frame); the big items
+  were level-load lighting / palette table builders (fblank frames - the I16 coverage counted only
+  frames with a picture, xg, so they were never picked): 81:9A07 / 81:9A72 / 81:9AF2, B9:921D,
+  B9:9100 / B9:8AF4, B9:8597 (81:98D8), 80:ADA2, B9:92B2, B9:9362, B9:87B7 (81:98B9), 80:AC0B,
+  81:97DD, B8:A7E7 - 10 K - 60 K interpreted instructions each (~600 MiSTer cycles apiece).
+- Room: the first 256 KB of the ROM (SH-2 code + .data image) has had ~58 KB free since I17 moved
+  the SDRAM code image into world bank 0.  New r65.py --lowrom data/lowrom.txt: those functions get
+  LOWROM_FN = section .lowtext (-Os), linked into .text (sh/mars.ld): 59 functions, 34 KB; the
+  first 256 KB now has ~39 KB free (build/sh.bin 222 KB).  The resident game region (pack .. 3 MB)
+  only grows by the 16-byte dispatch entries: 0x2FFE70, 400 bytes free.  The SPC engine
+  (build/spceng_gen.c) at -Os: 28 -> 13 KB (MUSHIST refill histograms unchanged).
+- Regression for translations: scratchpad-free host sims from two generated-code dirs (r65.py with
+  the old / new translate list -> /opt/work/sim3/mkref.sh G65DIR NAME), devkit/cov/reg.py REF NEW OUT
+  (309 coverage jobs, per-frame WRAM hashes).
+- I19 checks (final sources): plain build md5 32359c09...; Linux convert.py from bundle18
+  (/tmp/claude-0/linapp19, 222 s) and the Wine .bat run (wtest19, 272 s): byte-identical to it.
+  scanbundle: only unicodedata.pyd.  Host reg.py: 309/309 jobs WRAM-identical to the I18d
+  translation set.  MiSTer-model GAMEBOT 9000 frames, normal (bot19) and 60FPS MODE (bot19p): one
+  weak "flash" each at 7109 (score 7) = the whole picture 1 px left for one frame and back (all
+  layers alike: the game camera, as the I17 runs; not a stale or mismatched picture).  PicoDrive
+  GAMEBOT 12000 frames + STACKCHK (scratchpad pdstk.sh): master 1960 / 4080, slave 1364 / 2048.
+  PicoDrive reset at 3000: Cranky's intro again.  ARES_MISALIGN 8000 frames: only the old 0xaffe line.
+  Water levels: async pictures vs FLIP_ASYNC off (pic_eq 22 0:1 / 0:9) differ only where the runs'
+  game states diverge (pad timing) - the ripple bands line up in both.

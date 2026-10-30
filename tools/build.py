@@ -60,7 +60,7 @@ def main():
 
     step('Recompiling the game code')
     run([PY, 'tools/recomp/r65.py', rom, D, 'build/g65', '--translate', D + '/translate.txt', '--files', '8',
-         '--sdram', D + '/sdram.txt', '--hot', D + '/hot.txt', '--prof', D + '/pcprof.txt'])
+         '--sdram', D + '/sdram.txt', '--hot', D + '/hot.txt', '--prof', D + '/pcprof.txt', '--lowrom', D + '/lowrom.txt'])
 
     step('Collecting the game data pages')
     env = os.environ
@@ -114,7 +114,9 @@ def main():
         jobs.append([gas, '--small', s, '-o', 'build/obj/%s.o' % o])
     for f in ('main', 'music', 'musplay', 'spcdsp'):
         jobs.append([gcc] + shf + ['-c', 'sh/%s.c' % f, '-o', 'build/obj/sh_%s.o' % f])
-    jobs.append([gcc] + shf + ['-Ish', '-c', 'build/spceng_gen.c', '-o', 'build/obj/sh_spceng_gen.o'])
+    # (I19) the translated SPC700 engine at -Os: 28 KB -> 13 KB of resident ROM (it runs a few hundred
+    # instructions per engine tick from cold cache lines - the line fills are its cost, not the -O2 code)
+    jobs.append([gcc] + [f for f in shf if f != '-O2'] + ['-Os', '-Ish', '-c', 'build/spceng_gen.c', '-o', 'build/obj/sh_spceng_gen.o'])
     for f in ('game', 'game_hle', 'sprites'):
         jobs.append([gcc] + gf + ['-c', 'sh/%s.c' % f, '-o', 'build/obj/sh_%s.o' % f])
     for f in ('r65lib', 'r65interp'):

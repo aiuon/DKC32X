@@ -385,6 +385,7 @@ static const uint8_t *volatile sft_show;      /* table of the frame on screen (0
    follows is the swap's vblank - it sets the picture's shift register value */
 static volatile int32_t af_vint;
 static volatile uint16_t af_shift;
+static const uint8_t *volatile af_sft;        /* (I19) ripple: the new picture's shift table, set at the swap */
 static int ripple, ripple_phase;
 static uint8_t hint_mask = 0x0C;
 static uint8_t ripple_pat[64];
@@ -458,7 +459,13 @@ __attribute__((interrupt_handler)) SDRAM_CODE void master_vint(void)
             REG16(VDP_SHIFT) = st[0];
     }
     if (af_vint) {
-        REG16(VDP_SHIFT) = af_shift;
+        const uint8_t *ns = af_sft;
+        if (ns) {                           /* (I19) ripple pictures swap asynchronously too */
+            sft_show = ns;
+            REG16(VDP_SHIFT) = ns[0];
+            af_sft = 0;
+        } else
+            REG16(VDP_SHIFT) = af_shift;
         af_vint = 0;
     }
     hline = 1;
@@ -2877,6 +2884,9 @@ static void perf_pic(void);
 #define FLIP_ASYNC 1
 #endif
 static int flip_async = FLIP_ASYNC;
+#ifdef SYNCWHY
+volatile uint32_t sync_why[16] __attribute__((used));
+#endif
 static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async)
 {
     dbg_presents++;
@@ -2889,9 +2899,40 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
 #endif
     fb_sync();                            /* (I17: the last picture's swap first) */
     af_last = async && flip_async;        /* (a gameplay picture: the next logic catches up every vblank) */
-    if (async && flip_async && !sky_next_on && !ripple && !sft_show && !disp_pending && !pending_pal && !spr_pal_dirty && !bm_cram &&
-        !comp_pal_dirty && !wx_dirty && !lamp_dirty && !glow_dirty && glow_col == 0xFFFF &&
-        !(REG16(VDP_FBCTL) & VDP_VBLK) && current_line() < 208) {
+#ifdef SYNCWHY
+    {   /* (test) why a gameplay picture is synchronous: counts per reason (read from an SDRAM dump) */
+        extern volatile uint32_t sync_why[16];
+        if (async && flip_async) {
+            sync_why[0]++;
+            if (sky_next_on) sync_why[1]++;
+            if (ripple) sync_why[2]++;
+            if (sft_show) sync_why[3]++;
+            if (disp_pending) sync_why[4]++;
+            if (pending_pal) sync_why[5]++;
+            if (spr_pal_dirty) sync_why[6]++;
+            if (bm_cram) sync_why[7]++;
+            if (comp_pal_dirty) sync_why[8]++;
+            if (wx_dirty) sync_why[9]++;
+            if (lamp_dirty) sync_why[10]++;
+            if (glow_dirty || glow_col != 0xFFFF) sync_why[11]++;
+            if (REG16(VDP_FBCTL) & VDP_VBLK) sync_why[12]++;
+            else if (current_line() >= 208) sync_why[13]++;
+        } else sync_why[14]++;
+    }
+#endif
+    int af_ok = async && flip_async && !sky_next_on && (ripple ? !comp : !sft_show) && !disp_pending && !pending_pal && !spr_pal_dirty &&
+                !bm_cram && !comp_pal_dirty && !wx_dirty && !lamp_dirty && !glow_dirty && glow_col == 0xFFFF;
+    if (af_ok && ((REG16(VDP_FBCTL) & VDP_VBLK) || current_line() >= 222)) {
+        /* (I19) a picture finished in the vblank (or just before it): the synchronous path waited for the
+           NEXT vblank - a whole display period with the master idle (4 % of the master in JH).  The
+           swap cannot happen in this vblank (the 68000 has already taken the camera for its planes),
+           so: wait for the display to start and ask for the swap at the next vblank, as below */
+        while (!(REG16(VDP_FBCTL) & VDP_VBLK))
+            ;
+        while (REG16(VDP_FBCTL) & VDP_VBLK)
+            ;
+    }
+    if (af_ok && !(REG16(VDP_FBCTL) & VDP_VBLK) && current_line() < 208) {
         /* (I17) nothing for the swap's vblank but the shift register: ask for the swap now (it happens
            at the next vblank, with the camera posted for the 68000 as below) and go on */
         COMM(C_CAMX) = camx;
@@ -2903,6 +2944,7 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
         }
         COMM(C_FRAME) = *frame_no;
         af_shift = comp ? (comp_P & 1) : cv_x0par >= 0 ? cv_x0par : (camx & 1);
+        af_sft = ripple ? sft_tab[cur_fb ^ 1] : 0;  /* (the table rendered with the buffer shown next) */
         (void)*(volatile uint16_t *)0x24000000;     /* (the frame buffer write FIFO drained: wait_flip) */
         af_vint = 1;
         REG16(VDP_FBCTL) = cur_fb ^ 1;

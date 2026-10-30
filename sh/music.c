@@ -46,7 +46,7 @@ volatile uint32_t music_ack;           /* slave -> master: last seq handled */
 volatile uint32_t music_light;         /* master -> slave: 1 = voices at half rate (adaptive) */
 volatile uint32_t music_ticks;         /* FRT ticks spent in the last refill (for the HUD) */
 volatile uint32_t music_refills;
-volatile uint32_t music_halfs, music_skips, music_maxdt, music_stat_rst;
+volatile uint32_t music_halfs, music_skips, music_maxdt, music_stat_rst, music_lates;
 #ifdef MUSHIST
 volatile uint32_t music_hist[16], music_hhalf[16];   /* (test) refill time / buffer time in 1/8, full and half rate */
 #endif   /* (I18c, test reads) refills over 70 % / 100 % of a buffer, longest */
@@ -139,13 +139,22 @@ __attribute__((section(".sdtext"), aligned(16))) void music_irq(void)
     uint16_t dt = (uint16_t)(frt() - t0);
     if (*(volatile uint32_t *)((uint32_t)&music_stat_rst | 0x20000000)) {
         *(volatile uint32_t *)((uint32_t)&music_stat_rst | 0x20000000) = 0;
-        music_halfs = music_skips = music_maxdt = 0;
+        music_halfs = music_skips = music_maxdt = music_lates = 0;
 #ifdef MUSHIST
         for (int i = 0; i < 16; i++) music_hist[i] = music_hhalf[i] = 0;
 #endif
     }
     if (dt > BUF_TICKS * 7 / 10) { force_half = 512; music_halfs++; }     /* ~3 s of half-rate voices */
-    if (dt > BUF_TICKS) { skip_next = 1; music_skips++; }
+    /* (I19) one late refill already cost a short gap (the DMA ran dry meanwhile); a buffer of silence
+       on top of it doubled the dropout.  Silence only when this refill AND the last one were late
+       (behind for good: the slave must get out of the interrupt) */
+    {
+        static uint32_t late_last;
+        uint32_t late = dt > BUF_TICKS;
+        music_lates += late;
+        if (late && (late_last || dt > 2 * BUF_TICKS)) { skip_next = 1; music_skips++; late = 0; }
+        late_last = late;
+    }
     if (dt > music_maxdt) music_maxdt = dt;
 #ifdef MUSHIST
     {   uint32_t k = dt * 8 / BUF_TICKS; if (k > 15) k = 15;

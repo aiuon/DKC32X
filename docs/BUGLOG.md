@@ -956,3 +956,51 @@ $000000 for the 68000 and $880000 is gone - the first build inlined it into md_s
 models that) fetched garbage: the SH-2s never saw window 6 = bank 6 (red screen).  PicoDrive does not
 model it.  The SH-2s' ROM reads wait while RV = 1 (a few cycles).  Checked: ares (normal and MiSTer
 model) boots and loads levels from several banks, PicoDrive SRAM save + load, MiSTer-model bot run.
+### I19 (2026-10-29): performance round + Genesis background dither
+User: "push the architecture to its absolute screaming limits" (all the small optimizations together),
+dithering for the Genesis-drawn backgrounds where the SNES colour is missing - without fighting the
+checkerboard transparencies that scroll over them.  ("Rolling framebuffer": already in since I3 -
+the 352x256 wrapping canvas with line-table scrolling, BUGLOG I3.)
+- B-LATESWAP (performance): a picture finished in the vblank or in the last lines before it took the
+  synchronous swap path - the master waited for the NEXT vblank (the 68000 has already taken the
+  camera for this one), a whole display period idle.  SYNCWHY (test counters per reason, present2):
+  in Jungle Hijinxs 1 picture in 7 went that way.  Now: wait for the display to start, then the
+  asynchronous request (swap at the next vblank) and go on with the next logic frame.  The picture
+  is shown at the same vblank as before; only the master's idle time goes.
+- B-RIPPLESYNC (performance): the water levels (ripple: a per-line shift table read by the slave's
+  H interrupt) never used the I17 asynchronous swap - every picture waited for a vblank (Croctopus
+  Chase 20 fps on MiSTer).  The shift table now changes in the V interrupt of the swap's vblank,
+  like the line-0 shift register (af_sft next to af_shift; the slave's H interrupt reads sft_show
+  uncached).  The next picture's table is written only after its fb_sync (the swap happened).
+- Interpreted 65816 code (IKEYPROF survey, levels 1-33 to frame 2400): Stop & Go Station ran a
+  per-frame table lookup (81:9B78, ~20 instructions, ~600 MiSTer cycles each = ~4 % of the master)
+  in the interpreter - translated.
+- More interpreted code translated (data/lowrom.txt, placed in the first 256 KB of the ROM): the
+  level-load lighting / palette table builders (0.3 - 2.3 s of MiSTer time per level start in 14
+  levels: Orang-utan Gang, Oil Drum Alley, Blackout Basement, Stop & Go Station, the snow levels,
+  Torchlight Trouble, Slipslide Ride, Vulture Culture, Forest Frenzy, Winky's Walkway, Trick Track
+  Trek, Mine Cart Madness, Tanked Up Trouble) and every key with >= 400 interpreted instructions in 2400 frames of a
+  level (Temple Tempest, Bumble B Rumble, Croctopus Chase, ...).  IKEYPROF after: e.g. Orang-utan Gang
+  264 K -> 3.5 K interpreted instructions to frame 2400, Oil Drum Alley 151 K -> 0.1 K.  Host check:
+  devkit/cov/reg.py, all 309 coverage jobs, per-frame WRAM identical to the I18d translation set.
+- B-MUSGAP (MiSTer music dropouts): a refill that overran its buffer (the DMA ran dry for a moment)
+  was followed by a whole buffer (5.8 ms) of silence to catch up - every dropout was twice as long
+  as needed.  Now the silence only comes after two late refills in a row (or one over two buffers).
+  MiSTer model, 40 s of JH: 13 late refills, 0 silent buffers (before: 14 silent buffers).
+- The SPC700 engine (generated from the ROM at build time) compiled -Os: 28 -> 13 KB, refill times
+  unchanged (MUSHIST histograms).
+- Measured (devkit/perf/perf.py, MiSTer model, frame skip on; I18d -> I19): JH 36.9 -> 42.0,
+  Croctopus Chase 20.0 -> 34.7, Millstone Mayhem 34.9 -> 45.4, Winky's Walkway 35.5 -> 40.1, all
+  ten levels in HANDBOOK 7.
+- B-PLANEDITHER: the Genesis planes (BG2 / BG3 of most levels) are 4 lines x 15 colours, so many
+  SNES colours (especially after the SNES colour math) map to a distant palette entry - Coral
+  Capers' sand was magenta, the water a flat saturated blue.  build_viewer pd_index: per tile pixel,
+  if the nearest entry of the tile's palette line is off by more than PD_MIN_ERR, the best PAIR of
+  entries of the same line is mixed with the parity-balanced 4x4 matrix (I18 B-LAMPDITHER: both
+  checkerboard halves get every other threshold, so a 50 % checkerboard overlay at any scroll
+  position always shows both colours of the mix in the right proportion), weighted against far-apart
+  pairs (PD_SPREAD: grain).  No new tiles, colours or palette lines (the per-pixel choice stays in
+  the tile's own line; tile counts unchanged over all 115 levels).  Off in the lamp / weather / day-
+  cycle levels (their own dither and palette animation).  Offline (scratchpad pdprev.py, blurred
+  error vs the SNES colours): Coral Capers 143 -> 36, Temple Tempest 79 -> 30-59, Forest Frenzy 13 -> 6-8.
+  PLANE_DITHER=0 in the environment turns it off at build time.

@@ -12,7 +12,7 @@ mkdir -p build/gen2
 # game logic: recompiled 65816 (tools/recomp), SNES data pages, level-start snapshots
 SNAPDIR=${SNAPDIR:-/opt/work/gp/snaps}
 mkdir -p build/g65 build/game
-python3 tools/recomp/r65.py "$ROM" tools/recomp/data build/g65 --translate tools/recomp/data/translate.txt --files 8 --sdram "${SDRAMLIST:-tools/recomp/data/sdram.txt}" --hot "${HOTLIST:-tools/recomp/data/hot.txt}" --prof "${PCPROF:-tools/recomp/data/pcprof.txt}"
+python3 tools/recomp/r65.py "$ROM" tools/recomp/data build/g65 --translate tools/recomp/data/translate.txt --files 8 --sdram "${SDRAMLIST:-tools/recomp/data/sdram.txt}" --hot "${HOTLIST:-tools/recomp/data/hot.txt}" --prof "${PCPROF:-tools/recomp/data/pcprof.txt}" --lowrom tools/recomp/data/lowrom.txt
 # sprite characters never seen in world 1 (ROM space; the full game will need them)
 export SPR_EXCLUDE="${SPR_EXCLUDE-KRool,KRoolCrown,KRoolsShip,QueenB,MasterNecky,MasterNeckysNut,MankyKong,Krusha,Minecart,MinecartSparks,Rockkroc,DKIslandInFinalBattle}"
 # (BG graphics only DMA'd to the SNES VRAM: the 32X draws its own converted tiles / map pictures -
@@ -41,7 +41,8 @@ sh-elf-as --small sh/comp.s -o build/sh_comp.o
 sh-elf-as --small sh/mixv.s -o build/sh_mixv.o
 sh-elf-as --small sh/mixout.s -o build/sh_mixout.o
 $SHCC $SHFLAGS -c sh/main.c -o build/sh_main.o
-for f in music musplay spcdsp spceng_gen; do $SHCC $SHFLAGS -c sh/$f.c -o build/sh_$f.o; done
+for f in music musplay spcdsp; do $SHCC $SHFLAGS -c sh/$f.c -o build/sh_$f.o; done
+$SHCC $SHFLAGS -Os -c sh/spceng_gen.c -o build/sh_spceng_gen.o   # (I19: -Os, 28 -> 13 KB)
 GFLAGS="$SHFLAGS -DR65_SH2 -Ish -Itools/recomp -w $GAMEOPT"
 for f in game game_hle sprites; do $SHCC $GFLAGS -c sh/$f.c -o build/sh_$f.o; done
 for f in r65lib r65interp; do $SHCC $GFLAGS -c tools/recomp/$f.c -o build/sh_$f.o; done

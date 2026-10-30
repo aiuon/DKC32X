@@ -7,6 +7,7 @@ SECTIONS {
 	.text 0x02000000 : AT(0x00000000) {
 		EXCLUDE_FILE(*g65_*.o *game_tab.o *game_data.o) *(.text .text.*)
 		EXCLUDE_FILE(*g65_*.o *game_tab.o *game_data.o) *(.rodata .rodata.*)
+		*g65_*.o(.lowtext .lowtext.*)	/* (I19) translated game functions listed in data/lowrom.txt */
 		. = ALIGN(0x10);
 		_etext = .;
 	} > rom

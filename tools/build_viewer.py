@@ -526,6 +526,49 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         cr = rgb(c)
         best = min(lines[li].items(), key=lambda kv: sum((x - y) ** 2 for x, y in zip(rgb(kv[0]), cr)))
         return best[1]
+    # (I19) palette-constrained ordered dither: a SNES colour the Genesis cannot show is drawn as a
+    # 4x4 ordered mix of two colours ALREADY in the tile's palette line (no new colours, no new tiles:
+    # the pattern is fixed per tile pixel).  The matrix gives both checkerboard halves every other
+    # threshold, so a 50 % checkerboard over it (fog, lamp dots) never lines up with it, at any scroll.
+    pdither = PLANE_DITHER and day is None and not normal
+    pd_cache = {}
+
+    def pd_index(li, pi, base, v, i, sh):
+        if pi['layer'] == dyn_layer and v == 1:
+            return None
+        c5 = apply_colormath(snes_rgb(cg[(base + v) * 2] | cg[(base + v) * 2 + 1] << 8), regs, pi['layer'])
+        T = tuple(min(31, x) * 255.0 / 31 for x in c5)
+        ck = (li, T, sh)
+        if ck not in pd_cache:
+            ents = [(ix, cgen(kv, sh)) for kv, ix in lines[li].items() if kv != 'DYN']
+            W = (3.0, 4.0, 2.0)
+
+            def d2(a, b):
+                return sum(w * (x - y) ** 2 for w, x, y in zip(W, a, b))
+            ia, ca = min(ents, key=lambda e: d2(e[1], T))
+            e1 = d2(ca, T)
+            best = None
+            if e1 > PD_MIN_ERR:
+                for j, (ix, cx) in enumerate(ents):
+                    for iy, cy in ents[j + 1:]:
+                        dd = [y - x for x, y in zip(cx, cy)]
+                        n2 = sum(w * q * q for w, q in zip(W, dd))
+                        if not n2:
+                            continue
+                        r = sum(w * q * (t - x) for w, q, t, x in zip(W, dd, T, cx)) / n2
+                        r16 = int(round(r * 16))
+                        if r16 < 1 or r16 > 15:
+                            continue
+                        mix = [x + q * r16 / 16.0 for x, q in zip(cx, dd)]
+                        err = d2(mix, T) + PD_SPREAD * n2
+                        if best is None or err < best[0]:
+                            best = (err, ix, iy, r16)
+            if best is not None and best[0] < e1 * PD_GAIN:
+                pd_cache[ck] = (best[1], best[2], best[3])
+            else:
+                pd_cache[ck] = (ia, ia, 0)
+        a, b, r16 = pd_cache[ck]
+        return b if BAYER4X4[(i >> 3) & 3][i & 3] < r16 else a
     maps = {}
     anim_keys = set()
     for pi in info:
@@ -549,6 +592,10 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
                         if not v:
                             idx.append(0)
                         else:
+                            q = pd_index(li, pi, base, v, i, tsh(pi, k)) if pdither else None
+                            if q is not None:
+                                idx.append(q)
+                                continue
                             g = dkey(pi, base, v, i, tsh(pi, k)) if tdither(pi, k) else ckey(pi, base, v, tsh(pi, k))
                             idx.append(lines[li].get(g) or nearest(li, g))
                     tile_idx[key] = len(tiles)
@@ -585,6 +632,10 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
                 for v in anim_px(t, f, layer):
                     if not v:
                         idx.append(0)
+                        continue
+                    q = pd_index(li, pi, base, v, len(idx), tsh(pi, (t, p))) if pdither else None
+                    if q is not None:
+                        idx.append(q)
                         continue
                     g = ckey(pi, base, v, tsh(pi, (t, p)))
                     idx.append(lines[li].get(g) or nearest(li, g))
@@ -1169,6 +1220,10 @@ def glimmer_genesis(L, lv, vram, tile0):
 LAMP_SPR = {0xD9: (0xFDEE64, 0xFDEFBC), 0x30: (0xFDB658, 0xFDB9C0), 0x2B: (0xFDAEB8, 0xFDB2B0)}
 LAMP_SCRIPT = 0xC5DF          # hanging lamp object (sprite spawn script) in the level sprite lists
 LAMP_DOT, LAMP_PAL0, LAMP_C = 250, 238, 31
+PLANE_DITHER = int(os.environ.get('PLANE_DITHER', '1'))   # (I19) Genesis planes: ordered dither in-line
+PD_MIN_ERR = float(os.environ.get('PD_MIN_ERR', '150'))   # (weighted squared 8-bit error: nearest is good enough)
+PD_GAIN = float(os.environ.get('PD_GAIN', '0.6'))         # (the mix must be this much better than the nearest)
+PD_SPREAD = float(os.environ.get('PD_SPREAD', '0.03'))    # (penalty for mixing far-apart colours: grain)
 LAMP_BRIGHT5 = 17             # (I18) lamp-level BG2 cells with a colour channel above this: normal (lanterns)
 LAMP_NSH = 8                  # lamp shade colours (32X CRAM 128, 144, .. 240)
 LAMP_LV0 = 228                # cone light levels 1-10 -> 32X CRAM 228-237 (checkerboard, flipped per frame)

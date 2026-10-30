@@ -348,10 +348,13 @@ uint32_t dec_sbc8(uint32_t a, uint32_t m, uint32_t c);
 #define SDRAM_FN __attribute__((section(".sdtext"), aligned(16)))
 #endif
 #define COLD_FN __attribute__((optimize("Os")))
+/* (I19) in the first 256 KB of the ROM (sh/mars.ld .text): the resident game region after the pack is full */
+#define LOWROM_FN __attribute__((section(".lowtext"), optimize("Os")))
 #define R65_HOT __attribute__((section(".sdtext"), aligned(16)))   /* runtime code called every frame: SDRAM */
 #else
 #define SDRAM_FN
 #define COLD_FN
+#define LOWROM_FN
 #define R65_HOT
 #endif
 #define BADJUMP(pc) return ERRKEY | (pc)

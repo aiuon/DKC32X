@@ -256,10 +256,30 @@ them. Keep this file current when something structural changes.
   models it, PicoDrive does not).  The SSF2 mapper registers are written with RV = 1 (md mapper_w).
 - (I18) The 60FPS MODE overlaps the slave's picture N with the master's logic N+1: everything the
   slave reads for N must be a copy taken before N+1 starts (spr_list, spr_ck, obj_tile_dr).
+- (I19) Interpreted code that runs only during screen-off frames (level loads: the lighting /
+  palette table builders) was invisible to the I16 coverage, which counted frames with a picture
+  (xg) - 0.3 - 2.3 s of MiSTer time per level start.  IKEYPROF on the real ROM counts every frame.
+- (I19) Room for translated code: the resident game region ends at 3 MB and GAME_BASE follows the
+  pack, so shrinking SH-2 code does not move it.  The first 256 KB has its own room (~38 KB after
+  I19): put functions there with data/lowrom.txt (LOWROM_FN).  Each translated key also adds a
+  16-byte dispatch entry to the resident region (~0.4 KB free there now).
+- (I19) Asynchronous swaps: anything per-line the interrupts read (the ripple shift table) must
+  switch in the V interrupt of the swap's vblank (af_sft next to af_shift), and the next picture
+  may rewrite the old table only after its fb_sync.
 
 ---------------------------------------------------------------------------------------------------
 ## 7. Performance picture (MiSTer model, I13 -> I14)
 
+- I19 (devkit/perf/perf.py, frame skip on, fps; I18d -> I19): JH 36.9 -> 42.0, Reptile Rumble
+  38.1 -> 41.6, Barrel Cannon Canyon 46.2 -> 48.1, Winky's Walkway 35.5 -> 40.1, Stop & Go 32.5 -> 34.8,
+  Millstone Mayhem 34.9 -> 45.4, Tree Top Town 46.6 -> 49.7, Forest Frenzy 53.3 -> 55.0, Croctopus
+  Chase 20.0 -> 34.7, Mine Cart Madness 49.8 -> 52.3; 60FPS MODE JH 38.1 -> 41.9, BCC 45.5 -> 48.7,
+  TTT 48.2 -> 49.8, MCM 48.8 -> 52.5 (game speed 59.7-60.1).  From: late pictures swapped
+  asynchronously, ripple levels on the async swap, interpreted code translated.  Level loads: the
+  interpreted lighting tables took 0.3 - 2.3 s of MiSTer time per level start (Orang-utan Gang ~2.3 s,
+  Oil Drum Alley / Blackout Basement ~1.3 s, Stop & Go ~1.5 s, the snow levels ~1.2 s) - now native.
+  Layout noise: the same sources with code shifted (e.g. the SPC engine -O2 vs -Os) differ by up to
+  ~0.8 fps in a level; compare builds over several levels, not one.
 - I18 Millstone Mayhem, MSTEST (millstone fully on screen all the time), frame skip: 20.8 -> 22.5
   fps (cached LUT + masks, opaque-cell blit); 60FPS MODE 23.8; not drawing it at all: 27.9; no
   millstone: ~38.
@@ -291,7 +311,7 @@ them. Keep this file current when something structural changes.
 - 60 fps analysis and options: section 9.
 
 ---------------------------------------------------------------------------------------------------
-## 8. Status / open list (I14 - I18 rounds, 2026-10-25)
+## 8. Status / open list (I14 - I19 rounds, 2026-10-29)
 
 Fixed in I14 (details in BUGLOG "I14 fixes"):
 - Pause in a later level reset progress to level 1: pausing while holding run (Genesis A) was
@@ -320,6 +340,9 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   levels' jumpy camera (narrow camera blocks only), the pause menu no longer ripples, flashing sprite
   tile parts in 60FPS MODE (obj_tile_dr), Millstone ~8 % faster.  Tires: SNES-identical (BUGLOG).
   US v1.1 / v1.2: not supported (see NOTES I18 for the analysis).
+- I19: performance round (HANDBOOK 7, BUGLOG I19): async swap for late and ripple pictures, level-load
+  and per-frame interpreted code translated (data/lowrom.txt), one late music refill no longer adds a
+  buffer of silence; Genesis plane dither (B-PLANEDITHER).
 Open:
 - Poison Pond: one line of sprite pixels repeated at ripple band ends (sprites share the rippled
   canvas); workaround RIPPLE OFF.
@@ -327,8 +350,10 @@ Open:
 - Coral small fish / Necky one-frame tile (not reproduced; possibly the 60FPS MODE race fixed in
   I18); K. Rool fight not bot-played to the end.
 - Millstone Mayhem with a millstone on screen: ~22 pictures a second on MiSTer (game speed fine).
-- MiSTer music: always half-rate voices in levels below 57 fps, and ~10 short dropouts a 25 s stretch
-  (refills over a 5.8 ms buffer; NOTES I18c) - the slave's music mixing needs to get cheaper.
+- MiSTer music: always half-rate voices in levels below 57 fps, and ~10 short dropouts a 40 s stretch
+  (refills over a 5.8 ms buffer; NOTES I18c).  I19: a single late refill no longer adds a whole
+  buffer of silence (only two in a row do), so each dropout is the short gap alone.  The rare 1.6x refills
+  look like song starts (mp_start clears the echo buffer and runs the engine init).
 
 ---------------------------------------------------------------------------------------------------
 ## 9. 60 fps: trade-offs of a dual-processor redesign
