@@ -420,6 +420,7 @@ R65_HOT void game_ppu_hook(uint32_t reg, uint32_t v)
 typedef struct { int16_t x, y; uint16_t tile; uint8_t attr, size; } spr_ent_t;
 static spr_ent_t spr_list[128];
 int32_t spr_xoff;
+int32_t spr_fixed_x = 0x7FFF;        /* (I21c) Galleon's island: its x offset (0x7FFF: none) */
 static volatile uint32_t spr_nlist;
 R65_HOT static void spr_build_list(void)
 {
@@ -435,7 +436,9 @@ R65_HOT static void spr_build_list(void)
         if (y + size <= 0 || y >= SCREEN_H) continue;
         int32_t x = o[0] | (h & 1) << 8;
         if (x >= 320) x -= 512;     /* 9-bit x: 256..319 = the 32X's extra columns (widescreen patch) */
-        x += spr_xoff;              /* (the view left of the game's camera at a level's right end) */
+        /* (the view left of the game's camera at a level's right end); (I21c) the Galleon boss's distant
+           island at a fixed offset (its shadow band on the Genesis plane: md update_scroll) */
+        x += (spr_fixed_x != 0x7FFF && (o[2] & 0xF0) == 0x40 && (o[3] & 0x3F) == 0x2D) ? spr_fixed_x : spr_xoff;
         if (x <= -size || x >= SCREEN_W) continue;
         d->x = (int16_t)x; d->y = (int16_t)y; d->tile = (uint16_t)(o[2] | (o[3] & 1) << 8);
         d->attr = o[3]; d->size = (uint8_t)size;

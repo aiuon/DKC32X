@@ -334,10 +334,14 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
     info = []
     day_cgs = (day['cgs'] if 'cgs' in day else [day['cg']]) if day is not None else []
     all_cgs = [cg] + list(day_cgs)
-    # (I21) keyframes (indices into all_cgs) shown without the colour math: Ropey's storm - the SNES
-    # shows BG2's storm colours as they are (snes9x: 96 % of the treetop pixels = palette colours); the
-    # level's math (BG2 - fixed (4, 4, 4), halved) made them 1-2 dark Genesis levels (one flat colour)
+    # (I21c) keyframes (indices into all_cgs) whose colours (after the SNES colour math) are lifted by
+    # day['lift'] before the Genesis levels are picked: Ropey's storm trees.  On the SNES they are dark
+    # (BG2 - fixed (4, 4, 4), halved: 0-57 of 255), which the Genesis levels (0, 52, 87 ...) turned into
+    # one flat colour (I20); I21 left the math out (as bright as the foreground trees: user, I21b) - a
+    # small lift gives 3 shades and stays dark
     nomath = set(day.get('nomath', ())) if day is not None else set()
+    lift = day.get('lift', 1.0) if day is not None else 1.0
+    lift = float(os.environ.get('STORM_LIFT', lift))
     specs = ([] if not anim else [anim] if isinstance(anim, tuple) else list(anim))
 
     def anim_spec(t, layer):
@@ -486,7 +490,8 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         """Genesis colour of SNES colour base + v (a tuple over the keyframes for weather levels)."""
         if pi['layer'] == dyn_layer and v == 1:
             return 'DYN'
-        ks = tuple(gen_level(snes_rgb(q[(base + v) * 2] | q[(base + v) * 2 + 1] << 8) if qi in nomath else
+        ks = tuple(gen_level([min(31.0, x * lift) for x in apply_colormath(snes_rgb(q[(base + v) * 2] | q[(base + v) * 2 + 1] << 8),
+                                                                          regs, pi['layer'])] if qi in nomath else
                              apply_colormath(snes_rgb(q[(base + v) * 2] | q[(base + v) * 2 + 1] << 8), regs, pi['layer']),
                              sh) for qi, q in enumerate(all_cgs))
         return ks if day is not None else ks[0]
@@ -2030,7 +2035,7 @@ def build_level(L, lv, tilesets):
                 bb = ((c & 0x7C00) << 1) & 0xFFFF
                 w = ((c >> 1) & 0x01EF) | (0x7C00 if bb & 0x8000 else bb)
                 cg_flash[i * 2], cg_flash[i * 2 + 1] = w & 0xFF, w >> 8
-            night = {'cgs': [cg_night, bytes(cg_flash)], 'nomath': (1, 2)}
+            night = {'cgs': [cg_night, bytes(cg_flash)], 'nomath': (1, 2), 'lift': 1.5}
         eo = None
         if rainy:
             # after the storm BG3 shows the distant treeline map at $2400 (= Jungle Hijinxs' BG3):

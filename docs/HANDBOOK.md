@@ -277,6 +277,8 @@ them. Keep this file current when something structural changes.
 - The synchronous present() waits for the vblank after the next one (the swap request lands in the
   vblank it waited for): any screen that needs 60 pictures a second presents asynchronously
   (present2(..., 1), palettes written after waiting for the vblank - fescr.c rfx_show).
+- Rooms the map cannot start (05, 53, B8, C3) need capture.py JUMP_ROOMS AND a research survey taken
+  the same way - check new rooms' $3E after the map start (I21c B-MMBONUS).
 - In I21 tests an ARES_PADSCRIPT Start did not open the pause menu in PERFREC builds (cause not
   looked into); check menus in a plain build or offline (a mock-up from the font table).
 
@@ -357,8 +359,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   buffer of silence; Genesis plane dither (B-PLANEDITHER).
 - I20: Genesis planes per-cell shadow (more dark shades, no new tiles), the I19 dither replaced by
   rare neighbour-level checkerboards, Blackout Basement's lights go out (BUGLOG "I20").
-- I21: plane scroll follows the view offset in the Galleon boss fight only (I21b: in every level the
-  backgrounds slid into place at the start), water camera blocks need
+- I21: Galleon boss: planes at a constant view offset 32, the island sprite fixed with them (I21b/c: the
+  live offset made backgrounds slide), water camera blocks need
   8 stable frames, Ropey's storm trees without colour math, pause menu OBJECT RANGE (WIDE default /
   SNES), small menu font, the Rare logo's own 60 fps effect + zoom, front-end catch-up carried over,
   plane clears by VDP DMA fill (BUGLOG "I21").

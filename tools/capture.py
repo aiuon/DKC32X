@@ -184,12 +184,14 @@ def main():
 
     # (I14) bonus rooms the world map cannot start (the claptrap rooms): their level first, then the
     # game's cheat-code entrance loader (CODE_80806F) through the NMI pointer $1C for one frame
-    JUMP_ROOMS = {'53': '43', 'C3': '14', 'B8': 'A5'}
+    # (I21c) 05 = Manic Mincers' Klaptrap room (started from the map, the game went back to Jungle Hijinxs:
+    # its picture was the wrong level's, the 32X showed the sprites on black)
+    JUMP_ROOMS = {'53': '43', 'C3': '14', 'B8': 'A5', '05': '12'}
 
     def one_survey(e):
         d = os.path.join(survey, e)
-        if os.path.exists(os.path.join(d, 'cgram.bin')):
-            return
+        if os.path.exists(os.path.join(d, 'cgram.bin')) and (e not in JUMP_ROOMS or os.path.exists(os.path.join(d, 'jump.ok'))):
+            return                          # ((I21c) a jump room captured by an older builder the map way: again)
         os.makedirs(d, exist_ok=True)
         shutil.copy(wmap, os.path.join(d, 'wmap.st'))
         dumps = ['dump vram.bin 3 0', 'dump bg.bin 0x1003 52', 'dump cgram.bin 0x1000 512']
@@ -199,6 +201,7 @@ def main():
                                    'run 60', 'unpoke', 'run 400'] +
                     ['pokew 0x%X 0x%s' % (a, e) for a in (0x3E, 0x40, 0x2E, 0x565)] +
                     ['pokew 0x1C 0x806F', 'run 1', 'unpoke', 'run 160'] + dumps, d)
+            open(os.path.join(d, 'jump.ok'), 'w').close()
         else:
             harness(h, core, rom, ['load wmap.st', 'pokew 0x40 0x%s' % e, 'pokew 0x3E 0x%s' % e, 'run 6 START',
                                    'run 60', 'unpoke', 'run 300'] + dumps, d)

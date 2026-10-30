@@ -423,6 +423,7 @@ static void hang_show(void);
    between two pictures and a jump was missed).  More samples than logic frames left in a picture
    (the game fell behind): the oldest are passed over, but their new button presses go into the next
    sample taken.  The last logic frame of a picture always gets the newest sample (no added lag). */
+static volatile uint32_t m68_pct;          /* (I21c) the 68000's load in %, sent bit by bit in C_PAD bits 14-15 */
 static volatile uint8_t pad_ring[16];
 static volatile uint32_t pad_new;         /* number of the newest sample in pad_ring */
 static uint32_t pad_cons, pad_tv;         /* main loop: number of the last sample taken; vcount then */
@@ -430,8 +431,14 @@ static volatile uint32_t pad_sv;          /* vcount at the last new sample */
 static inline void pad_store(void)       /* (V interrupt, or with it masked) */
 {
     uint16_t p = COMM(C_PAD);
-    uint32_t s = p >> 8, d = (s - pad_new) & 0xFF;
+    uint32_t s = (p >> 8) & 0x3F, d = (s - pad_new) & 0x3F;   /* (I21c: 6-bit sample number) */
     if (!d) return;
+    {   /* (I21c) bits 15 / 14: the 68000's load, 7 bits MSB first, one a vblank (14 = the first bit) */
+        static uint32_t acc, n;
+        if (d != 1) n = 0;
+        else if (p & 0x4000) { acc = p >> 15; n = 1; }
+        else if (n) { acc = acc << 1 | p >> 15; if (++n == 7) { m68_pct = acc; n = 0; } }
+    }
     if (d > 16) d = 16;
     for (uint32_t k = 0; k < d; k++)      /* (samples the V interrupt missed: the newest instead) */
         pad_ring[(s - k) & 15] = (uint8_t)p;
@@ -1827,11 +1834,14 @@ static void box(int x, int y, int w, int h, uint8_t colour)
 }
 
 /* small HUD font (3x5 at 2x) kept from v1 for the in-level readout */
-static const char hud_chars[] = "0123456789FPSMX:%/ Y";
+static const char hud_chars[] = "0123456789FPSMX:%/ YG";
 static const uint16_t hud_bits[] = {
     0x7B6F, 0x2C97, 0x73E7, 0x73CF, 0x5BC9, 0x79CF, 0x79EF, 0x7249, 0x7BEF, 0x7BCF,
-    0x79A4, 0x7BE4, 0x79CF, 0x5FED, 0x5AAD, 0x0410, 0x52A5, 0x12A4, 0x0000, 0x5AA4,
+    0x79A4, 0x7BE4, 0x79CF, 0x5FED, 0x5AAD, 0x0410, 0x52A5, 0x12A4, 0x0000, 0x5AA4, 0x396B,
 };
+/* (I21c) the pause menu's STATS line in the game: bottom-left, out of the HUD's way */
+#define HUD_Y (SCREEN_H - 14)
+
 
 static void hud_text(int sx, int sy, int fx, int fy, const char *s)
 {
@@ -1888,7 +1898,7 @@ static uint32_t pm_req;                   /* (I12) the button the menu sends the
 static int start_block;                   /* (I12) Start still held from our level menu: not the game's */
 static int pm_shown, pm_frz;              /* (I12) pictures with the menu as it is (pm_key); no new pictures */
 static uint32_t pm_key;
-#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8)
+#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8 | (uint32_t)pm_stats << 9)
 /* 60 FPS mode (menu option, off by default: it adds a frame of input lag): the slave draws the whole
    picture of game frame N (BG strips, sprites, line table, HUD: job 5 with every row) while the master
    runs the logic of frame N + 1; the picture is shown once that logic is done.  Simple canvas levels
@@ -1913,7 +1923,8 @@ static uint32_t pm_exit_addr;             /* exit to map: the level's "cleared" 
 static uint8_t pm_exit_orig;
 static int32_t pm_exit_wait;
 /* (I21) the menu's items (drawn in the small font, 10 lines apart) */
-enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_OBJ, PM_EXIT, PM_LEVELS, PM_N };
+enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_OBJ, PM_STATS, PM_EXIT, PM_LEVELS, PM_N };
+static int pm_stats;                      /* (I21c) STATS: frame rate, SH-2 master / slave %, 68000 % (main's show_hud) */
 /* (I21) OBJECT RANGE: WIDE (default) = the game's sprite spawn / keep-alive windows follow the 32X's
    wider view (+32 px past each side, as the SNES's own windows reach past its 256 px view): objects no
    longer vanish / pop in at the picture's edges.  SNES = the original windows (game logic exactly as
@@ -2819,23 +2830,16 @@ static void misty_frame(uint32_t f, int32_t X, int32_t Y)
     comp_wave[0][0] = mw_prev[0][0] = xs + v;
     comp_wave[0][1] = mw_prev[0][1] = Y + v;
     /* screen line y shows row V + y + 1.  Per-line SFT changes did not latch reliably (PicoDrive
-       applies them 2 lines early), so the line table only moves bands by whole words: */
-    /* all bands take the top band's pixel parity (global SFT, latched at vblank) so the fog drifts in
-       1-pixel steps; only the band-to-band wave differences are rounded to 2 pixels */
+       applies them 2 lines early), so the line table only moves bands by whole words.
+       (I21c) Every band's column AND row offset rounded to an even value on its own (absolute): the
+       checkerboard baked into the fog canvas keeps one phase on screen, and a band moves only when its
+       own wave crosses a 2-pixel step.  Before, the bands took the TOP band's pixel parity (and a 1-px
+       nudge for the checkerboard): the top band moves a pixel every other frame (the f & 1 drift), so
+       every other band jumped a pixel and back with it - "sections of the mist switching position,
+       then back, every other frame" (user) */
     for (int i = 0; i < SCREEN_H / 4; i++) {
-        comp_wave[i][1] += 1;
-        comp_wave[i][0] += (comp_wave[i][0] ^ comp_wave[0][0]) & 1;
-        /* (I16) the rows too: the checkerboard is baked into the fog canvas, so a band whose row
-           offset had the other parity showed the inverted pattern - the dither was cut into 4-line
-           strips that moved with the wave.  Band-to-band row differences are rounded to 2 lines like
-           the columns: the waves move the mist, the checkerboard stays one pattern on screen */
-        comp_wave[i][1] += (comp_wave[i][1] ^ comp_wave[0][1]) & 1;
-    }
-    {   /* (I16) and that pattern keeps its place on screen while the mist drifts (as Poison Pond's):
-           column + row parity of the fog origin held even (a 1-px nudge), so each framebuffer shows
-           its own phase - a clean every-frame alternation */
-        int32_t e = (comp_wave[0][0] + comp_wave[0][1]) & 1;
-        if (e) for (int i = 0; i < SCREEN_H / 4; i++) comp_wave[i][0] += 1;
+        comp_wave[i][1] = (comp_wave[i][1] + 1) & ~1;
+        comp_wave[i][0] &= ~1;
     }
 #ifdef MISTY_FLAT
     for (int i = 1; i < SCREEN_H / 4; i++) { comp_wave[i][0] = comp_wave[0][0]; comp_wave[i][1] = comp_wave[0][1]; }
@@ -2966,16 +2970,10 @@ volatile uint32_t sync_why[16] __attribute__((used));
 #endif
 /* (I21) C_FRAME: the picture counter, bits 9-15 the view offset spr_xoff (0..127) for the 68000's plane
    scroll (md update_scroll) - except in the lamp levels, whose cone flicker needs the game's whole $28 */
-static int cf_view;                       /* (I21b) the level's planes line up with the 32X view: the
-                                             Galleon boss only (entrance 68) - elsewhere the I20 scroll
-                                             (with d everywhere the backgrounds slid into place at each
-                                             level start as d eased from 0 to 32: user) */
+static int cf_view;                       /* (I21b) the Galleon boss (entrance 68) */
 static uint16_t cframe(uint16_t f)
 {
-    extern int32_t spr_xoff;
-    if (lamp_n || !cf_view) return f;
-    int32_t d = spr_xoff < 0 ? 0 : spr_xoff > 127 ? 127 : spr_xoff;
-    return (uint16_t)((f & 0x1FF) | (uint32_t)d << 9);
+    return f;                             /* (I21c: no view offset for the 68000 any more - md update_scroll) */
 }
 static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async)
 {
@@ -3507,21 +3505,21 @@ static uint16_t pad_take(int left)
         return PAD_NOW();
     }
     uint32_t n = pad_new, c = pad_cons;
-    uint32_t avail = (n - c) & 0xFF;
+    uint32_t avail = (n - c) & 0x3F;
     if (vcount - pad_tv > 8 || avail > 16) {        /* (no logic for a while: a load, a menu) */
-        c = (n - 1) & 0xFF;
+        c = (n - 1) & 0x3F;
         avail = 1;
     }
     if (left < 1) left = 1;
     uint8_t prev = pad_ring[c & 15], add = 0;
     while (avail > (uint32_t)left) {                 /* behind: pass over the oldest, keep their presses */
-        c = (c + 1) & 0xFF;
+        c = (c + 1) & 0x3F;
         uint8_t s = pad_ring[c & 15];
         add |= s & ~prev;
         prev = s;
         avail--;
     }
-    if (avail) c = (c + 1) & 0xFF;                  /* (none new yet: the last one again) */
+    if (avail) c = (c + 1) & 0x3F;                  /* (none new yet: the last one again) */
     pad_cons = c;
     pad_tv = vcount;
     uint16_t r = (uint16_t)(pad_ring[c & 15] | (add & (PAD_A | PAD_B | PAD_C | PAD_START)));
@@ -3554,7 +3552,12 @@ static void load_level(int idx, shared_t *sh)
     }
     REG16(VDP_DISPMODE) = 0;
     cur_idx = idx;
-    cf_view = (PK(level_t, hdr->off_levels) + idx)->entrance == 0x68;
+    {   /* (I21c) the Galleon boss: its distant island (OBJ tiles 140-14F, palette 6, priority 2) is drawn
+           at a fixed 32 px right of the SNES picture, like its shadow band on the Genesis plane */
+        extern int32_t spr_fixed_x;
+        cf_view = (PK(level_t, hdr->off_levels) + idx)->entrance == 0x68;
+        spr_fixed_x = cf_view ? 32 : 0x7FFF;
+    }
     fe_take();                            /* (the front-end's map mirror lives in the slave's tile cache) */
     render_state_reset();                 /* (I1: the last screen's sprite state) */
     pv_avg[0] = pv_avg[1] = 0; pv_win = 0; pipe_off = 0;   /* (I7: 60 FPS mode measured again) */
@@ -4877,6 +4880,7 @@ void m_main(void)
                         case PM_PIPE: pipe_mode ^= 1; break;
                         case PM_FG: fg_on ^= 1; pm_fg_reload = 1; break;
                         case PM_OBJ: obj_wide ^= 1; break;
+                        case PM_STATS: pm_stats ^= 1; show_hud = pm_stats; break;
                         case PM_EXIT: {                                      /* exit to the map */
                             uint32_t lv = game_wram16(0x563) & 0xFF;
                             if (lv == 0xEA) lv = 1;
@@ -5850,7 +5854,8 @@ void m_main(void)
                     char *L = sh->hud;           /* (game levels: the short form, as the master's) */
                     L[0] = 'F'; fmt_num(L + 1, fps, 2); L[3] = ' ';
                     L[4] = 'M'; fmt_num(L + 5, m_pct, 2); L[7] = ' ';
-                    L[8] = 'S'; fmt_num(L + 9, s_pct, 2); L[11] = 0;
+                    L[8] = 'S'; fmt_num(L + 9, s_pct, 2); L[11] = ' ';
+                    L[12] = 'G'; fmt_num(L + 13, m68_pct > 99 ? 99 : (int)m68_pct, 2); L[15] = 0;
                     sh->hud_on = 1;
                 } else if (show_hud) {
                     char *L = sh->hud;
@@ -5925,7 +5930,7 @@ void m_main(void)
 #if defined(GAMEPROF) || defined(PROFT) || defined(HUD2)
                 cb->hud = (trect_t){ (gx + 3) >> 3, ((gx + 162) >> 3) + 1, (gy + 3) >> 3, ((gy + 30) >> 3) + 1 };
 #else
-                cb->hud = game_on ? (trect_t){ (gx + 3) >> 3, ((gx + 92) >> 3) + 1, (gy + 3) >> 3, ((gy + 17) >> 3) + 1 }
+                cb->hud = game_on ? (trect_t){ (gx + 3) >> 3, ((gx + 128) >> 3) + 1, (gy + HUD_Y - 1) >> 3, ((gy + HUD_Y + 13) >> 3) + 1 }
                                   : (trect_t){ (gx + 3) >> 3, ((gx + 162) >> 3) + 1, (gy + 3) >> 3, ((gy + 17) >> 3) + 1 };
 #endif
                 fused_hud = cb->hud;
@@ -6226,7 +6231,8 @@ void m_main(void)
             if (game_on) {   /* game levels: short form "F60 M98 S27" (each glyph costs ~0.25% of a frame) */
                 line[0] = 'F'; fmt_num(line + 1, fps, 2); line[3] = ' ';
                 line[4] = 'M'; fmt_num(line + 5, m_pct, 2); line[7] = ' ';
-                line[8] = 'S'; fmt_num(line + 9, s_pct, 2); line[11] = 0;
+                line[8] = 'S'; fmt_num(line + 9, s_pct, 2); line[11] = ' ';
+                line[12] = 'G'; fmt_num(line + 13, m68_pct > 99 ? 99 : (int)m68_pct, 2); line[15] = 0;
             } else {
                 line[0] = 'F'; line[1] = 'P'; line[2] = 'S'; line[3] = ' ';
                 fmt_num(line + 4, fps, 2);
@@ -6244,14 +6250,14 @@ void m_main(void)
 #if defined(GAMEPROF) || defined(PROFT) || defined(HUD2)
                 cvb[cur_fb ^ 1].hud = (trect_t){ (gx + 3) >> 3, ((gx + 170) >> 3) + 1, (gy + 3) >> 3, ((gy + 30) >> 3) + 1 };
 #else           /* game builds: one short HUD line (FPS, master %, slave %) */
-                cvb[cur_fb ^ 1].hud = game_on ? (trect_t){ (gx + 3) >> 3, ((gx + 92) >> 3) + 1, (gy + 3) >> 3, ((gy + 17) >> 3) + 1 }
+                cvb[cur_fb ^ 1].hud = game_on ? (trect_t){ (gx + 3) >> 3, ((gx + 128) >> 3) + 1, (gy + HUD_Y - 1) >> 3, ((gy + HUD_Y + 13) >> 3) + 1 }
                                               : (trect_t){ (gx + 3) >> 3, ((gx + 162) >> 3) + 1, (gy + 3) >> 3, ((gy + 30) >> 3) + 1 };
 #endif
                 if (local.cv == 3) cv3_rect(&cvb[cur_fb ^ 1].hud, 1, 8, 3, 162);
                 if (fused) cvb[cur_fb ^ 1].hud = fused_hud;
-                else hud_text_cv(4, 4, line);
+                else hud_text_cv(4, game_on ? HUD_Y : 4, line);
                 /* (fused: the slave drew it in job 5; the rect was set with the job) */
-            } else if (comp) hud_text_fast(4, 4, line); else hud_text(4, 4, camx & 7, camy & 7, line);
+            } else if (comp) hud_text_fast(4, 4, line); else hud_text(4, game_on ? HUD_Y : 4, camx & 7, camy & 7, line);
 #ifdef PROF
             for (int k = 0; k < 5; k++) { fmt_num(line + k * 4, prof[k] / 100, 3); line[k * 4 + 3] = ' '; }
             line[19] = 0;
@@ -6391,7 +6397,7 @@ void m_main(void)
             if (pm_key != PM_KEY()) { pm_key = PM_KEY(); pm_shown = 0; }
             pm_shown++;
             static const char *const it[PM_N] = { "RESUME", "FRAME SKIP", "60FPS MODE", "FOREGROUND", "RIPPLE",
-                                                  "OBJECT RANGE", "EXIT TO MAP", "LEVEL SELECT" };
+                                                  "OBJECT RANGE", "STATS", "EXIT TO MAP", "LEVEL SELECT" };
             int32_t gx = CV_GX(sh, camx), gy = CV_GY(sh, camy);
             /* (I21) small font: 6 px characters, 10 px lines */
             const int bx = 92, by = 64, bw = 136, bh = 22 + PM_N * 10;
@@ -6407,12 +6413,13 @@ void m_main(void)
                 if (i == PM_FG) v = fg_on ? "ON" : "OFF";
                 if (i == PM_RIPPLE) v = rip_on ? "ON" : "OFF";
                 if (i == PM_OBJ) v = obj_wide ? "WIDE" : "SNES";
+                if (i == PM_STATS) v = pm_stats ? "ON" : "OFF";
                 if (v) text57_cv(bx + 100, yy, v, 112, 96);
             }
             /* restore the whole area next time this buffer is drawn (with the HUD's); the fog canvases
                have no HUD restore: the whole buffer then (the game is paused) */
             if (local.cv == 1)
-                cvb[cur_fb ^ 1].hud = (trect_t){ (gx + 3) >> 3, ((gx + bx + bw) >> 3) + 1, (gy + 3) >> 3, ((gy + by + bh + 1) >> 3) + 1 };
+                cvb[cur_fb ^ 1].hud = (trect_t){ (gx + 3) >> 3, ((gx + bx + bw) >> 3) + 1, (gy + 3) >> 3, ((gy + SCREEN_H) >> 3) + 1 };   /* (I21c: down to the STATS line)*/
             else
                 cvb[cur_fb ^ 1].valid = 0;
         }
@@ -6642,7 +6649,7 @@ void s_main(void)
                 }
             } else
                 spr_draw_band(0, local.ssplit, local.sbi, local.sgx, local.sgy);
-            if (local.hud_on) hud_text_cv(4, 4, local.hud);
+            if (local.hud_on) hud_text_cv(4, game_on ? HUD_Y : 4, local.hud);
             uint16_t dt = (uint16_t)(frt_read() - r0);
             sh->spr_sticks = dt;
             sh->slave_ticks = dt;

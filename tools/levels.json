@@ -13915,42 +13915,79 @@
   "name": "Manic Mincers Bonus1",
   "world": "Chimp Caverns",
   "nmi": "808E38",
-  "layout": 14221312,
-  "map32": 14263232,
+  "layout": 14286848,
+  "map32": 14335744,
   "stream": 32781,
-  "x_min": 0,
-  "x_max": 0,
+  "x_min": 27648,
+  "x_max": 27648,
   "start": [
-   0,
+   27648,
    0
   ],
   "bgs": [
    {
-    "sc": 27648,
-    "name": 12288,
+    "sc": 26624,
+    "name": 8192,
     "scs": 1,
-    "h": 0,
-    "v": 65535,
-    "bpp": 4
-   },
-   {
-    "sc": 29696,
-    "name": 12288,
-    "scs": 1,
-    "h": 0,
+    "h": 27648,
     "v": 0,
     "bpp": 4
    },
    {
-    "sc": 9216,
+    "sc": 31744,
     "name": 8192,
     "scs": 0,
-    "h": 0,
+    "h": 13824,
+    "v": 0,
+    "bpp": 4
+   },
+   {
+    "sc": 22528,
+    "name": 28672,
+    "scs": 3,
+    "h": 41472,
     "v": 0,
     "bpp": 2
    }
   ],
-  "vram_runs": [],
+  "vram_runs": [
+   [
+    1024,
+    1024,
+    "GFX_Sprite_GlobalSprites",
+    0
+   ],
+   [
+    3072,
+    1024,
+    "GFX_Sprite_HUDNumbers",
+    0
+   ],
+   [
+    4096,
+    1536,
+    "GFX_Layer1_ShadedDebugFont",
+    0
+   ],
+   [
+    16384,
+    28064,
+    "GFX_FGBG_CaveLevels",
+    0
+   ],
+   [
+    45088,
+    8160,
+    "TM_Layer3_CaveLevels",
+    32
+   ],
+   [
+    57344,
+    704,
+    "GFX_Layer3_CaveLevels",
+    0
+   ]
+  ],
   "cgram_runs": [
    [
     0,
@@ -13962,16 +13999,16 @@
   "regs": {
    "TM": 23,
    "TS": 23,
-   "CGWSEL": 0,
-   "CGADSUB": 0,
+   "CGWSEL": 16,
+   "CGADSUB": 147,
    "fixed": [
-    0,
-    0,
-    0
+    2,
+    2,
+    2
    ],
    "W12SEL": 0,
    "W34SEL": 0,
-   "WOBJSEL": 0,
+   "WOBJSEL": 48,
    "TMW": 0,
    "TSW": 0,
    "BGMODE": 1,

@@ -1089,3 +1089,32 @@ needed the I21 change.
   parallax layer slid by d (1 - its speed) while the foreground stood still.  Now only the Galleon
   boss fight (entrance 68, md fx 6: the island sprite over its shadow on the plane) gets d (sh
   cframe / cf_view, md update_scroll dd = 0 unless fx 6); every other level scrolls exactly as in I20.
+### I21c (2026-10-30): Galleon scroll, Ropey tree brightness, Manic Mincers room, Misty mist, STATS
+User: Galleon - the island stays on its shadow but the whole background shifts / auto-scrolls at the
+playfield's edges; Ropey's back trees as bright as the foreground trees; a Manic Mincers bonus room
+(jump on the Klaptraps) with no graphics; Misty Mine's mist bands jump back and forth every other
+frame; wants the frame rate / SH-2 / 68000 load readout back as a pause menu option, small, in a corner.
+- B-GALLEON4: the I21 / I21b plane scroll used the live view offset d (0..64), which changes at the
+  playfield's edges - the whole sea and sky slid.  Now a constant 32 (md update_scroll(.., 32) for fx 6:
+  the planes depend only on the view camera) and the island SPRITE is drawn 32 px right of the SNES
+  picture instead of d (sprites.c spr_fixed_x: OBJ tiles 140-14F, palette 6, priority 2, Galleon boss
+  only) - island and shadow band both fixed on screen, as on the SNES.
+- B-ROPEYTREES2: I21's "no colour math" for the storm was wrong - the snes9x check had sampled BG1
+  (foreground) palms; the back trees ARE darkened by the math (0-57 of 255, user's SNES shot).  Now the
+  math again, then a 1.5x lift (genesis_planes day['lift']): 3 dark shades (0 / 52 / 87) instead of I20's
+  single one, darker than the foreground.
+- B-MMBONUS: entrance 05 (Manic Mincers' Klaptrap room) cannot be started from the map: the game went
+  back to Jungle Hijinxs, so both the builder's capture and the research survey (levels.json layout /
+  graphics recipe) were of the wrong scene - the room showed its sprites on black.  capture.py
+  JUMP_ROOMS gets 05 (via its level, the game's NMI-pointer path; jump rooms captured the old way by
+  an earlier builder are taken again: jump.ok), levels.json entry 05 regenerated alone from a new
+  survey.  All 76 bonus-room entrances checked with the map start (snes9x, $3E after 300 frames):
+  only 05, 53, B8, C3 do not start - the last three were already jump rooms.
+- B-MISTWAVE: the fog bands took the top band's pixel parity (one global 1-px shift) plus a 1-px
+  nudge for the checkerboard; the top band drifts a pixel every other frame, so every band jumped a
+  pixel and back with it.  Now each band's column and row offset is rounded to an even value on its
+  own: the checkerboard keeps one phase and a band moves only when its own wave crosses 2 px.
+- STATS (pause menu, off by default): "F60 M95 S20 G24" at the bottom left in the 8 x 12 HUD font -
+  pictures a second, master / slave SH-2 load, 68000 load.  The 68000 measures its V interrupt and idle
+  work (VDP V counter, + an estimate per H interrupt) per 60 frames and sends the % 1 bit a vblank in
+  C_PAD bits 15 / 14 (the pad sample number is now 6 bits).

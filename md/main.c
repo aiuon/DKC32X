@@ -629,9 +629,12 @@ static uint16_t sval(uint16_t cam, const uint16_t *s, int vert)
    off by dd - f(dd) (24 px for a 1/4-speed layer), which only showed where a plane must line up with
    the 32X layer - Gang-Plank Galleon's island (a sprite) over its shadow (plane A).  Lamp levels keep
    the old formula (their frame counter needs all 16 bits: dd = 0). */
-/* (I21b) dd = the 32X view offset d, only in the Galleon boss fight (fx 6: the island is a sprite placed
-   in the view, its shadow is on this plane).  Elsewhere 0 = the I20 scroll from the view camera: with d
-   in every level, the backgrounds slid into place at each level start as d eased from 0 to 32 (user) */
+/* (I21b) dd = 0 in every level: the I20 scroll from the view camera (with the live d in every level the
+   backgrounds slid into place at each level start as d eased from 0 to 32: user).
+   (I21c) Galleon boss (fx 6): dd = 32, a CONSTANT - the planes still follow only the view camera (with
+   the live d the whole sea and sky slid whenever the view offset changed at the playfield's edges:
+   user), the island's band (H 0 on the SNES: fixed on screen) sits 32 px right, and the SH-2 draws the
+   island sprite 32 px right of the SNES picture instead of d (sprites.c spr_fixed_x) */
 static void update_scroll(uint16_t camx, uint16_t camy, uint16_t dd)
 {
     uint16_t ha = 0, va = 0, hb = 0, vb = 0;
@@ -959,8 +962,20 @@ static RAM_CODE void lc_frame(void)
     }
 }
 
+/* (I21c) the 68000's load for the pause menu's STATS line: lines spent in md_vint / md_idle work (VDP V
+   counter) + an estimate per H interrupt, per 60 frames, in % of 262 lines; sent to the SH-2 bit by bit in
+   C_PAD bits 15 (data) / 14 (first bit) - 7 bits MSB first, one a vblank (main.c pad_store) */
+static uint32_t ld_acc;
+static uint16_t ld_frames, ld_pct, ld_bit;
+static uint16_t ld_hints;
+static inline uint16_t ld_lines(uint8_t v0)
+{
+    uint8_t v1 = VDP_VCNT;
+    return (uint8_t)(v1 - v0);
+}
 __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
 {
+    uint8_t ld_v0 = VDP_VCNT;
     dbg_v++;
     if (bg3_swap) { uint16_t *t = bg3col; bg3col = bg3nxt; bg3nxt = t; bg3_swap = 0; }
     for (int i = 0; i < 8; i++) dbg_comm[i] = COMM(i * 2);
@@ -978,10 +993,10 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
         }
         if (lc_on) lc_colours();
         uint16_t cf = COMM(C_FRAME);
-        uint16_t f = lc_on || fx != 6 ? cf : (cf & 0x1FF);  /* (I21: Galleon: bits 9-15 = the view offset, see update_scroll) */
+        uint16_t f = cf;
         if (f != last_frame) {
             last_frame = f;
-            update_scroll(COMM(C_CAMX), COMM(C_CAMY), lc_on || fx != 6 ? 0 : (uint16_t)(cf >> 9));
+            update_scroll(COMM(C_CAMX), COMM(C_CAMY), fx == 6 && !lc_on ? 32 : 0);
             if (bm_lvl) bm_write();
         }
         if (hv_on) {                            /* blizzard (CODE_808B1F): frames, wind drift + sway */
@@ -1129,11 +1144,23 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
        a press that lasted one vblank was missed when two logic frames read the same register value */
     static uint8_t pad_seq;
     pad_seq++;
+    uint16_t ldb = (uint16_t)((ld_pct >> (6 - ld_bit)) & 1) << 15 | (ld_bit == 0 ? 0x4000 : 0);
+    if (++ld_bit == 7) ld_bit = 0;
 #ifdef PADTEST
-    COMM(C_PAD) = (uint16_t)((uint16_t)pad_seq << 8 | ((pad_seq & 31) == 0 ? 0x18 : 0x08));   /* (test: B for one vblank in 32) */
+    COMM(C_PAD) = (uint16_t)((uint16_t)(pad_seq & 0x3F) << 8 | ldb | ((pad_seq & 31) == 0 ? 0x18 : 0x08));   /* (test: B for one vblank in 32) */
 #else
-    COMM(C_PAD) = (uint16_t)((uint16_t)pad_seq << 8 | read_pad());
+    COMM(C_PAD) = (uint16_t)((uint16_t)(pad_seq & 0x3F) << 8 | ldb | read_pad());
 #endif
+    ld_acc += (uint32_t)ld_lines(ld_v0) * 16 + (ld_hints * 3 >> 1);   /* (an H int ~ 3/32 line) */
+    ld_hints = 0;
+    if (++ld_frames == 60) {
+        {   uint32_t q = ld_acc;                     /* (divu: 32 / 16 bits, no libgcc) */
+            __asm__("divu.w %1,%0" : "+d"(q) : "d"((uint16_t)(262 * 16 * 60 / 100)));
+            ld_pct = (uint16_t)q; }
+        if (ld_pct > 99) ld_pct = 99;
+        ld_acc = 0;
+        ld_frames = 0;
+    }
 }
 
 /* jungle gradient: count H-ints instead of reading VCNT (which may already show the next line,
@@ -1141,6 +1168,7 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
 __attribute__((interrupt_handler)) RAM_CODE void md_hint(void)
 {
     uint16_t l = ++hcount;                 /* the line about to be drawn */
+    ld_hints++;
     if (fx != 1)
         return;
     /* resync against VCNT (= the line just ended, or already the next one): if interrupts were lost
@@ -1169,6 +1197,7 @@ RAM_CODE void md_idle(void)
         uint16_t c = COMM(C_CMD);
         dbg_c = c;
         if (active && bg3fade && bg3k != bg3want && !bg3_swap) {
+            uint8_t ld_v0 = VDP_VCNT;
             uint16_t *dst = bg3nxt;         /* (not the global: md_vint may swap meanwhile) */
             int16_t k = (int16_t)bg3want;
             bg3k = bg3want;
@@ -1183,6 +1212,7 @@ RAM_CODE void md_idle(void)
                 dst[l] = v;         /* (I14: the H-int read a half-written table - the haze bands jumped) */
             }
             bg3_swap = 1;           /* (md_vint swaps the tables at the next vblank) */
+            ld_acc += (uint32_t)ld_lines(ld_v0) * 16;
         }
         if (c & 0x8000) {
             __asm__ volatile("move.w #0x2700,%sr");

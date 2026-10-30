@@ -1734,3 +1734,12 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   for line (diff against bundle19).  Checks: plain build md5 44307aa1...; linapp21 / wtest21
   byte-identical; Galleon boss shot (island on its shadow); PicoDrive GAMEBOT 12000 + STACKCHK
   1964 / 1364.
+- I21c: Galleon island OAM (boss start): tiles 140-148, attr 2D (priority 2, palette 6, N); K. Rool
+  palette 7, the Kongs 5.  Ropey lift previews: STORM_LIFT env (1.0 / 1.25 / 1.5 / 1.75) with scratchpad
+  pdprev.py; 1.5 chosen.  The "purple" Ropey frames seen while testing were lightning flashes (random
+  timing), not a palette bug.  Research survey 05 redone (old one in /opt/work/survey_05_old); levels.json
+  backup /tmp/claude-0/levels_pre_i21c.json (only entry 105 differs).
+- C_PAD (68000 -> SH-2): bits 0-7 pad, 8-13 vblank sample number (mod 64), 14 = first bit of the 68000
+  load, 15 = data bit.  ARES checks: plain md5 ac5e9dfe...; linapp21 (fresh captures) / wtest21
+  byte-identical; MiSTer-model GAMEBOT 9000 (bot21c): no flash events; PicoDrive GAMEBOT 12000 +
+  STACKCHK 1960 / 1364.
