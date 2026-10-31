@@ -1313,3 +1313,17 @@ on; "why this level and not the others?"
 - Note for the user: the old save state keeps the broken group (DK waits in the cannon for a barrel
   that will not come); leaving the level and entering it again respawns it.  Save states are tied to
   one build.
+
+### I21j (2026-10-31): Barrel Cannon Canyon - the moving barrel still missing
+User report (I21i build) + ares state: same place, DK at the midway entrance (77), in the cannon at x
+33616; the group 5D again has only its first barrel (flags 8A = $18, 8B / 8C = 0).
+- State: main sprite slots mostly free, hle_slot_tight 0 - the I21i check (main slots) had not seen a
+  shortage.  The members' spawn (CODE_BDF3F3) needs a main slot AND a graphics slot ($1A6F + 8 .. $1C,
+  CODE_BDF346: 11 of them, one per animated sprite; the second pool's particles use them too) - the
+  graphics slots run out first.  Host repro (teleport sweep, WIDE, two graphics slots taken): the old
+  code spawns group 5D without the moving barrel with a main slot still free (flags 00 1A 18, as in the
+  user's state); I21i's check let it through.
+- Fix: hle_spr_slot counts the group's members by kind (type $0C -> the second slot pool $1E-$32, the
+  others a main slot + a graphics slot) and fails the controller unless all of them fit; the same
+  repro now waits and spawns the group whole (0E 0C 08).  reg.py 309/309 WRAM-identical with the SNES
+  windows; WIDE survey (every level's pad / teleport job): still only Stop & Go Station.

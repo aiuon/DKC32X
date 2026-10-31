@@ -1878,3 +1878,9 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   1372 / 2048; boot sweep 0 / 91; reg.py 309/309 vs I21h (sim_h vs sim_s = /tmp/claude-0/bcc2/g65s).
 - I21i bundle: /tmp/claude-0/bundle21i; Linux convert.py (linapp21i, 179 s) and the Wine .bat run
   (wtest21i, 248 s) byte-identical to the plain build; scanbundle: only unicodedata.pyd.
+## 2026-10-31: I21j - graphics slots in the group check (BUGLOG "I21j")
+- $1A6F[y], y = 8 .. $1C: graphics (VRAM character block) slots, the owner's sprite slot X (0 free);
+  y 0 / 2 = the Kongs.  CODE_BDF346 takes one (YXPPCCCT bits 0-8 = y << 4), CODE_BDF2EB several
+  (multi-block sprites, BDF3E0 individual spawns).  GRPLOG prints "gfx" (free ones) too.
+- I21j checks: plain build md5 a3a996c1...; PicoDrive GAMEBOT 12000 + STACKCHK 1976 / 1372; boot sweep
+  0 / 91; reg.py 309/309 vs I21h; bundle /tmp/claude-0/bundle21j: Linux convert.py (linapp21j, 150 s) and the Wine .bat run (wtest21j) byte-identical to the plain build; scanbundle: only unicodedata.pyd.

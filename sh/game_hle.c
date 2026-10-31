@@ -518,7 +518,8 @@ SDRAM_FN uint32_t hle_intro_fade(void)
    when the slots left cannot also hold every member: the game spawns the members one by one and
    skips any that finds no slot - with the group's flag set it never tries them again (Barrel Cannon
    Canyon's moving barrel: OBJECT RANGE WIDE kept the previous 6-slot barrel group alive while the
-   next one spawned, 14 of 14 slots).  The group then spawns later, whole; hle_slot_tight asks main.c
+   next one spawned, 14 of 14 slots; each member also needs one of 11 graphics slots).  The group then
+   spawns later, whole; hle_slot_tight asks main.c
    for the SNES windows meanwhile (the level's own spacing).  Only while the windows are wider than the
    SNES's (r65_ws): with the SNES's own the original result, partial groups included.  Otherwise the
    same registers, flags and WRAM as the 65816 code. */
@@ -533,8 +534,17 @@ uint32_t hle_spr_slot(void)
     if (first && ret == 0xFBC1 && (r65_ws[0] | r65_ws[1])) {   /* (OBJECT RANGE WIDE only: with the SNES's
                                                                   windows the game's own result - Stop & Go
                                                                   Station drops a group's 2nd member so) */
-        uint32_t nm = ((y - (WL(0x78) | WL(0x79) << 8)) & 0xFFFF) / 8 + 1;
-        if (nfree < nm + 1) { first = 0; hle_slot_tight = 1; }
+        /* its members (list entries $78 .. Y, bank BD): type $0C ones take a slot of the second pool
+           ($1E-$32, CODE_BDF3C3), the others a main slot and a graphics slot ($1A6F + 8 .. $1C:
+           CODE_BDF346 - 11 of them, the tighter of the two: the I21h check counted only the slots) */
+        uint32_t nm = 0, n2 = 0, gfree = 0, f2 = 0;
+        for (uint32_t e = WL(0x78) | WL(0x79) << 8; ; e = (e + 8) & 0xFFFF) {
+            if ((mrd8(0xBD0000 | e) | mrd8(0xBD0000 | ((e + 1) & 0xFFFF)) << 8) == 0x0C) n2++; else nm++;
+            if (e == y || nm + n2 >= 16) break;
+        }
+        for (uint32_t k = 8; k <= 0x1C; k += 2) gfree += !(WL(0x1A6F + k) | WL(0x1A70 + k));
+        for (uint32_t k = 0x1E; k != 0x34; k += 2) f2 += !(WL(0x0D45 + k) | WL(0x0D46 + k));
+        if (nfree < nm + 1 || gfree < nm || f2 < n2) { first = 0; hle_slot_tight = 1; }
     }
     if (first) {
         x = first;

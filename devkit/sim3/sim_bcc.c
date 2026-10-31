@@ -278,7 +278,7 @@ int main(int argc, char **argv)
         if (getenv("GRPLOG")) { extern uint8_t wram_lo[]; static uint32_t pv = 0xFFFFFFFF;
             uint32_t v = wram_lo[0x192B + 0x8A] | wram_lo[0x192B + 0x8B] << 8 | wram_lo[0x192B + 0x8C] << 16;
             uint32_t kx = wram_lo[0xB1B] | wram_lo[0xB1C] << 8, cx = wram_lo[0x88B] | wram_lo[0x88C] << 8;
-            if (v != pv || (getenv("GRPEVERY") && (f % atoi(getenv("GRPEVERY"))) == 0)) { { int fr = 0; for (int k = 2; k < 0x1E; k += 2) fr += !(wram_lo[0xD45 + k] | wram_lo[0xD46 + k]); printf("GRP f %d flags %06X g59 %02X kx %u cam %u ent %02X free %d\n", f, v, wram_lo[0x192B + 0x59], kx, cx, wram_lo[0x3E], fr); } pv = v; } }
+            if (v != pv || (getenv("GRPEVERY") && (f % atoi(getenv("GRPEVERY"))) == 0)) { { int fr = 0; for (int k = 2; k < 0x1E; k += 2) fr += !(wram_lo[0xD45 + k] | wram_lo[0xD46 + k]); int gf = 0; for (int k = 8; k <= 0x1C; k += 2) gf += !(wram_lo[0x1A6F + k] | wram_lo[0x1A70 + k]); printf("GRP f %d flags %06X g59 %02X kx %u cam %u ent %02X free %d gfx %d\n", f, v, wram_lo[0x192B + 0x59], kx, cx, wram_lo[0x3E], fr, gf); } pv = v; } }
         { extern uint32_t hle_slot_tight; extern uint8_t wram_lo[]; if (hle_slot_tight) { hle_slot_tight = 0;
             printf("SLOTBLOCK f %d ent %02X kx %u\n", f, wram_lo[0x3E], wram_lo[0xB1B] | wram_lo[0xB1C] << 8); } }
         spr_prepare();
