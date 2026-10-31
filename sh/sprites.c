@@ -810,7 +810,11 @@ const uint32_t *spr_ms_opq;                 /* [4][14]: fully opaque cells per t
 const uint8_t *spr_ms_span;                 /* [4][14][2]: non-empty columns [first, end) per tilemap row */
 volatile int32_t spr_ms_k;                  /* the tilemap shown this frame */
 volatile int32_t spr_ms_qpos[2][3];         /* per buffer: canvas x, y of the picture drawn there, on */
-volatile int32_t spr_ms_cq[4];              /* this frame's x, y, on, tilemap (set by the master before the bands) */
+volatile int32_t spr_ms_cq[2][4];           /* per buffer: the picture's canvas x, y, on, tilemap - set by the master
+                                               when it sets up that buffer's picture.  (I21f) spr_ms_draw draws from
+                                               it too (it read spr_ms_on / x0 / y0 / k, which the 60 FPS mode's
+                                               master already overwrote with the NEXT game frame's while the slave
+                                               still drew this picture: the picture and its restores disagreed) */
 volatile uint32_t spr_ms_gen;               /* bumped when the picture data is (re)copied */
 /* canvas tile (tx, ty) fully covered by opaque millstone pixels with the picture at canvas (qx, qy):
    its restore can be skipped (the picture is drawn over it before any sprite) */
@@ -890,10 +894,12 @@ SDRAM_CODE static void spr_ms_draw(int32_t y0, int32_t y1, int bi, int32_t gx, i
 {
 #define MSV(v) (*(volatile __typeof__(v) *)((uint32_t)&(v) | 0x20000000))
     volatile int32_t *qp = (volatile int32_t *)((uint32_t)&spr_ms_qpos[bi][0] | 0x20000000);
-    if (!MSV(spr_ms_on)) { qp[2] = 0; return; }
+    const volatile int32_t *cq = (const volatile int32_t *)((uint32_t)&spr_ms_cq[bi][0] | 0x20000000);
+    if (!cq[2] || !MSV(spr_ms_opq)) { qp[2] = 0; return; }
     spr_ms_sync();
-    int32_t x0 = MSV(spr_ms_x0), my0 = MSV(spr_ms_y0);
-    const uint16_t *cells = (const uint16_t *)MSV(spr_ms_cells);
+    const int32_t k = cq[3] & 3;
+    int32_t x0 = cq[0] - gx, my0 = cq[1] - gy;
+    const uint16_t *cells = (const uint16_t *)MSV(spr_ms_opq) - 4 * 448 + k * 448;
     const uint32_t *tiles = MSV(spr_ms_tiles);
     int32_t c0 = MSV(spr_ms_c0), c1 = MSV(spr_ms_c1), r0 = MSV(spr_ms_r0), r1 = MSV(spr_ms_r1);
     const uint16_t *L = ms_lut;
@@ -904,7 +910,7 @@ SDRAM_CODE static void spr_ms_draw(int32_t y0, int32_t y1, int bi, int32_t gx, i
     if (yb > y1) yb = y1;
     qp[0] = gx + x0; qp[1] = gy + my0; qp[2] = 1;
     if (xa >= xb || ya >= yb) return;
-    const uint32_t *opq = MSV(spr_ms_opq) + MSV(spr_ms_k) * 14;
+    const uint32_t *opq = MSV(spr_ms_opq) + k * 14;
     for (int32_t r = r0; r < r1; r++) {
         int32_t y = my0 + r * 8;
         if (y + 8 <= y0 || y >= y1) continue;
@@ -927,7 +933,7 @@ SDRAM_CODE static void spr_ms_draw(int32_t y0, int32_t y1, int bi, int32_t gx, i
 #endif
     /* marks: per picture row, its non-empty columns (both canvas tile rows the cell row touches) */
     uint32_t rows = *rowsp;
-    const uint8_t *sp = (const uint8_t *)((uint32_t)MSV(spr_ms_span) | 0x20000000) + MSV(spr_ms_k) * 28;
+    const uint8_t *sp = (const uint8_t *)((uint32_t)MSV(spr_ms_span) | 0x20000000) + k * 28;
     for (int32_t r = r0; r < r1; r++) {
         int32_t cy0 = my0 + r * 8, cy1 = cy0 + 8;
         if (cy0 < ya) cy0 = ya;

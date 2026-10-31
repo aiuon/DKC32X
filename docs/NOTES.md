@@ -1772,3 +1772,28 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   lamp flicker changes the scene by ~10 % (snes9x frame means 26 -> 31, mostly the cone): below one
   Genesis level on the wall.
 - FG_DEFAULT (test macro): the FOREGROUND option's start value.
+## 2026-10-31: I21f - lamp-level flicker, PicoDrive boot freeze, millstone snapshot (BUGLOG "I21f")
+- build_viewer genesis_planes(flick_out={}): flick = lamp levels (normal, no keyframes).  fpair() ->
+  ((even A, even B), (odd A, odd B)) CRAM words + error gain (thresholds FL_MIN_ERR 150 / FL_GAIN 0.8,
+  FL_QUARTER 1); fl_alloc() plans the 3 lines (groups = plane x SNES palette x shadowed, spare lines by
+  least weighted error, exact key counting); fkey(pi, base, v, sh, parity, cell); a flipped tile's
+  parity = h ^ v flip (tile key gets the flip bit).  GPSTAT=1 prints the line plan ("FL line").
+  build_level returns gcram2; md_block flag 256 + 64 words.  md/main.c: fl_a / fl_b / fl_ph, md_vint
+  writes CRAM 0-47 first thing every vblank.  Preview: scratchpad pdflk.py ENT OUT B (MODE=A / B / avg).
+- PicoDrive debugging: /opt/ref/pd_dbg core instrumented (PD_SH2LOG lines now with SH-2 state, poll
+  address, COMM12/14, m68krcycles_done, DMA1 CHCR/TCR; stderr BADRUN / BADEND / BADSYNC / BADPOLL /
+  BADSCHED - BADSYNC lines ~110 k are normal frame syncs).  Interpreter test: HARNESS_OPTS=
+  "picodrive_drc=disabled".  68000 variants spliced into a ROM at 0x3F0 (same slot size):
+  /tmp/claude-0/i21f/mdv/mk.sh, sweep2.sh (boot timing sweep).
+- Music start: s_main waits (awake, a 16-iteration pause between COMM reads) for a song request or the
+  first token, then music_init; music.c sets I = 6 before PWM_CTRL.  music_play still waits for the
+  slave's ack (up to 2 M loops).
+- Millstone: spr_ms_cq[2][4] (canvas x, y, on, k per buffer) written at the picture setup (main.c,
+  cq block); spr_ms_draw takes position / tilemap from it (cells = opq - 4 * 448 + k * 448), cv_band
+  from cq[cvbi].  SNES reference for Millstone Mayhem: harness from work/wmap.st, pokew 0x40 / 0x3E 66,
+  START, then "run 16 RIGHT,Y; run 14 RIGHT,Y,B" x 40 reaches the first millstone (second life);
+  dumps at /tmp/claude-0/i21f/ms_snes (BGMODE 09, TM 17, BG2 map all high priority).  32X: GOTO
+  0x42 + GAMEBOT reaches it (ares / PicoDrive shots /tmp/claude-0/i21f/pms2, ar_ms, ar_ms3).
+  DBG_FREE (free movement) does not spawn the millstones.
+- I21f checks: plain build md5 8f3b1a9f...; host reg.py 309/309 WRAM-identical to I21e; PicoDrive
+  GAMEBOT 12000 + STACKCHK master 1968 / 4080, slave 1372 / 2048; boot sweep 0 / 105.

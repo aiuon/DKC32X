@@ -1177,3 +1177,43 @@ Rambi crate, Necky's face before / after spitting a nut.
   visible behind BG1.  Background colours (Loopy, Tanked Up Trouble): the Genesis's darkest levels are
   0 / 29 / 52 of 255 even with shadow, DKC's cave walls sit below that - flat (wrong hues) or dithered;
   not a memory / CPU limit.
+
+### I21f (2026-10-31): lamp-level walls by flicker, PicoDrive boot freeze, millstone snapshot
+User report (I21e build): no tile glitches.  Remaining: Winky's Walkway type levels' background still
+"ugly repeating dithering tiles that aren't checkerboard-only" - try the flickering trick, a bit of
+dithering only by the checkerboard rule; Millstone Mayhem "sprite priorities are all out of order still"
+(screenshot: background cells over the millstone ring).
+- B-LAMPFLICK (Winky's Walkway D9, Tanked Up Trouble 30, Platform Perils 2B): the I11 / I18 Bayer 4x4
+  dots are gone.  The 68000 now swaps CRAM lines 0-2 between two tables every vblank (md flag 256,
+  CRAM B after the extras).  A wall colour between two Genesis levels gets two CRAM entries, one per
+  checkerboard parity, each a pair (frame A value, frame B value); per channel 4 samples (2 pixels x
+  2 frames) take the level above in the order (even, A), (odd, B), (odd, A), (even, B): half way =
+  a checkerboard that inverts every frame (constant brightness), 1/4 and 3/4 = one half alternates.
+  Every frame is a plain 1-px checkerboard; on a CRT / at 60 Hz the eye sees the colour in between -
+  9 shades between the shadow levels 0 / 29 / 52 instead of 3 (the wall's browns: 8,8,0 / 16,8,0 /
+  25,16,0 / 33,16,0 of 255 were olive / black patches).  Palette lines: cells grouped by SNES palette
+  and shadow / normal, a group's spare lines filled most-used colours first (build_viewer fl_alloc):
+  D9 uses 13 + 15 entries.  LAMP_FLICK=0 (builder env) = the old dots; FL_QUARTER=0 = halves only.
+  The lamp cones (line 3) are untouched.  Screenshots catch one frame: they show the checkerboard.
+- B-PDBOOT (found while testing the above): the new 68000 binary hung PicoDrive at the Nintendo
+  screen (STUCK page, M STAGE 3, master waiting for the slave's first job).  pd_dbg instrumented: the
+  slave's first run after its boot wait is a catch-up of ~437 k cycles; music_init started the PWM
+  timer (an interrupt every sample, slave PWM mask bit on - PicoDrive needs it to clock DREQ1) inside
+  it, and every PWM interrupt went PicoDrive's "nested" path (p32x_update_irls -> sh2_end_run) that
+  shortens the slice using the SR in memory - stale in a recompiled run (start-of-run cycle count,
+  I = 2): the slice went to ~ -55 M cycles, the slave stood still for minutes.  Which builds hit it
+  depends on the boot timing (the 68000 binary's size): 1 of 50-105 tested 68000 sizes with the I21e
+  code, so any earlier build could have had it.  Fix (sh/main.c s_main, music.c): the music starts
+  with the first song request or job (the slave stays awake for the request: no COMM poll sleep), and
+  I = 6 before the PWM timer runs.  After: 0 of 105 boot timings; the intro music starts as before
+  (audio dump: from 3 s).  The SH-2 interpreter and ares never showed it.
+- B-MSSNAP (Millstone Mayhem / Temple Tempest): the millstone (SNES BG2, high priority) was drawn
+  from spr_ms_on / x0 / y0 / k, which the master rewrites in every logic frame - in 60 FPS MODE while
+  the slave still draws the previous picture (position, rotation tilemap and opaque masks of two
+  different frames; restores computed for one, picture drawn at another).  Now the master stores each
+  picture's position / tilemap per frame buffer (spr_ms_cq[bi]) and both the picture and its restores
+  use that.  Layer order checked against snes9x (VRAM dump at a millstone frame: BG2 tiles all high
+  priority, BG1 all low, the pot and pillars are BG1): BG1 < millstone < OBJ priority 2 / 3, OBJ 0 / 1
+  behind it - the 32X draws the same in PicoDrive and ares (MiSTer model, 22 fps, frame skip; 60 FPS
+  MODE): the pot passes behind the stone, the Gnawty and the Kongs in front.  The reported cells over
+  the ring were not reproduced in those runs (NOTES I21f).

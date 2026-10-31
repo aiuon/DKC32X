@@ -65,6 +65,11 @@ static uint16_t hv_tile, hv_on, hv_f;
 static const uint16_t *lc_pos, *lc_map, *lc_cols, *lc_swing;
 static uint16_t lc_n, lc_pivot, lc_on, lc_have, lc_t, lc_d, lc_vy, lc_ph;
 static int16_t lc_op = -1;                  /* lamp being written / cleared, its next row */
+/* (I21f) lamp levels' flicker checkerboard (md flag 256): CRAM lines 0-2 alternate between the block's
+   CRAM (A) and a second one (B) every vblank - colours between two Genesis levels show as a 1-px
+   checkerboard of the two that swaps every frame (build_viewer genesis_planes, flick) */
+static const uint16_t *fl_a, *fl_b;
+static uint16_t fl_on, fl_ph;
 static uint16_t lc_row, lc_clear;
 /* Slipslide glimmer (md flag 128): highlight sprites over the BG2 crystals, timed like the SNES
    (CODE glow routine: 0x60-0x9F frames apart, 4 glimmers x 8 frames at new random positions) */
@@ -320,6 +325,7 @@ static void do_command(uint16_t cmd)
                                                alone for a few frames while the new level loaded) */
         VDP_CTRL = 0x8134;
         disp_hold = 0;
+        fl_on = 0;
         VDP_CTRL = 0x8F02;
         cram_w(0);
         VDP_DATA = 0;
@@ -382,6 +388,7 @@ static void do_command(uint16_t cmd)
         wx_tab = 0;
         wx_buf_ready = 0;
         lc_on = 0;
+        fl_on = 0;
         gl_on = 0;
         bm_lvl = bm_on = 0;
         bm_shown = 0xFFFF;
@@ -495,6 +502,7 @@ static void load_md(const uint16_t *md)
             after = hv_frames + 8 * 1024;
         }
         lc_on = 0;
+        fl_on = 0;
         if (planes & 64) {                      /* lamp cones */
             lc_n = after[0] > 16 ? 16 : after[0];
             lc_pivot = after[1];
@@ -525,11 +533,19 @@ static void load_md(const uint16_t *md)
             vram_w((uint32_t)after[2] * 32);
             for (uint32_t i = 0; i < (uint32_t)nt * 16; i++)
                 VDP_DATA = tl[i];
+            after = tl + (uint32_t)nt * 16;
             bm_lvl = 1;
 #ifdef BEAMGRID
             cram_w(0x62);                       /* (test: line 3 colours 1-3 red, green, blue) */
             VDP_DATA = 0x000E; VDP_DATA = 0x00E0; VDP_DATA = 0x0E00;
 #endif
+        }
+        if (planes & 256) {                     /* (I21f) flicker: CRAM B (64 words, lines 0-2 used) */
+            fl_a = cram;
+            fl_b = after;
+            after += 64;
+            fl_ph = 0;
+            fl_on = 1;
         }
         bm_ax = BM_AX0; bm_ay = BM_AY0;
         bm_write();                             /* no sprites (the SAT's first entry ends the list) */
@@ -562,6 +578,7 @@ static void fe_plane(uint16_t i)
     wx_tab = 0;
     wx_buf_ready = 0;
     lc_on = 0;
+    fl_on = 0;
     gl_on = 0;
     hv_on = 0;
     bm_lvl = bm_on = 0;
@@ -980,6 +997,15 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
     if (bg3_swap) { uint16_t *t = bg3col; bg3col = bg3nxt; bg3nxt = t; bg3_swap = 0; }
     for (int i = 0; i < 8; i++) dbg_comm[i] = COMM(i * 2);
     if (active) {
+        if (fl_on) {                            /* (I21f) flicker: the other CRAM (lines 0-2), first thing */
+            const uint16_t *c = (fl_ph ^= 1) ? fl_b : fl_a;
+            VDP_CTRL = 0x8F02;
+            cram_w(0);
+            for (int i = 0; i < 48; i += 8) {
+                VDP_DATA = c[i]; VDP_DATA = c[i + 1]; VDP_DATA = c[i + 2]; VDP_DATA = c[i + 3];
+                VDP_DATA = c[i + 4]; VDP_DATA = c[i + 5]; VDP_DATA = c[i + 6]; VDP_DATA = c[i + 7];
+            }
+        }
         if (wx_buf_ready) {                     /* CRAM first, while the beam is surely in vblank */
             wx_buf_ready = 0;
             VDP_CTRL = 0x8F02;

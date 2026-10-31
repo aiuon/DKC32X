@@ -322,12 +322,14 @@ def _planes_clustered(info, anim):
 
 
 def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_override=None, noshadow=False, day=None,
-                   normal=False, sh_cells=False):
+                   normal=False, sh_cells=False, flick_out=None):
     """planes: list of (plane letter, snes layer).  Returns tiles, maps, cram, anim slots.
     anim = (layer, first snes tile, count, [frame bytes] [, group split]): those tiles change every
     frame pair; returns [(genesis tile (| 0x8000 = second group), [frame tiles])] for the 68000.
     day = {'cgs': [palettes]} (or {'cg': palette}): palette keyframes for weather fades - colours are
-    told apart by their values in every keyframe, and day['crams'] gets one CRAM per keyframe."""
+    told apart by their values in every keyframe, and day['crams'] gets one CRAM per keyframe.
+    flick_out = {} (lamp levels, I21f): the temporal checkerboard - flick_out['cram2'] = the CRAM the
+    68000 swaps in every other vblank (lines 0-2; see flick below)."""
     regs = lv['regs']
     tiles = [bytes(32)]
     tile_idx = {}
@@ -473,11 +475,202 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         """shadowed cell (low priority under S/H)"""
         return pi['shadow'] and k not in pi.get('bright', ())
 
+    # (I21f) lamp levels: the FLICKER trick instead of the I11 / I18 Bayer dots (user: "ugly repeating
+    # dithering tiles that aren't checkerboard-only").  The 68000 swaps two CRAMs (A, B: lines 0-2) every
+    # vblank (md flag 256).  A SNES colour between two Genesis levels gets two CRAM entries, one per
+    # parity of the 1-px checkerboard, each a pair (CRAM A value, CRAM B value) - 4 samples per channel
+    # (2 pixels x 2 frames) take the level above in the order (even, A), (odd, B), (odd, A), (even, B):
+    #   half way:  even (hi, lo), odd (lo, hi) - every frame a plain checkerboard, the next its inverse:
+    #              each pixel alternates at 60 Hz and the frame's mean never changes
+    #   1/4, 3/4:  (FL_QUARTER) one checkerboard half alternates, the other stays -
+    #              the mean moves by half a level at 30 Hz (a few 8-bit steps in the dark walls; the
+    #              normal-level lantern cells are small)
+    # so the dark walls get 9 shades between the shadow levels 0 / 29 / 52 instead of 3.  Plain colours
+    # are (g, g).  Mixes only where they help (FL_MIN_ERR / FL_GAIN), per SNES palette the biggest gains
+    # first while its colours fit a palette line; no room -> stricter, then none.
+    flick = flick_out is not None and normal and day is None and LAMP_FLICK
+    fl_thr = [(FL_MIN_ERR, FL_GAIN)]
+
     def tdither(pi, k):
         """lamp levels: 4x4 ordered dither (I11) - in the shadowed cells between the fine shadow levels
         (0 / 29 / 52 ..: a faint pattern, the wall's browns on average), in the lantern cells between
-        the normal levels (their glow next to the shadowed wall)"""
-        return normal and day is None
+        the normal levels (their glow next to the shadowed wall).  (I21f: LAMP_FLICK=0 only)"""
+        return normal and day is None and not flick
+
+    fp_cache = {}
+    fp_err = {}
+
+    def fpair(pi, base, v, sh):
+        """(I21f flick) -> ((even A, even B), (odd A, odd B)) CRAM words and the error gain, or None"""
+        if pi['layer'] == dyn_layer and v == 1:
+            return None
+        c5 = tuple(apply_colormath(snes_rgb(cg[(base + v) * 2] | cg[(base + v) * 2 + 1] << 8), regs, pi['layer']))
+        ck = (c5, sh, fl_thr[0])
+        if ck in fp_cache:
+            return fp_cache[ck]
+        lv8 = [GEN_LEVELS[j] if sh else GEN_LEVELS[j * 2] for j in range(8)]
+        W = (3.0, 4.0, 2.0)
+        steps = 4 if FL_QUARTER else 2
+        order = ((0, 0), (1, 1), (1, 0), (0, 1))          # (parity, frame) samples taking the level above
+        w = [[0, 0], [0, 0]]
+        en = em = 0.0
+        split = False
+        for ch in range(3):
+            t = min(31, c5[ch]) * 255.0 / 31
+            j = max(q for q in range(8) if lv8[q] <= t + 1e-9)
+            jn = j if j == 7 or t - lv8[j] <= lv8[j + 1] - t else j + 1
+            dn = abs(t - lv8[jn])
+            en += W[ch] * dn * dn
+            q = 0
+            if j < 7:
+                q = int(round((t - lv8[j]) / float(lv8[j + 1] - lv8[j]) * steps)) * (4 // steps)
+            dm = abs(t - (lv8[j] + (lv8[j + 1] - lv8[j]) * q / 4.0)) if j < 7 else dn
+            if 0 < q < 4 and dm < dn:
+                em += W[ch] * dm * dm
+                hi = set(order[:q])
+                split = True
+            else:
+                em += W[ch] * dn * dn
+                hi = set()
+                j = jn
+            for par in (0, 1):
+                for fr in (0, 1):
+                    w[par][fr] |= (j + (1 if (par, fr) in hi else 0)) << (1 + ch * 4)
+        thr = fl_thr[0]
+        r = None
+        if split and thr and en > thr[0] and em < en * thr[1]:
+            r = ((tuple(w[0]), tuple(w[1])), en - em)
+        fp_cache[ck] = r
+        fp_err[ck] = en
+        return r
+
+    fl_mix = {}
+
+    def fl_alloc(spread=None):
+        """(I21f flick) palette lines for the lamp levels' planes: cells grouped by (plane, SNES palette,
+        shadowed); each group gets one line, the spare lines go to the biggest groups.  A group with
+        several lines fills them in turn: the colours of the cells left, most pixels first, while they
+        fit (1 entry plain, 2 mixed: the mixes with the biggest gains, as many as fit); the cells whose
+        colours all made it go to that line.  The last line takes every remaining colour.
+        spread: the spare lines' groups (indices into the groups by size; default: every
+        distribution tried, the one with the least weighted colour error kept).
+        -> (lines, assign, error) or None (fl_mix[(letter, cell)] = the colours mixed in that cell)"""
+        groups = {}
+        cnt = {}
+        for pi in info:
+            for row in pi['ents']:
+                for e in row:
+                    k = (e & 0x3FF, (e >> 10) & 7)
+                    cnt[(pi['letter'], k)] = cnt.get((pi['letter'], k), 0) + 1
+            for k in pi['cols']:
+                groups.setdefault((pi['letter'], k[1], tsh(pi, k)), []).append((pi, k))
+        if len(groups) > 3:
+            return None
+        gpix = {}
+        for gk, cells in groups.items():
+            n = {}
+            for pi, k in cells:
+                px = pi['cols'][k][0]
+                for v in px:
+                    if v:
+                        n[v] = n.get(v, 0) + cnt.get((pi['letter'], k), 0)
+            gpix[gk] = n
+        order = sorted(groups, key=lambda gk: -sum(gpix[gk].values()))
+        if spread is None:
+            import itertools
+            best = None
+            for sp in itertools.combinations_with_replacement(range(len(order)), 3 - len(groups)):
+                fl_mix.clear()
+                r = fl_alloc(sp)
+                if r and (best is None or r[2] < best[0]):
+                    best = (r[2], sp)
+            fl_mix.clear()
+            return fl_alloc(best[1]) if best else None
+        nlines = {gk: 1 for gk in groups}
+        for q in spread:
+            nlines[order[q]] += 1
+        err = 0.0
+        lines = [dict() for _ in range(4)]
+        assign = {}
+        li = 0
+        for gk in order:
+            letter, pal, sh = gk
+            left = list(groups[gk])
+            pi0 = left[0][0]
+            base = pi0['cols'][left[0][1]][2]
+            for m in range(nlines[gk]):
+                if not left:
+                    break
+                cols = set()
+                for pi, k in left:
+                    cols |= pi['cols'][k][1]
+                mixable = {v: r for v in cols for r in (fpair(pi0, base, v, sh),) if r}
+                last = m == nlines[gk] - 1
+                lpix = {}
+                for pi, k in left:
+                    for v in pi['cols'][k][0]:
+                        if v:
+                            lpix[v] = lpix.get(v, 0) + cnt.get((pi['letter'], k), 0)
+
+                def nkeys(take, mix):
+                    ks = set()
+                    for v in take:
+                        if v in mix:
+                            ks.update(mixable[v][0])
+                        else:
+                            ks.add(colkey(pi0, base, v, sh))
+                    return len(ks)
+                if last:
+                    take = set(cols)
+                    if nkeys(take, ()) > 15:
+                        return None
+                    mix = set()
+                    for g_, v in sorted((-r[1] * lpix.get(v, 0), v) for v, r in mixable.items()):
+                        if nkeys(take, mix | {v}) <= 15:
+                            mix.add(v)
+                else:
+                    take, mix = set(), set()
+                    for v in sorted(cols, key=lambda v: -lpix.get(v, 0)):
+                        if nkeys(take | {v}, mix | ({v} if v in mixable else set())) <= 15:
+                            take.add(v)
+                            if v in mixable:
+                                mix.add(v)
+                        elif nkeys(take | {v}, mix) <= 15:
+                            take.add(v)
+                mine = [(pi, k) for pi, k in left if pi['cols'][k][1] <= take]
+                if not mine:
+                    continue
+                left = [c for c in left if c not in mine]
+                for pi, k in mine:
+                    fl_mix[(pi['letter'], k)] = mix
+                    assign[(pi['letter'], k)] = li
+                    for v in pi['cols'][k][0]:
+                        if v:
+                            r = fpair(pi, base, v, sh)
+                            c5 = tuple(apply_colormath(snes_rgb(cg[(base + v) * 2] | cg[(base + v) * 2 + 1] << 8), regs, pi['layer']))
+                            e_ = fp_err[(c5, sh, fl_thr[0])]
+                            err += cnt.get((pi['letter'], k), 0) * (e_ - (r[1] if r and v in mix else 0))
+                    for v in pi['cols'][k][1]:
+                        for par in (0, 1):
+                            key = fkey(pi, base, v, sh, par, k)
+                            if key not in lines[li]:
+                                lines[li][key] = len(lines[li]) + 1
+                assert len(lines[li]) <= 15
+                if os.environ.get('GPSTAT'):
+                    print('   FL line %d: %s pal %d sh %s cells %d colours %s mixed %s' % (
+                        li, letter, pal, sh, len(mine), sorted(take), sorted(mix)))
+                li += 1
+            if left:
+                return None
+        return lines, assign, err
+
+    def fkey(pi, base, v, sh, par, k=None):
+        """(I21f flick) the (CRAM A, CRAM B) pair of SNES colour base + v on checkerboard parity par"""
+        r = fpair(pi, base, v, sh) if fl_thr[0] and (k is None or v in fl_mix.get((pi['letter'], k), ())) else None
+        if r:
+            return r[0][par]
+        g = colkey(pi, base, v, sh)
+        return (g, g)
 
     def dkey(pi, base, v, i, sh):
         """(dither) the Genesis colour of SNES colour base + v at tile pixel i"""
@@ -505,15 +698,18 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         return c
 
     dp_cache = {}
+    dp_gain = {}
 
-    def dpair(pi, base, v, sh):
+    def dpair(pi, base, v, sh, min_err=None, gain=None):
         """(I20) a SNES colour between two Genesis levels: (CRAM word low, high) one level apart in the
         channels that fall between levels (the others at their nearest level) - or None when the nearest
         colour is close enough or the mix not clearly better"""
         if pi['layer'] == dyn_layer and v == 1:
             return None
         c5 = tuple(apply_colormath(snes_rgb(cg[(base + v) * 2] | cg[(base + v) * 2 + 1] << 8), regs, pi['layer']))
-        ck = (c5, sh)
+        min_err = PD_MIN_ERR if min_err is None else min_err
+        gain = PD_GAIN if gain is None else gain
+        ck = (c5, sh, min_err, gain)
         if ck in dp_cache:
             return dp_cache[ck]
         lv8 = [GEN_LEVELS[j] if sh else GEN_LEVELS[j * 2] for j in range(8)]
@@ -537,11 +733,21 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
                 em += W[ch] * dn * dn
                 lo |= jn << (1 + ch * 4)
                 hi |= jn << (1 + ch * 4)
-        r = (lo, hi) if split and en > PD_MIN_ERR and em < en * PD_GAIN else None
+        r = (lo, hi) if split and en > min_err and em < en * gain else None
         dp_cache[ck] = r
+        dp_gain[ck] = en - em
         return r
 
     def allocate():
+        if flick and fl_thr[0]:
+            r = fl_alloc()
+            if r:
+                lines, assign = r[:2]
+                sets = [(pi['letter'], k, frozenset(fkey(pi, pi['cols'][k][2], v, tsh(pi, k), par, k)
+                                                   for v in pi['cols'][k][1] for par in (0, 1)))
+                        for pi in info for k in pi['cols']]
+                return lines, assign, 0, sets
+            fl_thr[:] = [None]
         lines = [dict() for _ in range(4)]
         if dyn_layer:
             lines[0]['DYN'] = 1
@@ -550,7 +756,9 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         sets = []
         for pi in info:
             for k, (px, vs, base) in pi['cols'].items():
-                if tdither(pi, k):
+                if flick:
+                    sets.append((pi['letter'], k, frozenset(fkey(pi, base, v, tsh(pi, k), par, k) for v in vs for par in (0, 1))))
+                elif tdither(pi, k):
                     sets.append((pi['letter'], k, frozenset(dkey(pi, base, v, i, tsh(pi, k)) for i, v in enumerate(px) if v)))
                 else:
                     cs = set()
@@ -562,7 +770,7 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
                             cs.add(ckey(pi, base, v, tsh(pi, k)))
                     sets.append((pi['letter'], k, frozenset(cs)))
         assign = {}
-        if day is not None:
+        if day is not None or flick:
             # weather levels (many keyframe-distinct colours): place each SNES palette's whole colour
             # set first, so the tiles of one palette share a line instead of fragmenting the lines
             pun = {}
@@ -602,6 +810,11 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
     pdither = PLANE_DITHER and day is None and not normal
     use_pairs = [pdither]
     lines, assign, misfit, sets = allocate()
+    if flick:
+        print('   flicker: %d mixed CRAM entries, %d plain, lines %s%s' % (
+            len(set(c for _, _, s_ in sets for c in s_ if c[0] != c[1])),
+            len(set(c for _, _, s_ in sets for c in s_ if c[0] == c[1])), [len(l) for l in lines],
+            '' if fl_thr[0] else ' (NO ROOM: plain colours)'))
     if misfit and use_pairs[0]:                  # (I20) no room for the checkerboard pairs: plain colours
         use_pairs[0] = False
         lines, assign, misfit, sets = allocate()
@@ -636,12 +849,14 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
     if os.environ.get('GPSTAT'):
         print('   GPMIS %02X misfit %d of %d cells, %d colours' % (lv.get('entrance', 0), misfit, len(sets),
               len(set(c for _, _, s_ in sets for c in s_))))
-    nk = len(all_cgs)
+    nk = 2 if flick else len(all_cgs)
     crams = [[0] * 64 for _ in range(nk)]
     for li in range(4):
         for c, idx in lines[li].items():
             for q in range(nk):
-                crams[q][li * 16 + idx] = 0 if c == 'DYN' else c[q] if day is not None else c
+                crams[q][li * 16 + idx] = 0 if c == 'DYN' else c[q] if day is not None or flick else c
+    if flick:
+        flick_out['cram2'] = crams[1] if crams[1] != crams[0] else None
     cram = crams[0]
     if day is not None:
         day['crams'] = crams[1:]
@@ -684,7 +899,8 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
                 if not vs and not is_anim:
                     m.append(0)
                     continue
-                key = (pi['letter'], k, li)
+                fp = ((e >> 14) ^ (e >> 15)) & 1 if flick else 0   # (flick: a flipped tile's checker phase)
+                key = (pi['letter'], k, li) + ((fp,) if fp else ())
                 if is_anim:
                     anim_keys.add((key, pi['layer']))
                 if key not in tile_idx:
@@ -696,6 +912,10 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
                             q = pd_index(li, pi, base, v, i, tsh(pi, k)) if pdither else None
                             if q is not None:
                                 idx.append(q)
+                                continue
+                            if flick:
+                                g = fkey(pi, base, v, tsh(pi, k), ((i >> 3) ^ i ^ fp) & 1, k)
+                                idx.append(lines[li].get(g) or nearest(li, g))
                                 continue
                             g = dkey(pi, base, v, i, tsh(pi, k)) if tdither(pi, k) else ckey(pi, base, v, tsh(pi, k))
                             idx.append(lines[li].get(g) or nearest(li, g))
@@ -722,7 +942,7 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
             sum(len(l) for l in lines), nk - 1, misfit, [pi['shadow'] for pi in info]))
     slots = []
     for key, layer in sorted(anim_keys):
-        letter, (t, p), li = key
+        letter, (t, p), li = key[:3]
         pi = [q for q in info if q['letter'] == letter][0]
         sp = specs[anim_spec(t, layer)]
         if True:
@@ -738,7 +958,8 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
                     if q is not None:
                         idx.append(q)
                         continue
-                    g = ckey(pi, base, v, tsh(pi, (t, p)))
+                    g = fkey(pi, base, v, tsh(pi, (t, p)), ((len(idx) >> 3) ^ len(idx) ^ (len(key) > 3)) & 1, (t, p)) if flick else \
+                        ckey(pi, base, v, tsh(pi, (t, p)))
                     idx.append(lines[li].get(g) or nearest(li, g))
                 frames.append(bytes((idx[i] << 4) | idx[i + 1] for i in range(0, 64, 2)))
             grp = 0x8000 if (len(sp) > 4 and t - sp[1] >= sp[4]) or (len(specs) > 1 and sp is specs[1]) else 0
@@ -1325,6 +1546,10 @@ PLANE_DITHER = int(os.environ.get('PLANE_DITHER', '1'))   # (I19) Genesis planes
 PD_MIN_ERR = float(os.environ.get('PD_MIN_ERR', '1500'))  # (I20: weighted squared 8-bit error below which the nearest colour is kept -
                                                           # with the shadow levels only clear misses get a checkerboard)
 PD_GAIN = float(os.environ.get('PD_GAIN', '0.6'))         # (the mix must be this much better than the nearest)
+LAMP_FLICK = int(os.environ.get('LAMP_FLICK', '1'))       # (I21f) lamp levels: flicker checkerboard (0 = the I18 Bayer dots)
+FL_MIN_ERR = float(os.environ.get('FL_MIN_ERR', '150'))   # (I21f) flicker pairs: error below which the nearest level is kept
+FL_GAIN = float(os.environ.get('FL_GAIN', '0.8'))
+FL_QUARTER = int(os.environ.get('FL_QUARTER', '1'))       # (I21f) 1/4 and 3/4 mixes too
 PLANE_SH = int(os.environ.get('PLANE_SH', '1'))            # (I20: per-cell shadow / normal in the ordinary levels)
 PLANE_SH_MAX = float(os.environ.get('PLANE_SH_MAX', '16'))  # (SNES 5-bit channel values the shadow range reaches: 130 / 255)
 LAMP_BRIGHT5 = 17             # (I18) lamp-level BG2 cells with a colour channel above this: normal (lanterns)
@@ -1859,6 +2084,7 @@ def snow_block(L, lv, snow, wx):
 
 
 def build_level(L, lv, tilesets):
+    flick = {}                                   # (I21f) lamp levels: CRAM B of the flicker checkerboard
     rom = L.rom
     t = TYPES[lv['nmi']]
     vram, cg = build_vram(L, lv)
@@ -2121,7 +2347,7 @@ def build_level(L, lv, tilesets):
         sky = [wx['skeys'][0]] * 224
     else:
         gtiles, gmaps, gcram, ganim = genesis_planes(vram, cg, lv, planes, 3 if t.get('fx') == 'jungle' else None, anim,
-                                                     normal=lv['entrance'] in LAMP_SPR, sh_cells=True)
+                                                     normal=lv['entrance'] in LAMP_SPR, sh_cells=True, flick_out=flick)
     if comp:
         # plane A: opaque black cells over the side borders (x < 32, x >= 288), fixed scroll, plus the
         # HUD font (the 68000 draws the HUD on plane A for comp levels: tiles 2 + 2*char, 8x16)
@@ -2168,7 +2394,7 @@ def build_level(L, lv, tilesets):
         assert all(len(g.get('map', [])) for g in gmaps.values())
     lv['_gmaps'] = gmaps
     return dict(lv=lv, type=t, ts=ts, grid=grid, gw=gw, gh=gh, cx0=cx0, cy0=cy0, overlays=overlays,
-                pal=pal, sky=sky, gtiles=gtiles, gmaps=gmaps, gcram=gcram, ganim=ganim,
+                pal=pal, sky=sky, gtiles=gtiles, gmaps=gmaps, gcram=gcram, ganim=ganim, gcram2=flick.get('cram2'),
                 xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, start=(sx, sy), vram=vram, cg=cg, perf=perf,
                 glow=lamp if lamp is not None else
                 rain_block(L, lv, vram, cg, wx, wx['rain']) if lv['entrance'] in JUNGLE_WX else
@@ -2592,6 +2818,9 @@ def md_block(b, pf=None):
     tall = any(g.get('h') == 64 for g in gm.values())
     flags = (1 if 'A' in gm else 0) | (2 if 'B' in gm else 0) | (4 if tall else 0) | (8 if 'S' in gm else 0) | \
         (16 if 'H' in gm else 0) | (32 if 'L' in gm else 0) | (64 if 'C' in gm else 0) | (128 if 'G' in gm else 0)
+    cram2 = None if pf else b.get('gcram2')
+    if cram2:
+        flags |= 256                             # (I21f) flicker: CRAM B (lines 0-2) swapped in every other vblank
     h = 64 if tall else 32
 
     def sc(letter):
@@ -2680,6 +2909,9 @@ def md_block(b, pf=None):
         hdr += be16(len(L_['sat'])) + be16(len(L_['tiles'])) + be16(L_['sat'][0][2] & 0x7FF if L_['sat'] else 0) + be16(0)
         hdr += b''.join(be16(v) for e in L_['sat'] for v in e)
         hdr += b''.join(L_['tiles'])
+    if cram2:
+        # (I21f) flicker: CRAM B, 64 words (the 68000 writes words 0-47 = lines 0-2 every other vblank)
+        hdr += b''.join(be16(c) for c in cram2)
     if pf:
         # streamed plane A: u16 gw, gh, ox0, oy0, nvch, pad, grid[gw*gh], vch[nvch*16]
         hdr += be16(pf['gw']) + be16(pf['gh']) + be16(pf['ox0']) + be16(pf['oy0']) + be16(len(pf['vch']) // 16) + be16(0)

@@ -1646,7 +1646,7 @@ SDRAM_VIEWER static void render_bg1_ovr(const shared_t *p, int32_t y0, int32_t y
    ones the real position leaves uncovered (sprites.c spr_ms_cover) */
 #define ms_defer ((uint32_t (*)[32][2])((uint8_t *)map_mem + 17408))   /* (temple: no rain / overlays) */
 static volatile int32_t ms_lvl;          /* (uncached) this level has the millstone: ms_defer in use */
-extern volatile int32_t spr_ms_qpos[2][3], spr_ms_cq[4];
+extern volatile int32_t spr_ms_qpos[2][3], spr_ms_cq[2][4];
 extern int spr_ms_cover(int32_t qx, int32_t qy, int32_t k, int32_t tx, int32_t ty);
 extern void spr_ms_sync(void);
 static void cv_rect_rows(const shared_t *p, int32_t x0, int32_t x1, int32_t y0, int32_t y1, int32_t ra, int32_t rb)
@@ -1679,7 +1679,7 @@ __attribute__((noinline)) static void cv_band(const shared_t *p, int32_t ra, int
             int32_t y0 = I[2] > ra ? I[2] : ra, y1 = I[3] < rb ? I[3] : rb;
             const uint32_t (*sm)[2] = (const uint32_t (*)[2])((uint32_t)&spr_marks[p->cvbi][0][0] | 0x20000000);
             uint32_t (*df)[2] = (uint32_t (*)[2])((uint32_t)&ms_defer[p->cvbi][0][0] | 0x20000000);
-            const volatile int32_t *cq = UNCACHED(&spr_ms_cq[0]);
+            const volatile int32_t *cq = UNCACHED(&spr_ms_cq[p->cvbi][0]);
             int cov = cq[2], lvl = *UNCACHED(&ms_lvl);
             int32_t cqx = cq[0], cqy = cq[1], cqk = cq[3];
             if (cov) spr_ms_sync();             /* (spr_ms_cover reads the masks cached) */
@@ -3970,10 +3970,9 @@ static void load_level(int idx, shared_t *sh)
         extern void spr_ms_palette(uint32_t pal);
         spr_ms_on = 0;
         ms_blk = 0;
-        {   extern const uint32_t *spr_ms_opq; extern volatile int32_t spr_ms_qpos[2][3], spr_ms_cq[4];
+        {   extern const uint32_t *spr_ms_opq; extern volatile int32_t spr_ms_qpos[2][3], spr_ms_cq[2][4];
             spr_ms_opq = 0;
-            for (int i = 0; i < 2; i++) *UNCACHED(&spr_ms_qpos[i][2]) = 0;
-            *UNCACHED(&spr_ms_cq[2]) = 0;
+            for (int i = 0; i < 2; i++) { *UNCACHED(&spr_ms_qpos[i][2]) = 0; *UNCACHED(&spr_ms_cq[i][2]) = 0; }
             *UNCACHED(&ms_lvl) = 0; }
         if ((lv->flags & 0x10) && lv->off_fog && PK(uint16_t, lv->off_fog)[1] == 7) {
             ms_blk = PK(uint16_t, lv->off_fog);
@@ -5847,7 +5846,7 @@ void m_main(void)
             trect_t N = { gx >> 3, (gx >> 3) + CV_TW, gy >> 3, (gy >> 3) + CV_TH };
             {   /* the millstone picture's canvas position this frame (cv_band: restores it covers) */
                 extern volatile int32_t spr_ms_on, spr_ms_x0, spr_ms_y0;
-                volatile int32_t *cq = UNCACHED(&spr_ms_cq[0]);
+                volatile int32_t *cq = UNCACHED(&spr_ms_cq[bi][0]);
                 extern volatile int32_t spr_ms_k;
                 cq[0] = gx + spr_ms_x0; cq[1] = gy + spr_ms_y0; cq[2] = spr_ms_on; cq[3] = spr_ms_k;
             }
@@ -6646,11 +6645,7 @@ void s_main(void)
 #ifdef MUSDEBUG
     stack_fill(0x0603F800);
 #endif
-    {
-        const pack_hdr_t *ph = PK(pack_hdr_t, 0);
-        if (ph->off_music)
-            music_init(PACK + ph->off_music, slot_echo.echo);
-    }
+    int mus_started = 0;
 #ifdef BENCH
     for (;;) {
         uint32_t m = *UNCACHED(&bench_slave);
@@ -6668,8 +6663,34 @@ void s_main(void)
             *UNCACHED(&perf_sidle) += (uint16_t)(frt_read() - w0);   /* (waits > 1 FRT wrap undercount) */
         }
 #endif
-        while (COMM(C_TOKEN) == last)
+        if (!mus_started) {
+            /* (before the music runs) a song request comes before the first job (the logos): start
+               then - music_play waits for the slave's answer.  The pause between the COMM reads keeps
+               PicoDrive from putting the slave to sleep on COMM(C_TOKEN) (its poll detection: reads of
+               one address < 20 cycles apart), which only a COMM write would end - the request is an
+               SDRAM write (the intro music started ~13 s late) */
+            while (COMM(C_TOKEN) == last && !*UNCACHED(&music_req))
+                for (volatile int d = 0; d < 16; d++)
+                    ;
+        }
+        while (COMM(C_TOKEN) == last && mus_started)
             ;
+        if (!mus_started) {
+            /* (I21f) the music (PWM timer, DMA) starts with the first song request or job, not at power-on.
+               PicoDrive (recompiler, RetroArch's default): the slave's first run after its boot wait
+               is a catch-up run of ~437 k cycles; every PWM interrupt raised in it (TM = 1: each
+               sample, slave PWM mask bit on) went the "nested" way that ends the time slice using the
+               SR in memory (stale: the start-of-run cycle count, I = 2) - the slice ended up ~ -55 M
+               cycles, the slave stood still for minutes: master STUCK at the Nintendo screen.  Which
+               builds hit it depended on the 68000 binary's size (boot timing): ~1 in 50.  The
+               interpreter and ares were fine.  (music.c: I = 6 before the PWM timer runs, too) */
+            const pack_hdr_t *ph = PK(pack_hdr_t, 0);
+            if (ph->off_music)
+                music_init(PACK + ph->off_music, slot_echo.echo);
+            mus_started = 1;
+            if (COMM(C_TOKEN) == last)
+                continue;                       /* (no job yet) */
+        }
         last = COMM(C_TOKEN);
         {
             uint32_t m = *UNCACHED(&slave_hmask);

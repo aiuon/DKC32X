@@ -231,6 +231,15 @@ them. Keep this file current when something structural changes.
   disassembly: otherwise BADJUMP -> err 20xxxxxx at run time).
 - Never read a ROM block through a pointer across a 1 KB page boundary: in the all-worlds ROM the next
   page may live elsewhere (I21e B-STRADDLE; sprite tiles use mkgame's straddle windows).
+- PicoDrive's SH-2 recompiler (RetroArch's default) ends a running SH-2's time slice from interrupt
+  updates using the SR in memory, which is stale inside a run: after a long sleep (the slave's boot
+  wait) the first run is a ~437 k-cycle catch-up, and PWM interrupts raised in it froze the slave for
+  minutes (I21f B-PDBOOT: ~1 build in 50, decided by the 68000 binary's size).  Never start the PWM
+  timer / slave interrupt sources in that first run.  Check every build: boot sweep
+  (/tmp/claude-0/i21f/mdv/sweep2.sh BASE TAG: 105 boot timings on the instrumented pd_dbg core).
+- The 60 FPS MODE's slave draws picture N while the master runs logic N+1: anything the sprite /
+  canvas bands read must come from a per-buffer snapshot, not from state the logic rewrites
+  (I21f B-MSSNAP: the millstone).
 - ROM patches must never touch game logic (I15): the widescreen patch had widened the sprite spawn /
   keep-alive windows - the game diverged from the SNES and Barrel Cannon Canyon lost a barrel.  Any
   patch to the game's code: A/B it in snes9x (same inputs, original vs patched ROM, compare the sprite
@@ -378,6 +387,9 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
 - I21e: sprite tiles across ROM page boundaries read from resident copies (B-STRADDLE: the rope / crate /
   Necky one-tile glitches), cave / factory foregrounds in front of the sprites with FOREGROUND ON
   (B-FGFRONT), Misty's mist wave in even steps (RIPPLE option).
+- I21f: lamp levels' walls by the flicker trick (two CRAMs swapped every vblank, checkerboard-only,
+  B-LAMPFLICK); PicoDrive boot freeze at the Nintendo screen fixed (music starts with the first song
+  request, B-PDBOOT); the millstone drawn from the picture's own snapshot (B-MSSNAP, 60 FPS MODE).
 Open:
 - Loopy Lights' light cones (32X-side: no CRAM for a lit BG1 set), Stop & Go's lamp cones.
 - OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch

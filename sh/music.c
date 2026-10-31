@@ -197,6 +197,10 @@ void music_init(const uint8_t *music_blob, int8_t *echo)
     for (int h = 0; h < 2; h++)
         for (int i = 0; i < HALF; i++) pwm_buf[h][i] = (CYCLE / 2) << 16 | (CYCLE / 2);
 
+    /* (I21f) I = 6 before the PWM timer runs (it was set last): PicoDrive checks a newly raised PWM
+       interrupt (level 6) against the SR it has in memory - with I = 2 (start.s) it took the "nested"
+       path that ends the slave's time slice (see s_main: music starts with the first job) */
+    __asm__ volatile ("mov #0x60,r0\n\tldc r0,sr" ::: "r0");   /* I = 6 */
     REG16(PWM_CYC) = CYCLE + 1;
     REG16(PWM_CTRL) = 0x0185;               /* TM=1 (every sample), RTP (DREQ1), L->L, R->R */
     REG8(DRCR1) = 0;                        /* DREQ1 = external request */
@@ -206,5 +210,4 @@ void music_init(const uint8_t *music_blob, int8_t *echo)
     half = 0;
     dma_go(0);
     REG8(SYS_INTMASK) = REG8(SYS_INTMASK) | 0x01;   /* PWM int "enabled" (see above) */
-    __asm__ volatile ("mov #0x60,r0\n\tldc r0,sr" ::: "r0");   /* I = 6 */
 }
