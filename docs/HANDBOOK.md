@@ -233,6 +233,9 @@ them. Keep this file current when something structural changes.
 - Incremental drawing spread over pictures (fescr's dissolve steps) needs its progress per frame
   buffer, a minimum of work per picture, and must not be skipped by the "nothing changed" fast path
   while it is behind; its records must not be cleared while lines still depend on them (I21h).
+- Anything that keeps more objects alive than the SNES (OBJECT RANGE WIDE) can run the game out of its
+  14 main sprite slots or 8 palettes; the game skips what does not fit, and a skipped group member is
+  gone for good (I21d palettes, I21i Barrel Cannon Canyon's groups): fall back to the SNES windows.
 - Sprite palette 7 (CRAM 253-255) is game data, not free HUD colours.
 - The SNES has 8 sprite palettes (slot table $1AD3, counts $1AE3).  Anything that keeps more objects
   alive (OBJECT RANGE WIDE) can run out; the game's own overflow path freed palette 0 under its users

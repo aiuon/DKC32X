@@ -511,3 +511,43 @@ SDRAM_FN uint32_t hle_intro_fade(void)
     a = col; x = 0x0140; y = 0x01E0; r65_db = 0x80; r65_n = -128; z = 0x80; c = 1;
     return JUMPKEY | 0x0080CE49;
 }
+
+/* (I21h) CODE_BDF3A2 (16-bit A / X, D = 0): a free main sprite slot, X = 2 .. $1C with SpriteID ($0D45,x)
+   = 0 -> $86 = X, $15FD,x = $8000, CLC; none -> $86 = 0, SEC.  Called for a sprite GROUP's controller
+   (CODE_BDFB76, return address BDFBC1; Y = its last member's list entry, $78 = its first) it fails
+   when the slots left cannot also hold every member: the game spawns the members one by one and
+   skips any that finds no slot - with the group's flag set it never tries them again (Barrel Cannon
+   Canyon's moving barrel: OBJECT RANGE WIDE kept the previous 6-slot barrel group alive while the
+   next one spawned, 14 of 14 slots).  The group then spawns later, whole; hle_slot_tight asks main.c
+   for the SNES windows meanwhile (the level's own spacing).  Only while the windows are wider than the
+   SNES's (r65_ws): with the SNES's own the original result, partial groups included.  Otherwise the
+   same registers, flags and WRAM as the 65816 code. */
+uint32_t hle_slot_tight;
+uint32_t hle_spr_slot(void)
+{
+    if (r65_d != 0) return interp(0x00BDF3A2);
+    uint32_t ret = WL((s + 1) & 0x1FFF) | WL((s + 2) & 0x1FFF) << 8;
+    uint32_t X, first = 0, nfree = 0;
+    for (X = 2; X != 0x1E; X += 2)
+        if (!(WL(0x0D45 + X) | WL(0x0D46 + X))) { if (!first) first = X; nfree++; }
+    if (first && ret == 0xFBC1 && (r65_ws[0] | r65_ws[1])) {   /* (OBJECT RANGE WIDE only: with the SNES's
+                                                                  windows the game's own result - Stop & Go
+                                                                  Station drops a group's 2nd member so) */
+        uint32_t nm = ((y - (WL(0x78) | WL(0x79) << 8)) & 0xFFFF) / 8 + 1;
+        if (nfree < nm + 1) { first = 0; hle_slot_tight = 1; }
+    }
+    if (first) {
+        x = first;
+        WL(0x86) = (uint8_t)first; WL(0x87) = 0;
+        WL(0x15FD + first) = 0x00; WL(0x15FE + first) = 0x80;
+        a = 0x8000; r65_n = -32768; z = 0x8000; c = 0;
+    } else {
+        x = 0x1E;
+        a = WL(0x0D45 + 0x1C) | WL(0x0D46 + 0x1C) << 8;   /* (the last slot's SpriteID: the loop's last LDA) */
+        WL(0x86) = 0; WL(0x87) = 0;
+        r65_n = 0; z = 0; c = 1;                         /* (CPX #$001E: equal) */
+    }
+    uint32_t l, h;
+    PULL8(l); PULL8(h);
+    return 0xBD0000 | (((l | h << 8) + 1) & 0xFFFF);
+}

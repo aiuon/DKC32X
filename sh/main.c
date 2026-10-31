@@ -4997,7 +4997,17 @@ void m_main(void)
                 int used = 0;
                 for (int k = 0; k < 8; k++) used += game_wram16(0x1AD3 + 2 * k) != 0;
                 if (used >= 7) ws_tight = 1; else if (used <= 5) ws_tight = 0;
-                int wide = obj_wide && in_level && !ws_tight;
+                /* (I21h) the same for the 14 main sprite slots: a sprite group that did not fit
+                   (hle_spr_slot) -> the SNES windows (its levels are spaced for them: Barrel Cannon Canyon's
+                   barrel groups), for 2 s at least and until 8 slots are free (the largest group: 7) */
+                extern uint32_t hle_slot_tight;
+                static int ws_slots;
+                static uint32_t ws_slots_f;
+                int sfree = 0;
+                for (int k = 2; k < 0x1E; k += 2) sfree += game_wram16(0x0D45 + k) == 0;
+                if (hle_slot_tight) { hle_slot_tight = 0; ws_slots = 1; ws_slots_f = game_stats.frames; }
+                else if (ws_slots && game_stats.frames - ws_slots_f >= 120 && sfree >= 8) ws_slots = 0;
+                int wide = obj_wide && in_level && !ws_tight && !ws_slots;
                 int32_t L = spr_xoff < 0 ? 0 : spr_xoff > 64 ? 64 : spr_xoff;
                 if (!wide) L = 0;
                 r65_ws[0] = (uint32_t)L; r65_ws[1] = wide ? 64 : 0; r65_ws[2] = r65_ws[1] - (uint32_t)L;

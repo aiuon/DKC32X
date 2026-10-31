@@ -1863,3 +1863,18 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   differs from I21g: the intro now takes fewer vblanks, the game starts earlier).  Boot sweep 0 / 91.
   scanbundle: only unicodedata.pyd.  fecmp.sh I21g vs I21h: only the dissolve's screens (intro
   girders, ending / credits speech text) differ.
+## 2026-10-31: I21i - sprite group slots under OBJECT RANGE WIDE (BUGLOG "I21i")
+- User state -> sim: /tmp/claude-0/bcc2/rdstate.py (STATE ROM ELF OUT: the 128 KB WRAM) and mksnap.py
+  (STATE ROM ELF REFSNAP OUT: a game_init snapshot - cpu from _cpu, wram_lo + pool + ring + sram
+  lz-packed, the OBJ / CGRAM tail of a level snapshot); sim_bcc.c (sim3) SNAPFILE=..., GRPLOG=1
+  (BCC group 5D flags, group 59, free main slots), SLOTBLOCK lines (hle_slot_tight).
+- DKC sprite list (DATA_BD8000[$3E]: 8-byte entries type / x / y / pointer): type 5 = group, its
+  members from (pointer + 8) on until a type 0 entry; $192B+entry = the slot the entry's sprite has
+  ($FF for a group controller, id $44); members' $15FD = -entry.  Group spawn CODE_BDFB76, member spawn
+  CODE_BDFC59 (no slot -> skipped), group despawn CODE_BDF585 (all members out of the window).  Main
+  slots X 2-$1C (CODE_BDF3A2), other pools $1E-$32 (BDF3C3), $34-$72 (BDF4A3).
+- Largest group in the game: 6 members (+ controller = 7 slots).
+- Checks: plain build md5 17ecba0f...; PicoDrive GAMEBOT 12000 + STACKCHK master 1976 / 4080, slave
+  1372 / 2048; boot sweep 0 / 91; reg.py 309/309 vs I21h (sim_h vs sim_s = /tmp/claude-0/bcc2/g65s).
+- I21i bundle: /tmp/claude-0/bundle21i; Linux convert.py (linapp21i, 179 s) and the Wine .bat run
+  (wtest21i, 248 s) byte-identical to the plain build; scanbundle: only unicodedata.pyd.

@@ -1282,3 +1282,34 @@ the I21g answer (a 4 x 4 ordered dissolve where the two layers overlap, exact pa
 - Front-end regressions (fecmp.sh, I21g vs I21h): the ending / credits text crisp (was a green
   checkerboard over its first line for a picture, and a few jungle pixels over the text), the girders'
   lattice shown before the fade (it was hidden under the "dark main" rule); nothing else changed.
+
+### I21i (2026-10-31): Barrel Cannon Canyon's moving barrel missing again
+User report (I21h build) + ares state: the barrel after the cannon DK sits in (x 33792) is gone, no way
+on; "why this level and not the others?"
+- State read as in I15 (ares v145, SDRAM at 0x123B, the I21h ELF): the same spot as I15 - the sprite
+  group at list entry 5D (members 8A-8C: the cannon DK is in, 9EC1, the vertically moving barrel C9A3)
+  has its controller spawned ($192B+5D = FF) and member 8A (slot $18) but 8B / 8C never spawned
+  (flags 0).  OBJECT RANGE was WIDE (r65_ws 32 / 64 / 32).
+- Cause (not I15's): the game spawns a group as its controller then each member, each taking one of
+  the 14 main sprite slots (CODE_BDF3A2, X 2-$1C); a member that finds no slot is simply skipped and,
+  with the group's flag set, never tried again until the whole group despawns - which never happens
+  while DK sits in one of its barrels.  Barrel Cannon Canyon packs its barrel groups with no slack on
+  the SNES's windows: the 6-slot group 59 (entries 83-87) is out of the window (camx > 33488) before
+  group 5D comes in (camx >= 33504).  WIDE's windows (32 px more on each side) overlap them for
+  camx 33476-33520: Kongs 2 + group 59 6 + 5B / 5C 2 + group 5D 4 = 14 of 14 slots - one more object
+  (a thrown barrel, a bird ...) and the moving barrel is lost.  Other levels rarely have big groups
+  this close together, so it shows here.
+- Repro (host sim, teleport sweep through the area with one slot taken): old code - group 5D spawns
+  without its moving barrel (flags 00 1A 18), as in the user's state; new code - the group waits and
+  spawns whole (0E 0C 08).
+- Fix: hle_spr_slot (sh/game_hle.c, data/hle.txt BDF3A2): the slot allocator, exact, except that for a
+  group's controller (return address BDFBC1) under WIDE windows it fails when the free slots cannot
+  hold the controller and every member - the group spawns later, whole; it also asks main.c for the
+  SNES windows (hle_slot_tight: 2 s at least and until 8 slots are free), so the level's own spacing
+  applies again (group 59 leaves, group 5D comes in at the SNES spot).  With the SNES windows the
+  game's own result stands: Stop & Go Station's pad job drops a group's second member on the SNES
+  rules too (an original-game case, kept).  reg.py 309/309 WRAM-identical (SNES windows); a WIDE
+  survey of every level's pad / teleport job: only Stop & Go Station meets a short group.
+- Note for the user: the old save state keeps the broken group (DK waits in the cannon for a barrel
+  that will not come); leaving the level and entering it again respawns it.  Save states are tied to
+  one build.
