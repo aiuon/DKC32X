@@ -105,6 +105,24 @@ static const uint8_t *snes_ptr(uint32_t a)
     return &ROMB(a & 0x3FFFFF);
 }
 
+/* (I21e) an OBJ tile whose 32 bytes cross a 1 KB ROM page boundary: the two pages need not be stored
+   next to each other (all-worlds ROM: one in a world bank, the other resident), so the tile is read
+   from mkgame.py's copy of the 64 bytes around that boundary (sprite graphics only; others as before) */
+extern const uint16_t game_straddle_n, game_straddle_pg[];
+extern const uint8_t game_straddle_win[][64];
+static const uint8_t *straddle_ptr(uint32_t a)
+{
+    uint32_t pg = (a & 0x3FFFFF) >> 10;
+    int32_t lo = 0, hi = (int32_t)game_straddle_n - 1;
+    while (lo <= hi) {
+        int32_t m = (lo + hi) >> 1;
+        uint32_t v = game_straddle_pg[m];
+        if (v == pg) return &game_straddle_win[m][(a & 0x3FF) - 0x3E0];
+        if (v < pg) lo = m + 1; else hi = m - 1;
+    }
+    return snes_ptr(a);
+}
+
 static const uint16_t *snap_obj;      /* the level-start snapshot's OBJ VRAM as runs (mkgame.py, I16): */
 extern const uint8_t game_obj_pool[];  /* blank tiles, tiles in resident ROM, tiles of a pool */
 extern const uint8_t zero_page[];
@@ -256,7 +274,10 @@ R65_HOT static void vram_dma(uint32_t src, uint32_t n, int fixed)
         } else {
             /* ROM: the blob holds only the pages in use, so a source can continue elsewhere after a
                1 KB page boundary - look every tile up */
-            for (uint32_t i = 0; i < nt && t + i < 512; i++) obj_set(t + i, snes_ptr(src + i * 32));
+            for (uint32_t i = 0; i < nt && t + i < 512; i++) {
+                uint32_t a = src + i * 32;
+                obj_set(t + i, (a & 0x3FF) > 0x3E0 ? straddle_ptr(a) : snes_ptr(a));
+            }
 #ifndef __sh__
             {   /* (host: DMALOG=file - the ROM ranges uploaded as OBJ graphics, sprite usage per world) */
                 extern char *getenv(const char *); static void *df; extern void *fopen(const char *, const char *);
@@ -269,6 +290,13 @@ R65_HOT static void vram_dma(uint32_t src, uint32_t n, int fixed)
         spr_stats.tiles += nt;
     } else if (w < 0x2000) {
         spr_stats.odd_dma++;
+#ifndef __sh__
+        {   extern char *getenv(const char *); static void *df; extern void *fopen(const char *, const char *);
+            extern int fprintf(void *, const char *, ...);
+            if (!df && getenv("DMALOG")) df = fopen(getenv("DMALOG"), "a");
+            if (df) fprintf(df, "%06X %X ODD %04X f %u\n", src & 0xFFFFFF, n, w, game_stats.frames);
+        }
+#endif
 #ifdef VRAMLOG
         { extern int printf(const char *, ...); printf("  ODD vram dma %06X -> %04X n %X\n", src, w, n); }
 #endif
@@ -923,6 +951,8 @@ SDRAM_CODE static void spr_ms_draw(int32_t y0, int32_t y1, int bi, int32_t gx, i
    tiles they cover there for buffer bi (canvas tile = (gx + x) >> 3, (gy + y) >> 3) */
 SDRAM_CODE void spr_draw_band(int32_t y0, int32_t y1, int bi, int32_t gx, int32_t gy)
 {
+    const int only3 = bi >> 8;             /* (I21e, main.c ov_front) bi | 0x100: OBJ priority 3 only */
+    bi &= 1;
     const spr_ent_t *ent = (const spr_ent_t *)((uint32_t)spr_list | 0x20000000);
     uint32_t ne = *(volatile uint32_t *)((uint32_t)&spr_nlist | 0x20000000);
     const uint8_t *const *tiles = (const uint8_t *const *)((uint32_t)obj_tile_dr | 0x20000000);
@@ -941,6 +971,7 @@ SDRAM_CODE void spr_draw_band(int32_t y0, int32_t y1, int bi, int32_t gx, int32_
         if (y + size <= y0 || y >= y1) continue;
         int32_t x = o->x;
         uint32_t attr = o->attr, tile = o->tile;
+        if (only3 && (attr & 0x30) != 0x30) continue;
         const uint16_t *L = pairlut[(attr >> 1) & 7];
         int hf = attr & 0x40, vf = attr & 0x80;
         n++;

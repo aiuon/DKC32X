@@ -1143,3 +1143,37 @@ bounces between bands - "use the exact same misty foreground from Poison Pond ..
   per-band wave and its sway are gone, so no band can tear or bounce against another.  (x + y) kept
   even as in Poison Pond's layer (the checkerboard keeps its screen phase).  No fade-in: full density
   from the start (its palette steps forced a synchronous flip every 32 frames for 16 s).
+
+### I21e (2026-10-31): sprite tiles, foreground in front of sprites, mist wave
+User: the colours and the mist look great; wants a mist wave that leaves the checkerboard alone; Loopy
+Lights' hanging lamps (light cones) missing and low-colour backgrounds; Tanked Up Trouble's background
+dithered and without the lamp's brightness changes; sprites in front of the foreground (screenshot:
+Manic Mincers' black trunk); persistent one-tile sprite glitches - a swinging rope (until swung on), the
+Rambi crate, Necky's face before / after spitting a nut.
+- B-STRADDLE (the tile glitches, "once and for all"): an OBJ tile is read as 32 bytes from the address of
+  its first byte.  In the all-worlds ROM a 1 KB ROM page sits either in its world's bank (window 6) or in
+  the resident blob, so for a tile that crosses a page boundary between the two the last bytes came from
+  an unrelated page: one corrupt tile in every sprite frame whose graphics cross such a boundary.  Found
+  by logging every OBJ DMA source over all 40 levels in the host sim and resolving each crossing tile
+  through the built ROM's own page tables (devkit/scripts/tilechk.py): 230 wrong tiles, e.g. the Rambi
+  crate (GFX_AnimalBuddyBox_Rambi, tile 6), the swinging rope's rest pose (GFX_SwingingRope_Pose2:
+  page 580 resident, 581 in the world banks), Very Gnawty, Klump, Kritter, Necky, Master Necky, Slippa,
+  Rockkroc frames.  The host sim could never show it (its blob holds every page in order).  Fix:
+  mkgame.py keeps a resident 64-byte copy of the bytes around each such boundary inside / at the edge of
+  sprite graphics (126 boundaries, 8 KB), sprites.c vram_dma points crossing tiles into it
+  (straddle_ptr).  After: 0 wrong tiles but the debug font's (never shown).
+- B-FGFRONT: with FOREGROUND ON the canvas drew the cave foreground overlay BEFORE the sprites, so
+  every sprite covered it.  Now (ov_front) after each sprite band the overlay is drawn again in the
+  canvas cells the sprites touched (the overwrite region keeps its transparent pixels): the caves'
+  BG3 foreground (mode 1 BG3 priority) is in front of every sprite as on the SNES; in the factory levels
+  (BG1 foreground, x 2 scroll) the OBJ priority 3 sprites (the Kongs) are drawn once more on top.
+  FOREGROUND OFF leaves these layers out altogether (performance mode, as before).
+- Misty Mine: the wave is back as horizontal 2-pixel steps per 4-line band (the SNES's sway, one band
+  per frame down the screen): even columns keep the checkerboard's phase on every line, rows never
+  move.  RIPPLE OFF in the pause menu = the flat mist.
+- Not done (NOTES I21e): Loopy Lights' light cones - BG1 covers the whole screen there, so the
+  cone (the SNES subtracts 3 outside it) would have to be drawn by the 32X, whose 127 BG colours have no
+  room for a second, brighter set; a Genesis version (BG2, S/H) was built and dropped - BG2 is not
+  visible behind BG1.  Background colours (Loopy, Tanked Up Trouble): the Genesis's darkest levels are
+  0 / 29 / 52 of 255 even with shadow, DKC's cave walls sit below that - flat (wrong hues) or dithered;
+  not a memory / CPU limit.

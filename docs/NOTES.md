@@ -1755,3 +1755,20 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   debug) does not move the Kong in snes9x with a plain d-pad; 2 also stops sprite spawning.
 - Misty perf variant (fog3): misty_frame's flat path returns before the old wave code (still used by
   the non-perf compositor path comp_fog).  mw_I = 31 at setup.
+- I21e: devkit/scripts/tilechk.py ROM32 ELF SNESROM LOGDIR - every OBJ tile that crosses a 1 KB page
+  boundary in the DMA logs (sim DMALOG, one file per entrance), read as the 32X does (world bank table
+  from build/gen2/worldbanks.bin, resident blob, straddle windows) vs the SNES ROM.  Logs: sim_vs
+  DMALOG=dir/EE.txt with BOT=0 and TP=100,90,96, 4000 frames each.  DMALOG now also lists dropped
+  (not tile-aligned) OBJ DMAs as "ODD" (none in the 40 levels).
+- I21e Loopy Lights research: the lamp = sprite-list script C5F3 (22 lamps, y 248-348); CODE_80B38B
+  subtracts fixed colour 9 / 3 (lights off / on) from BG1, BG2, OBJ and puts BG3 (the cone, colour 0) on
+  the sub screen only with the lights on and the nearest lamp ($DD, $DF) within -64..320 of the view;
+  BG3 H-scroll per line from HDMA 7F:0200 / 0500 (-66 .. -57: a slight lean), CGRAM per line by two
+  HDMA channels (7E:2000 / 2224).  snesppu: BG1 covers 100 % of the picture at the level start.  The
+  Genesis S/H cone (plane A high-priority transparent cells, BG2 low priority, S/H with the lights)
+  worked in the planes but BG2 is never visible there - reverted (sim / md notes in the transcript).
+- I21e Tanked Up Trouble: the SNES wall is (0..6)/31 per channel; the Genesis shadow levels 0 / 29 / 52
+  give either flat red / olive patches (no dither, LAMP_DITHER test) or the Bayer dots (current).  The
+  lamp flicker changes the scene by ~10 % (snes9x frame means 26 -> 31, mostly the cone): below one
+  Genesis level on the wall.
+- FG_DEFAULT (test macro): the FOREGROUND option's start value.

@@ -319,6 +319,46 @@ def main():
         json.dump(dict(common=com, worlds=wk, dup=DUP,
                        banks=[DUP + [p for p in need if pg_world[p] & (1 << i) and p not in dset] for i in range(nw)]),
                   open(os.path.join(out, 'worlds.json'), 'w'))
+    # (I21e) sprite tiles across a 1 KB page boundary: the runtime reads an OBJ tile as 32 bytes from
+    # the address of its first byte, but in the all-worlds ROM page p may sit in a world bank and p + 1
+    # in the resident blob (or the other way round) - the tile's last bytes came from an unrelated page
+    # (one corrupt tile in the swinging ropes, the Rambi crate, Necky's face ...).  Every boundary inside
+    # or at the edge of sprite graphics (DynamicSprites, sizes in the listing run short: + 64) whose two
+    # pages are not stored next to each other in some world gets a resident 64-byte window (the 32
+    # bytes each side) - sprites.c vram_dma points such tiles into it.
+    import json
+    sc = []
+    stores = []
+    if pg_world is not None:
+        cpos = dict((p, i) for i, p in enumerate(com))
+        for bk in json.load(open(os.path.join(out, 'worlds.json')))['banks']:
+            stores.append((dict((p, j) for j, p in enumerate(bk)), cpos))
+    else:
+        stores.append(({}, dict((p, i) for i, p in enumerate(need))))
+    sinc = sorted((a, f, n) for a, f, n in layout.incbins() if f.startswith('Graphics/DynamicSprites/'))
+    sst = [a for a, _, _ in sinc]
+    def spr_at(a):
+        k = bisect.bisect_right(sst, a) - 1
+        return k >= 0 and a - sinc[k][0] < sinc[k][2] + 0x40
+    junc = set()
+    for bk, cpos in stores:
+        def where(q):
+            return ('b', bk[q]) if q in bk else ('c', cpos[q]) if q in cpos else None
+        for q in range(4095):
+            s0, s1 = where(q), where(q + 1)
+            if s0 is None or s1 is None or (s0[0] == s1[0] and s1[1] == s0[1] + 1): continue
+            bd = (q + 1) << 10
+            if spr_at(bd - 1) or spr_at(bd): junc.add(q)
+    junc = sorted(junc)
+    sc.append('const uint16_t game_straddle_n = %d;' % len(junc))
+    sc.append('const uint16_t game_straddle_pg[%d] = { %s };' % (max(1, len(junc)), ', '.join('%d' % q for q in junc) or '0'))
+    sc.append('const uint8_t game_straddle_win[%d][64] __attribute__((aligned(4))) = {' % max(1, len(junc)))
+    for q in junc:
+        bd = (q + 1) << 10
+        sc.append('    { ' + ','.join('0x%02X' % v for v in rom[bd - 32:bd + 32]) + ' },')
+    if not junc: sc.append('    { 0 }')
+    sc.append('};')
+    print('mkgame: %d sprite page junctions (%d bytes)' % (len(junc), len(junc) * 66))
     # high WRAM pages resident (7E:2000-7FFF:FFFF in 256-byte pages; 0-1F are wram_lo)
     pool = [p for p in sorted(wpages) if p >= 0x20]
     scratch = []; ring = []
@@ -427,6 +467,7 @@ def main():
             else:
                 runs.append([k[0], k[1], 1])
         stab.append(int(ent, 16)); objtab.append(runs)
+    c += sc
     c.append('const uint8_t game_obj_pool[%d] __attribute__((aligned(4))) = {' % max(1, len(pool_b)))
     for j in range(0, len(pool_b), 32): c.append('    ' + ','.join('0x%02X' % v for v in pool_b[j:j + 32]) + ',')
     c.append('};')

@@ -229,6 +229,8 @@ them. Keep this file current when something structural changes.
   (I21d B-PALOVF: rompatch PALFIX + WIDE backs off at 7 palettes in use).  A rompatch that changes
   instruction boundaries needs rompatch.dis_fix too (r65.py only follows untraced code that matches the
   disassembly: otherwise BADJUMP -> err 20xxxxxx at run time).
+- Never read a ROM block through a pointer across a 1 KB page boundary: in the all-worlds ROM the next
+  page may live elsewhere (I21e B-STRADDLE; sprite tiles use mkgame's straddle windows).
 - ROM patches must never touch game logic (I15): the widescreen patch had widened the sprite spawn /
   keep-alive windows - the game diverged from the SNES and Barrel Cannon Canyon lost a barrel.  Any
   patch to the game's code: A/B it in snes9x (same inputs, original vs patched ROM, compare the sprite
@@ -373,7 +375,11 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   palette pressure (B-PALOVF); Misty Mine's mist = one flat layer like Poison Pond's, drift only, no
   fade-in (B-MISTWAVE2).  Open idea: a per-line wave on the flat mist (whole-word line-table moves only,
   PicoDrive applies per-line SFT 2 lines early).
+- I21e: sprite tiles across ROM page boundaries read from resident copies (B-STRADDLE: the rope / crate /
+  Necky one-tile glitches), cave / factory foregrounds in front of the sprites with FOREGROUND ON
+  (B-FGFRONT), Misty's mist wave in even steps (RIPPLE option).
 Open:
+- Loopy Lights' light cones (32X-side: no CRAM for a lit BG1 set), Stop & Go's lamp cones.
 - OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch
   WS_TUNE / r65_ws): waiting for the user's playthrough.  If a level breaks (I15: a barrel group in
   Barrel Cannon Canyon lost a member when only the spawn windows were widened), SNES restores the

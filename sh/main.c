@@ -1197,7 +1197,37 @@ __attribute__((noinline)) static void glow_rows(volatile uint8_t *dst, const uin
    inside the window's columns or the 8-byte gap after them.  Each BG1 tile under a drawn overlay
    row gets its bit set in mask[row & 31] (64 columns, two longs) so it is redrawn before this
    buffer's next overlay pass. */
-CV_CODE static void render_overlay_cv(const shared_t *p, int k, int32_t y0, int32_t y1, volatile uint32_t *mask)
+CV_CODE static void render_overlay_cvm(const shared_t *p, int k, int32_t y0, int32_t y1, volatile uint32_t *mask,
+                                       const uint32_t *cm);
+#define render_overlay_cv(p, k, y0, y1, mask) render_overlay_cvm(p, k, y0, y1, mask, 0)
+/* (I21e) the cave foreground in FRONT of the sprites: the overlay was drawn with the canvas, before the
+   sprites, so they covered it (user: the Kongs in front of Manic Mincers' black trunks).  After a
+   sprite band, the overlay again in the canvas cells the sprites touched (spr_marks of this buffer):
+   the overwrite region skips its transparent pixels, so the sprites stay where the SNES shows them.
+   Those cells already carry the first pass's restore marks (same overlay, same place). */
+__attribute__((noinline)) static void ov_front(const shared_t *p, int32_t y0, int32_t y1, int bi, int32_t sgx, int32_t sgy)
+{
+    if (!p->cv || !p->nov || p->glow) return;
+    const uint32_t (*sm)[2] = (const uint32_t (*)[2])((uint32_t)&spr_marks[bi][0][0] | 0x20000000);
+    uint32_t dummy[64];
+    int32_t gy = p->camy - p->oy0;
+    for (int32_t ty = (gy + y0) >> 3; ty <= (gy + y1 - 1) >> 3; ty++) {
+        uint32_t cm[2] = { sm[ty & 31][0], sm[ty & 31][1] };
+        if (!(cm[0] | cm[1])) continue;
+        int32_t ya = ty * 8 - gy, yb = ya + 8;
+        if (ya < y0) ya = y0;
+        if (yb > y1) yb = y1;
+        for (int k = 0; k < p->nov; k++)
+            if (ovinfo[k].xm != 4) render_overlay_cvm(p, k, ya, yb, dummy, cm);
+    }
+    /* the factory levels' foreground is BG1 (x 2 scroll): high-priority tiles, but OBJ priority 3 (the
+       Kongs, $3000) is drawn in front of them - those sprites again; the caves' BG3 foreground (mode 1
+       with BG3 priority) is in front of every sprite */
+    for (int k = 0; k < p->nov; k++)
+        if (ovinfo[k].xm == 2) { spr_draw_band(y0, y1, bi | 0x100, sgx, sgy); break; }
+}
+CV_CODE static void render_overlay_cvm(const shared_t *p, int k, int32_t y0, int32_t y1, volatile uint32_t *mask,
+                                       const uint32_t *cm)
 {
     const ov_t *o = &ovinfo[k];
     const uint16_t *map = ovmap_ram[k];
@@ -1224,6 +1254,10 @@ CV_CODE static void render_overlay_cv(const shared_t *p, int k, int32_t y0, int3
         for (int32_t bx = sx0; bx < 320; bx += 8, tc = (tc + 1) & (o->w - 1)) {
             uint32_t e = mrow[tc];
             if (e == 0x7FFF) continue;
+            if (cm) {                                    /* (ov_front: only cells with sprites) */
+                uint32_t ca = (uint32_t)(gx + bx) >> 3, cb = (uint32_t)(gx + bx + 7) >> 3;
+                if (!(cm[(ca >> 5) & 1] & bit32[ca & 31]) && !(cm[(cb >> 5) & 1] & bit32[cb & 31])) continue;
+            }
             uint32_t slot = e & 0x7FFF;
             uint32_t m = rowmask[slot];
             if (!m) continue;
@@ -2791,6 +2825,22 @@ static void misty_palette(void)
     comp_pal_dirty = 1;
 }
 
+static int rip_on;                     /* (defined with the other pause menu options below) */
+/* (I21e) the sway part of the SNES's per-band fog offset (CODE_80B547's v without the drift): 0 .. 5 */
+static int32_t mist_sway(uint32_t f)
+{
+    uint32_t t = (f * 4) & 0x7F;
+    if (t & 0x40) t ^= 0x7F;
+    uint32_t a = mw_sway[t] + 0x80;
+    if ((f * 4) & 0x80) a ^= 0xFF;
+    t = (f * 2) & 0x7F;
+    if (t & 0x40) t ^= 0x7F;
+    uint32_t b = mw_sway[t] + 0x80;
+    if ((f * 2) & 0x80) b ^= 0xFF;
+    uint32_t v = (a + b) & 0xFFFF;
+    v = ((v >> 1) + v) & 0xFFFF;
+    return (int32_t)(v >> 7);
+}
 static void misty_frame(uint32_t f, int32_t X, int32_t Y)
 {
     if (fog3) {
@@ -2805,7 +2855,15 @@ static void misty_frame(uint32_t f, int32_t X, int32_t Y)
         int32_t x = (int32_t)(uint16_t)(((uint16_t)X >> 2) + X) + d;
         int32_t y = Y + 1 + d;
         if ((x + y) & 1) x++;
-        for (int i = 0; i < SCREEN_H / 4; i++) { comp_wave[i][0] = x; comp_wave[i][1] = y; }
+        /* (I21e) the wave again, horizontal only and in whole 2-pixel steps per 4-line band: the SNES's
+           sway (mist_sway) delayed one band per frame down the screen, rounded to even columns - the
+           checkerboard keeps its phase on every line, rows are not moved (no doubled / dropped lines).
+           RIPPLE OFF in the pause menu: flat */
+        int wave = rip_on && !pm_open;
+        for (int i = 0; i < SCREEN_H / 4; i++) {
+            comp_wave[i][0] = x + (wave ? (mist_sway(f - (uint32_t)i) & ~1) - 2 : 0);
+            comp_wave[i][1] = y;
+        }
         return;
     }
 #ifdef MISTY_I0
@@ -3334,7 +3392,10 @@ static int fskip = 0;
 #else
 static int fskip = 1;
 #endif
-static int fg_on = 0;
+#ifndef FG_DEFAULT
+#define FG_DEFAULT 0
+#endif
+static int fg_on = FG_DEFAULT;
 #ifndef RIP_DEFAULT
 #define RIP_DEFAULT 1
 #endif
@@ -6128,6 +6189,7 @@ void m_main(void)
             *(volatile uint16_t *)&ares_phase = 1;      /* (ares profiler: sprite phase) */
 #endif
             spr_draw_band(0, split, bi, gx, gy);
+            ov_front(&local, 0, split, bi, gx, gy);
             int32_t mt = (uint16_t)(frt_read() - sm0);
             LDST2(15); while (COMM(C_DONE) != token)
                 ;
@@ -6684,6 +6746,7 @@ void s_main(void)
             if (local.lt_do) write_line_table_cv(local.ltx, local.lty, 0);
             spr_slave_sync();
             spr_draw_band(local.ssplit, SCREEN_H, local.sbi, local.sgx, local.sgy);
+            ov_front(&local, local.ssplit, SCREEN_H, local.sbi, local.sgx, local.sgy);
             sh->spr_sticks = (uint16_t)(frt_read() - r0);
             sh->slave_ticks += (uint16_t)(frt_read() - r0);
             COMM(C_DONE) = last;
