@@ -1242,3 +1242,43 @@ cross-fade crawls and barely fades (answered: NOTES I21g).
   - its BG1 mine cart tracks.  That level has no hanging lamps (snes9x: palette 0 = DATA_B9A2DE in
   every frame): it keeps those colours now.
 
+
+### I21h (2026-10-31): the intro's platform -> jungle cross-fade as a real dissolve, at speed
+User report (I21g build): after the logos, the cross-fade from Cranky's platform to the jungle "drops to
+a crawl" and "isn't even smooth or real" - little fading between the colours.  Chosen fix: option 1 of
+the I21g answer (a 4 x 4 ordered dissolve where the two layers overlap, exact palette fade elsewhere).
+- B-FADEGAME (the crawl's main cause, found by measuring - not the drawing): the intro's NMI
+  (CODE_80CCB6) computes the 160 fade colours itself every frame of the 64-frame fade, each component
+  times a factor on the PPU multiplier ($211B / $211C -> $2135): 480 register writes and 480 reads a
+  frame through io_wr / io_rd / game_ppu_hook / fe_reg.  On MiSTer (ares model) a game frame took
+  ~1.7 vblanks: the game ran at 30-40 fps and, catching up 12 game frames per picture, the picture at
+  2-3 per second (FEDBG bars: 14 vblanks in game frames, 2 in the picture).  Fix: hle_intro_fade
+  (sh/game_hle.c, data/hle.txt 80CDBE; 80CE49 a new entry in entries.txt / translate.txt / lowrom.txt):
+  the same colours, $4C / $4E, M7 latch / multiplicand, registers, flags and stack bytes, then the rest of
+  the NMI.  Verified: host sim WRAM hash identical every frame (power-on to frame 1500) and the fade's
+  pictures identical; gdb: 65 calls (the 64 fade frames + $28 = 1); reg.py (see NOTES).  MiSTer model:
+  game frames back to 1 a vblank, the fade's pictures every ~6 frames (was 16-24).
+- B-FADELOOK (fescr.c, sprites + colour math screens): the I5 rule "the other colour where one is dark,
+  else a checkerboard" showed the platform as black for most of the fade and redrew every line whose
+  colours crossed the dark threshold.  Now a dissolve: a pixel where both layers have a colour shows
+  the subscreen from step fe_bay4[y & 3][x & 3] + 1 on; the step (0 / 4 / 8 / 12 / 16) from the two
+  sides' average brightness r = Bs / (Bm + Bs) over the colours met there (all main below 1/8, all sub
+  above 7/8; a white text over the jungle - the ending's speech, r ~ 0.84 - stays all text).  A step
+  change touches only the pixels of that step (fe_dissolve_line: one BG fetched, the rows / columns
+  whose dither values lie between, half the rows per quarter step) - no line is redrawn in full during
+  the fade (host: 0 lines, was every mixed line ~3 times a second).  A black sub colour adds nothing:
+  the main colour (the ending's text shadow line over the jungle) until it is seen non-black.
+- B-DISSTALE (found on the way, would have left platform pixels over the jungle): (1) the colour
+  records were cleared after an 8-frame gap between pictures, so a step back could not find the colours
+  to undo - kept for the whole screen now; (2) the step pass's start line was shared by both frame
+  buffers and could stop at its first line, so one buffer's lines were never reached - per buffer, 8
+  lines at least; (3) the "nothing changed" fast path skipped the step pass while lines were still
+  behind - not while any line lags; (4) a screen's first picture had no colour records (step 0: the
+  ending's speech came up without its first line for a picture) - all sub until something is met;
+  (5) at the ends of a fade (step 0 / 16) the lines left behind are finished in one pass (MiSTer kept
+  up with ~13 lines a picture: the black platform stayed a second).  Host check FEDCHK (fehost.c):
+  every clean line at the current step equal to a fresh fe_line render, every picture, pictures every
+  1 / 2 / 3 / 7 frames and step budgets of 1 / 3 / 8 / 30 lines: 0 bad, 0 lines behind at the end.
+- Front-end regressions (fecmp.sh, I21g vs I21h): the ending / credits text crisp (was a green
+  checkerboard over its first line for a picture, and a few jungle pixels over the text), the girders'
+  lattice shown before the fade (it was hidden under the "dark main" rule); nothing else changed.

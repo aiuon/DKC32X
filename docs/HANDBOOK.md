@@ -134,7 +134,8 @@ them. Keep this file current when something structural changes.
 - Torchlight (upper half): BMS span list 17408, BM_ST 20480, BM_LN 21376, bm_dmap 24576, bm_lines
   24704, bm_slotcol 25600, BM_TMP 25664, BMH [CV_H][6] 27840, bm_shown [224] 30912 (-> 31808, I14).
 - Front-end screens: FE_* tables (NOTES I11 / I12 lists), overlap the level tables - front-end only,
-  rebuilt by load_level.
+  rebuilt by load_level.  14112-14672 (screens without a mode 7 copy): the sprites + colour math
+  dissolve's records (FE_WD, FE_MIXM / S, FE_DW, FE_DY, FE_DSUB, FE_SBLK - NOTES I21h).
 
 ### 4.3 ROM
 - First 256 KB: 68000 code, SH-2 boot + code, .data image, .sdgame image (finalize.py checks; ~3.9 KB
@@ -178,6 +179,10 @@ them. Keep this file current when something structural changes.
   Standard set: 14 16 0C 01 BF 17 E0 D9 2E 07 31 42 24 6D A7 43 (3000 frames). Rooms without a
   snapshot (C1 C3 53 ...) are not testable this way.
 - sim_xcp (XC_PROF): interpreted instruction counts per key -> candidates for translate.txt.
+- fehost.c (sim3 FEHOST=rom.32x FEVM=1 FECOUNT=1 FEEVERY=n): front-end pictures on the host; FEDCHK=1
+  checks every dissolved line against a fresh render, FEDBUD=n limits the step pass (NOTES I21h).
+- A slow front-end screen: FEDBG bars 11 / 12 = vblanks between pictures (game frames) / in fe_frame;
+  host per-frame game cost: valgrind callgrind with CALLGRIND_TOGGLE_COLLECT around the frames.
 - regress.sh (picture tour), xsweep.py (every entrance alias: page violations), roomtest.sh.
 - ares: ARES_PADSCRIPT (harness-style "run N BUTTONS"), ARES_DUMP / _FROM / _TO / _EVERY / _HALF (PPM
   frames), ARES_QUIT_AT, ARES_MISALIGN, ARES_SHPROF_EVERY (profile). ares_run.sh ROM PAD DIR FROM TO
@@ -223,6 +228,11 @@ them. Keep this file current when something structural changes.
   themselves (I17 start.s m_vres / s_vres) - ares and MiSTer never raise it, test in PicoDrive
   (harness with retro_reset).
 - HLE functions must not use r65_mx (stale inside generated code).
+- A game routine that hammers PPU registers (the intro fade's 480 multiplier writes + reads a frame)
+  costs a vblank on MiSTer through io_wr / io_rd hooks: measure game frames first, then HLE it (I21h).
+- Incremental drawing spread over pictures (fescr's dissolve steps) needs its progress per frame
+  buffer, a minimum of work per picture, and must not be skipped by the "nothing changed" fast path
+  while it is behind; its records must not be cleared while lines still depend on them (I21h).
 - Sprite palette 7 (CRAM 253-255) is game data, not free HUD colours.
 - The SNES has 8 sprite palettes (slot table $1AD3, counts $1AE3).  Anything that keeps more objects
   alive (OBJECT RANGE WIDE) can run out; the game's own overflow path freed palette 0 under its users

@@ -107,6 +107,21 @@ typedef char fe_clean_fits[FE_CLEAN_OFF + FE_CN * 256 <= 0x20000 ? 1 : -1];
 #define FE_LGEN   ((uint16_t *)((uint8_t *)map_mem + 11776))                   /* [128] */
 #define FE_DGEN   ((uint16_t (*)[SCREEN_H])((uint8_t *)map_mem + 12032))       /* [2][224] */
 #define FE_LVL    ((uint8_t *)map_mem + 12928)                                 /* [256] the levels */
+/* (I21g, non-mode-7 screens: map_mem 14112 - 14848 is free then - after FE_LSIG2 / FE_HPREV / FE_FKEY /
+   FE_FOK) the sprites + colour math dissolve
+   (fe_line): per buffer and line the step it was drawn at (0xFF: none known), the main / sub colours
+   met in mixed pixels since fe_setup, this picture's step, the buffer being drawn */
+#define FE_WD     ((uint8_t (*)[SCREEN_H])((uint8_t *)map_mem + 14112))          /* [2][224] (-> 14560) */
+#define FE_MIXM   ((uint32_t *)((uint8_t *)map_mem + 14560))                     /* [4] */
+#define FE_MIXS   ((uint32_t *)((uint8_t *)map_mem + 14576))                     /* [4] */
+#define FE_DW     (*(int32_t *)((uint8_t *)map_mem + 14592))
+#define FE_DBI    (*(int32_t *)((uint8_t *)map_mem + 14596))
+#define FE_DY     ((int32_t *)((uint8_t *)map_mem + 14640))      /* [2]: where each buffer's last step pass stopped */
+#define FE_DSUB   ((uint32_t *)((uint8_t *)map_mem + 14608))                     /* [4]: colours whose darkness decided a mixed pixel */
+#define FE_SDK0   ((uint32_t *)((uint8_t *)map_mem + 14624))                     /* [4]: FE_SBLK then */
+#define FE_SBLK   ((uint32_t *)((uint8_t *)map_mem + 14656))                     /* [4]: BG colours never seen non-black (sticky) */
+/* 4 x 4 ordered dither: pixel (x, y) shows the subscreen from step bayer + 1 on */
+static const uint8_t fe_bay4[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
 #define FE_CHST   ((uint8_t (*)[256])((uint8_t *)map_mem + 14848))           /* [4][256]: 2 bits a char, 0 = not known, 1 blank, 2 not */
 #define FE_ROWC   ((uint16_t (*)[64])((uint8_t *)map_mem + 15872))           /* [2][64]: BG2 / BG3 map tile rows: vgen << 2 | 2 | not empty */
 /* (I11) per buffer and map row of the VRAM mirror (32 words): the columns written since its last finished
@@ -323,6 +338,12 @@ static void fe_setup(int i)
     cvb[0].hud = cvb[1].hud = (trect_t){ 0, 0, 0, 0 };
     disp_pending = 1;                     /* (the 32X layer on with the first picture) */
     if (!FE->m7w) for (int y = 0; y < SCREEN_H; y++) FE_LUSED[y][0] = FE_LUSED[y][1] = FE_LUSED[y][2] = FE_LUSED[y][3] = 0;
+    if (!FE->m7w) {                       /* (I21g) the dissolve's records */
+        for (int y = 0; y < SCREEN_H; y++) FE_WD[0][y] = FE_WD[1][y] = 0xFF;
+        for (int k = 0; k < 4; k++) FE_MIXM[k] = FE_MIXS[k] = 0;
+        FE_DW = 0; FE_DBI = 0; FE_DY[0] = FE_DY[1] = 0;
+        for (int k = 0; k < 4; k++) { FE_DSUB[k] = 0; FE_SDK0[k] = FE_SBLK[k] = 0xFFFFFFFFu; }
+    }
     for (int y = 0; y < SCREEN_H; y++) for (int k = 0; k < 8; k++) FE_DUSED[y][k] = 0;
     fe_steady(1);
     FE->lsum = fe_lines_regs();           /* (the state was cleared: the per-line registers again) */
@@ -841,6 +862,12 @@ static void fe_line(int y, volatile uint8_t *dst, int obj)
     if (math) {
         uint32_t sdark[8], mdark[4], lk = 0xFFFFFFFFu, lr = 0x100, *prc = FE_PRC;
         const uint8_t *brt = FE_BRT;
+        const int dz = obj && !FE->m7w;   /* (I21g) sprites + colour math: the dissolve */
+        const int32_t dw = dz ? FE_DW : 0;
+        const uint8_t *bay = fe_bay4[y & 3];
+        uint32_t sblk[4];
+        for (int k = 0; k < 4; k++) sblk[k] = dz ? FE_SBLK[k] : 0;
+        uint32_t mixm[4] = { 0, 0, 0, 0 }, mixs[4] = { 0, 0, 0, 0 }, dsub[4] = { 0, 0, 0, 0 };
         for (int i = 0; i < 8; i++) sdark[i] = FE->sdark[i];
         for (int i = 0; i < 4; i++) mdark[i] = FE->mdark[i];
         for (int i = 0; i < 272; i += 4) *(uint32_t *)&sb[i] = 0;
@@ -849,7 +876,26 @@ static void fe_line(int y, volatile uint8_t *dst, int obj)
             uint32_t s = sb[x];
             if (!s || !(cga & bit32[src[x]])) continue;
             uint32_t mm = lb[x];
-            if (obj) {                    /* (main transparent: the sub, whatever the backdrop - a backdrop
+            if (obj && dz) {              /* (I21g) the dissolve: main transparent -> the sub; else from step
+                                             fe_bay4 + 1 on the sub, before it the main colour */
+                if (!mm) lb[x] = (uint8_t)s;
+                else if (s < 128 && (sblk[s >> 5] & bit32[s & 31])) {
+                    /* (I21h) a black sub colour adds nothing: the main colour (the ending's text shadows
+                       over the jungle) - until it is seen non-black (sticky FE_SBLK: FE_DSUB, fe_frame; the
+                       darkness instead hid a text fading in over a dark jungle, and the dark jungle colours
+                       lit one by one redrew the lines - 3 pictures a second again) */
+                    used[mm >> 5] |= bit32[mm & 31];
+                    used[s >> 5] |= bit32[s & 31];
+                    dsub[s >> 5] |= bit32[s & 31];
+                }
+                else {
+                    used[mm >> 5] |= bit32[mm & 31];
+                    mixm[mm >> 5] |= bit32[mm & 31];
+                    if (s < 128) { used[s >> 5] |= bit32[s & 31]; mixs[s >> 5] |= bit32[s & 31]; }
+                    if (bay[(x - 8) & 3] < dw) lb[x] = (uint8_t)s;
+                }
+            }
+            else if (obj) {               /* (main transparent: the sub, whatever the backdrop - a backdrop
                                              flash would otherwise redraw every line: H8) */
                 if (!mm) lb[x] = (uint8_t)s;
                 else {
@@ -896,6 +942,10 @@ static void fe_line(int y, volatile uint8_t *dst, int obj)
                 if (lr != 0x100) lb[x] = (uint8_t)lr;
             }
         }
+        if (dz) {
+            uint32_t *fm = FE_MIXM, *fs = FE_MIXS, *fd = FE_DSUB;
+            for (int k = 0; k < 4; k++) { fm[k] |= mixm[k]; fs[k] |= mixs[k]; fd[k] |= dsub[k]; }
+        }
     }
     if (!FE->m7w && xa == 0 && xb == 256) {   /* (whole lines only: the records must be complete) */
         uint32_t *o = FE_OVF[y];
@@ -906,9 +956,11 @@ static void fe_line(int y, volatile uint8_t *dst, int obj)
         if (xa == 0 && xb == 256) for (int k = 0; k < 8; k++) u[k] = du[k];
         else for (int k = 0; k < 8; k++) u[k] |= du[k];
     }
-    if (obj && !FE->m7w && xa == 0 && xb == 256) {
+    if (!FE->m7w && xa == 0 && xb == 256) {   /* (I21g: cleared without sprites - the dissolve's step reads them) */
         uint32_t *u = FE_LUSED[y];
+        if (!obj) used[0] = used[1] = used[2] = used[3] = 0;
         u[0] = used[0]; u[1] = used[1]; u[2] = used[2]; u[3] = used[3];
+        if (obj) FE_WD[FE_DBI & 1][y] = (uint8_t)FE_DW;   /* (I21g) drawn at this step */
     }
     volatile uint32_t *d = (volatile uint32_t *)dst;
     for (int i = xa >> 2; i < xb >> 2; i++) d[i] = *(uint32_t *)&lb[8 + i * 4];
@@ -925,6 +977,31 @@ static void fe_line(int y, volatile uint8_t *dst, int obj)
         r[16] = math ? 255 : FE_BORDER;
     }
 #endif
+}
+
+/* (I21g) line y's dissolve from step w0 to w1 on a drawn BG line (no sprites on it).  Up: the pixels of
+   steps w0 .. w1 - 1 that show a main colour met in mixed pixels get the subscreen's (one BG fetched);
+   down: those of steps w1 .. w0 - 1 that show a sub colour met there get the main screen's, where colour
+   math applies to it (the main BGs fetched).  cm: the columns (x & 3) whose step is in that range */
+static void fe_dissolve_line(int y, volatile uint8_t *line, int32_t w0, int32_t w1, uint32_t cm)
+{
+    uint32_t m = FE_L8[L_MODE][y], tm = FE_L8[L_TM][y], ts = FE_L8[L_TS][y], cga = FE_L8[L_CGA][y];
+    if (FE->gplane) { tm &= ~2u; ts &= ~2u; }
+    uint8_t *b = FE_SB;
+    for (int i = 0; i < 272; i += 4) *(uint32_t *)&b[i] = 0;
+    const uint32_t *fk;
+    if (w1 > w0) { fe_layers(b, 0, ts & 0x0F, y, m, 0, 256); fk = FE_MIXM; }
+    else { fe_layers(b, 0, tm & cga & 0x0F, y, m, 0, 256); fk = FE_MIXS; }
+    uint32_t k0[4] = { fk[0], fk[1], fk[2], fk[3] }, sd[4];
+    for (int k = 0; k < 4; k++) sd[k] = w1 > w0 ? FE_SBLK[k] : 0;   /* (up: not where the sub is black) */
+    for (int k = 0; k < 4; k++) {
+        if (!(cm & bit32[k])) continue;
+        for (int x = k; x < 256; x += 4) {   /* (only this step's column: 1 pixel in 16 a step) */
+            uint32_t c = line[x], v = b[8 + x];
+            if (!v || c >= 128 || !(k0[c >> 5] & bit32[c & 31]) || (v < 128 && (sd[v >> 5] & bit32[v & 31]))) continue;
+            line[x] = (uint8_t)v;
+        }
+    }
 }
 
 static void fe_lines(int y0, int y1)
@@ -1430,6 +1507,10 @@ static int rare_fx(uint16_t *frame_no)
 static void fe_frame(uint16_t *frame_no)
 {
     FEDBG_MARK(0);
+#if defined(FEDBG) && !defined(FEHOST)
+    static uint32_t fedbg_vs, fedbg_ve, fedbg_gv, fedbg_pv;   /* (test: vblanks in game frames / in fe_frame) */
+    fedbg_vs = vcount;
+#endif
 #ifndef FEHOST
     if (hdr->off_fe && rare_fx(frame_no)) return;
 #endif
@@ -1498,7 +1579,74 @@ static void fe_frame(uint16_t *frame_no)
         }
         blkm[i] = FE->mdark[i] = m;
     }
-    if (obj && !FE->m7w) blk = blkm;
+    if (obj && !FE->m7w) {
+        /* (I21g) sprites + colour math (the intro's platform -> jungle cross-fade: the jungle = BG1 on the
+           main screen fading in, the platform = BG2 on the subscreen fading out, added): no sums possible
+           (CRAM 128-255 are the sprites'), so a 4 x 4 ordered dissolve between the two in the pixels where
+           both are there (elsewhere the palette fade is exact).  The step (0 = all main .. 16 = all sub)
+           from the two sides' brightness: the sub's share r = Bs / (Bm + Bs) over the colours met there,
+           all main from r = 1/8 down, all sub from 7/8 up (I21h: was 1/4 - 3/4 - the platform stayed solid
+           over a jungle already bright, then went in a few frames; a text in white over the jungle, r ~ 0.84
+           - the ending's speech - still all text: 15.3, rounded to 16 below).  It no longer depends on which colours are
+           dark (that rule redrew every line whose colours crossed the line: ~3 pictures a second): a new
+           step changes only that step's pixels - fe_dissolve_line, one or two BGs instead of three */
+        FE_DBI = bi;
+        const uint8_t *brt = FE_BRT;
+        /* (I21h: the sides' colour records are kept for the whole screen - they were cleared after a gap
+           of 8 game frames between pictures, and a step back to the main then found no colour to undo:
+           sub pixels left over the jungle on MiSTer / PicoDrive, which drew the fade in 8-20 frame steps) */
+        uint32_t uu[4] = { 0, 0, 0, 0 };  /* the colours in mixed pixels now (the lines' records) */
+        for (int y = 0; y < SCREEN_H; y++) {
+            const uint32_t *u = FE_LUSED[y];
+            uu[0] |= u[0]; uu[1] |= u[1]; uu[2] |= u[2]; uu[3] |= u[3];
+        }
+        const uint32_t *fm = FE_MIXM, *fs = FE_MIXS;   /* (which side each was met on) */
+        uint32_t bm = 0, nm = 0, bs = 0, ns = 0;
+        for (int i = 1; i < 128; i++) {
+            if (!(uu[i >> 5] & bit32[i & 31])) continue;
+            if (fm[i >> 5] & bit32[i & 31]) { bm += brt[i]; nm++; }
+            if (fs[i >> 5] & bit32[i & 31]) { bs += brt[i]; ns++; }
+        }
+        int32_t w = FE_DW;                /* (I21h) both sides black: as it was; nothing met yet (a screen's
+                                             first picture: its lines record the colours) - the sub (it was
+                                             the main: the ending's speech came up without its first line) */
+        if (!(nm | ns)) w = 16;
+        uint32_t am = nm ? bm * 256 / nm : 0, as = ns ? bs * 256 / ns : 0;
+        if (am + as) {
+            int32_t r = (int32_t)(as * 256 / (am + as));               /* 0 - 256 */
+            w = ((r - 32) * 16 + 96) / 192;       /* (I21h: 1/8 - 7/8 - was 1/4 - 3/4) */
+            if (w < 0) w = 0;
+            if (w > 16) w = 16;
+            w = (w + 2) & ~3;             /* (I21h) 0 / 4 / 8 / 12 / 16: a quarter of the step passes (each
+                                             step redoes every mixed line - MiSTer kept up with ~13 lines a
+                                             picture, the platform's last steps stayed over the jungle for a
+                                             second); the 4 x 4 pattern's 25 / 50 / 75 % */
+        }
+        FE_DW = w;
+        {   /* (I21h) colours whose darkness decided mixed pixels (FE_DSUB) that are lit now: their lines again */
+            uint32_t ch[4], any = 0;
+            for (int i = 1; i < 128; i++) if (spr_bgpal[i] & 0x7FFF) FE_SBLK[i >> 5] &= ~bit32[i & 31];
+            for (int k = 0; k < 4; k++) { ch[k] = FE_SDK0[k] & ~FE_SBLK[k] & FE_DSUB[k]; any |= ch[k]; FE_SDK0[k] = FE_SBLK[k]; }
+            if (any) {
+                for (int y = 0; y < SCREEN_H; y++) {
+                    const uint32_t *u = FE_LUSED[y];
+                    if ((u[0] & ch[0]) | (u[1] & ch[1]) | (u[2] & ch[2]) | (u[3] & ch[3])) {
+                        FE_LSIG[0][y] = FE_LSIG[1][y] = 0xFFFFFFFFu;
+                        FE_LSIG2[0][y] = FE_LSIG2[1][y] = 0;
+                    }
+                }
+                FE_FOK[0] = FE_FOK[1] = 0;
+                for (int k = 0; k < 4; k++) FE_DSUB[k] &= ~ch[k];
+            }
+        }
+#ifdef FEPHASEDW
+        {   extern uint16_t ares_phase; *(volatile uint16_t *)&ares_phase = w > 0 && w < 16; }   /* (test: ares profile of the dissolve) */
+#endif
+#ifdef FEHOST
+        if (getenv("FEDW")) printf("  DW f %u w %d bm %u/%u bs %u/%u wd150 %d %d\n", game_stats.frames, w, bm, nm, bs, ns,
+                                   FE_WD[0][150], FE_WD[1][150]);
+#endif
+    }
     uint32_t og = 0;
     int lchg = 0;
     if (!FE->m7w) {                       /* (I5) the colours' brightness levels: changes -> FE_LGEN */
@@ -1571,8 +1719,17 @@ static void fe_frame(uint16_t *frame_no)
         for (int i = 0; i < 8; i++) if (!FE->gplane || (i & 3) != 1) fkey = (fkey ^ FE_SCRL[0][i]) * 0x01000193u;
         for (int i = 0; i < 4; i++) fkey = (fkey ^ blkm[i]) * 0x01000193u;
         fkey = (fkey ^ (uint32_t)(perline | obj << 1 | (blk != 0) << 2 | lchg << 3 | FE->subm << 4)) * 0x01000193u;
+        if (obj) fkey = (fkey ^ (uint32_t)FE_DW) * 0x01000193u;   /* (I21g: the dissolve's step) */
         for (int i = 0; i < 64; i += 4) fkey = (fkey ^ *(const uint32_t *)&FE_TRK->rgen[i]) * 0x01000193u;
         fast = FE->nfr >= 2 && !FE->hold && !lchg && FE_FOK[bi] && FE_FKEY[bi] == fkey;
+        if (fast && obj) {                /* (I21h) not while a line of this buffer is at another dissolve step:
+                                             the step pass comes after (the fade's end stayed half done) */
+            const int32_t w = FE_DW;
+            for (int y = 0; y < SCREEN_H && fast; y++) {
+                const uint32_t *u = FE_LUSED[y];
+                if ((u[0] | u[1] | u[2] | u[3]) && FE_WD[bi][y] != w) fast = 0;
+            }
+        }
         FE_FOK[bi] = 0;                   /* (set again below if this drawing completes) */
     }
     if (fast) {
@@ -1670,6 +1827,53 @@ static void fe_frame(uint16_t *frame_no)
 #ifdef FEHOST
         if (getenv("FESMALL")) printf("  fe small %d n %d h %d %d %d\n", small, n, FE_HOFS(0), FE_HOFS(1), FE_HOFS(2));
 #endif
+    }
+    if (obj && !FE->m7w && !m7) {         /* (I21g) lines drawn at another dissolve step: only that step's pixels */
+        int32_t w = FE_DW, y0d = FE_DY[bi], ystop = -1, nw = 0;
+        if (y0d < 0 || y0d >= SCREEN_H) y0d = 0;
+        uint32_t vd = vcount;
+        for (int i = 0; i < SCREEN_H; i++) {
+            int y = y0d + i;
+            if (y >= SCREEN_H) y -= SCREEN_H;
+            const uint32_t *u = FE_LUSED[y];
+            if (!(u[0] | u[1] | u[2] | u[3])) continue;
+            int32_t wd = FE_WD[bi][y];
+            if (wd == w || FE_LSC[y] != FE_LSIG[bi][y]) continue;   /* (as drawn / redrawn below anyway) */
+            uint32_t cm = 0;
+            if (wd <= 16) {               /* (the columns whose step lies between: none - the line is as it was) */
+                int32_t lo = wd < w ? wd : w, hi = wd < w ? w : wd;
+                const uint8_t *bay = fe_bay4[y & 3];
+                for (int k = 0; k < 4; k++) if (bay[k] >= lo && bay[k] < hi) cm |= bit32[k];
+                if (!cm) { FE_WD[bi][y] = (uint8_t)w; continue; }
+            }
+            int clean = y >= FE_CY0 && y < FE_CY0 + FE_CN && (FE->cval[bi][y >> 5] & bit32[y & 31]);
+            if (wd > 16 || (!clean && mxa[y >> 3] < mxb[y >> 3])) {  /* (not drawn yet, or no sprite-free copy) */
+                FE_LSIG[bi][y] = ~FE_LSC[y];
+                continue;
+            }
+#ifdef FEHOST
+            { extern int fe_host_dbud; if (fe_host_dbud && nw >= fe_host_dbud) { ystop = y; break; } }   /* (host test: a line budget) */
+#endif
+            if (nw >= 8 && w != 0 && w != 16 && vcount - vd >= 1) { ystop = y; break; }   /* (the rest next picture, from here: the
+                                                             lines catch up a few steps at once - the picture
+                                                             keeps its pace; I21h: per buffer, and 8 lines at
+                                                             least - a pass that began just before a vblank
+                                                             stopped at its first line, and with the start
+                                                             shared by both buffers one buffer's lines were
+                                                             never reached: sub pixels left over the jungle;
+                                                             at the ends - all main / all sub, the fade over -
+                                                             all of them now: the platform's last steps, black
+                                                             by then, stayed for a second on MiSTer) */
+            nw++;
+            volatile uint8_t *fb = FB8 + FB_BASE + y * CV_P + CV_XOFF + 32;
+            if (clean) {
+                fe_dissolve_line(y, (volatile uint8_t *)FE_CLEAN(y), wd, w, cm);
+                volatile uint32_t *c4 = FE_CLEAN(y), *d4 = (volatile uint32_t *)fb;
+                for (int i = 0; i < 64; i++) d4[i] = c4[i];
+            } else fe_dissolve_line(y, fb, wd, w, cm);
+            FE_WD[bi][y] = (uint8_t)w;
+        }
+        FE_DY[bi] = ystop >= 0 ? ystop : 0;
     }
     if (FE->nfr < 2) {                    /* (the sides of a new screen's buffers: black) */
         for (int y = 0; y < SCREEN_H; y++) {
@@ -1822,6 +2026,9 @@ lines_done:
            cross-fade "by parts") - it is finished in the next calls while the old picture stays up;
            after 4 such calls the rest is drawn without a time limit */
         FE->hold++;
+#ifdef FEDBG
+        fedbg_def += 4;                   /* (test: held calls, bar 10) */
+#endif
         FE_WAIT_VBL();
         fe_palette();                     /* (the colours keep moving on the picture shown: fades, the flash) */
         return;
@@ -1895,6 +2102,10 @@ lines_done:
         static uint32_t vc0, gf0;
         uint32_t dv = vcount - vc0, dg = game_stats.frames - gf0;
         vc0 = vcount; gf0 = game_stats.frames;
+#ifndef FEHOST
+        fedbg_gv = fedbg_vs - fedbg_ve; fedbg_pv = vcount - fedbg_vs;
+        fedbg_h[0] = fedbg_gv * 2; fedbg_h[1] = fedbg_pv * 2;   /* (bars 11 / 12: x 2 = vblanks, from here) */
+#endif
         uint32_t v[17] = { dv / 2, dg / 2, FE->nlines / 16, fedbg_full / 4, fedbg_part / 4, fedbg_copy / 4, fedbg_setup,
                            fedbg_tline / 2 / FRAME_TICKS, fedbg_tsig * 16 / FRAME_TICKS, fedbg_n / 4, fedbg_def / 4,
                            fedbg_h[0] / 4, fedbg_h[1] / 4, fedbg_h[2] / 4, fedbg_h[3] / 4, fedbg_h[4] / 4, fedbg_h[5] / 4 };
@@ -1930,8 +2141,7 @@ lines_done:
 #if defined(FEDBG) && !defined(FEHOST)
     {
         uint16_t t4 = frt_read();
-        fedbg_h[0] = (uint16_t)(fedbg_tk[0] - fedbg_tp) * 64u / FRAME_TICKS;
-        fedbg_h[1] = (uint16_t)(fedbg_tk[1] - fedbg_tk[0]) * 64u / FRAME_TICKS;
+        fedbg_ve = vcount;
         fedbg_h[2] = (uint16_t)(fedbg_tk[2] - fedbg_tk[1]) * 64u / FRAME_TICKS;
         fedbg_h[3] = (uint16_t)(fedbg_tk[3] - fedbg_tk[2]) * 64u / FRAME_TICKS;
         fedbg_h[4] = (uint16_t)(t4 - fedbg_tk[3]) * 64u / FRAME_TICKS;

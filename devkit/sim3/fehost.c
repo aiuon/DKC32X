@@ -66,6 +66,7 @@ static void render_state_reset(void) {}
 #define FE_WAIT_VBL() ((void)0)
 #define FEHOST 1
 int fe_host_budget = 1 << 30;
+int fe_host_dbud;
 #include "/home/claude/dkc32x/sh/fescr.c"
 
 void fehost_init(void)
@@ -134,11 +135,29 @@ void fehost_frame(int f)
     if (getenv("FECOUNT") && packmem) {
         if (getenv("FEEVERY") && f % atoi(getenv("FEEVERY"))) return;
         if (getenv("FEBUDGET")) fe_host_budget = atoi(getenv("FEBUDGET"));   /* (a picture every n game frames) */
+        if (getenv("FEDBUD")) fe_host_dbud = atoi(getenv("FEDBUD"));   /* (I21h: the dissolve step pass, lines a picture) */
         int i = fe_find();
         if (i >= 0) { if (fe_idx != i) fe_setup(i);
             static uint32_t pre[SCREEN_H]; int bi = cur_fb ^ 1; for (int y = 0; y < SCREEN_H; y++) pre[y] = FE_LSIG[bi][y];
             uint16_t fn = 0; fe_frame(&fn);
             printf("CNT f %d scr %d lines %u npair %u\n", f, i, FE->nlines, fe_npair);
+#ifdef FE_MIXM
+            if (getenv("FEDCHK") && fe_obj && !FE->m7w) {   /* (I21h) dissolved lines == drawn afresh at this step */
+                uint32_t sm[4], ss[4]; for (int k = 0; k < 4; k++) { sm[k] = FE_MIXM[k]; ss[k] = FE_MIXS[k]; }
+                static uint32_t tmp[64]; int nb = 0, nc = 0, nl = 0;
+                for (int y = 0; y < SCREEN_H; y++) { const uint32_t *u = FE_LUSED[y]; if ((u[0] | u[1] | u[2] | u[3]) && FE_WD[bi][y] != FE_DW) { nl++; if (getenv("FELAG") && f == atoi(getenv("FELAG"))) printf("   LAG y %d wd %d bi %d sigok %d clean %d\n", y, FE_WD[bi][y], bi, FE_LSC[y] == FE_LSIG[bi][y], (FE->cval[bi][y >> 5] & bit32[y & 31]) != 0); } }
+                for (int y = FE_CY0; y < FE_CY0 + FE_CN; y++) {
+                    const uint32_t *u = FE_LUSED[y];
+                    if (!(u[0] | u[1] | u[2] | u[3]) || !(FE->cval[bi][y >> 5] & bit32[y & 31]) || FE_WD[bi][y] != FE_DW || FE_LSC[y] != FE_LSIG[bi][y]) continue;
+                    fe_line(y, (uint8_t *)tmp, 1);
+                    nc++;
+                    volatile uint32_t *c = FE_CLEAN(y);
+                    for (int k = 0; k < 64; k++) if (c[k] != tmp[k]) { nb++; printf("  DCHK BAD f %d y %d w %d\n", f, y, FE_DW); break; }
+                }
+                for (int k = 0; k < 4; k++) { FE_MIXM[k] = sm[k]; FE_MIXS[k] = ss[k]; }
+                printf("  DCHK f %d w %d checked %d bad %d lag %d\n", f, FE_DW, nc, nb, nl);
+            }
+#endif
             if (getenv("FELINES")) { int a = -1; printf("  changed:"); for (int y = 0; y <= SCREEN_H; y++) { int c = y < SCREEN_H && FE_LSIG[bi][y] != pre[y]; if (c && a < 0) a = y; if (!c && a >= 0) { printf(" %d-%d", a, y - 1); a = -1; } } printf("\n"); }
             cur_fb ^= 1; }
         if (!getenv("FESHOT")) return;

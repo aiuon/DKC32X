@@ -475,3 +475,39 @@ SDRAM_FN uint32_t hle_spr_sort(void)
     PULL8(l); PULL8(h); PULL8(b);
     return b << 16 | (((l | h << 8) + 1) & 0xFFFF);
 }
+
+/* (I21h) CODE_80CDBE (16-bit A / X, D = 0): the intro's cross-fade colours (the NMI CODE_80CCB6, 64
+   frames: Cranky's platform -> the jungle).  160 colours of DATA_B9B5A3 (3 bytes each: R G B), each
+   component times $4E = ~(A & $3F) << 2 (colours 16-159: times ~$4E) on the PPU multiplier ($211B /
+   $211C -> $2135), clamped to 31, into $7F0000 + 2i (the palette HDMA's source).  As recompiled code
+   ~480 register writes and 480 multiplier reads a frame through io_wr / io_rd - more than a vblank of
+   the master on MiSTer: the game ran at 30-40 fps and the picture at 3-4 fps during the fade.  Same
+   WRAM, register and PPU-latch results: $4C = R | G << 5 of the last colour, $4E, $211B = 0, the
+   multiplicand = ~$4E, the last two $211C writes through io_wr (the front end's M7 latch); A = the
+   last colour, X = $0140, Y = $01E0, DB = $80 (PEA $B980 / PLB / PLB: the two bytes stay below S),
+   N = 1 / Z = 0 from the PLB, C = 1 from the CPY; then CODE_80CE49 (the rest of the NMI). */
+SDRAM_FN uint32_t hle_intro_fade(void)
+{
+    if (r65_d != 0) return interp(0x0080CDBE);
+    uint32_t v = (~((a & 0x3F) << 2)) & 0xFF;
+    WL(0x4E) = (uint8_t)v;
+    io_wr(0x211B, v); io_wr(0x211B, 0);
+    uint32_t col = 0, c0 = 0, c1 = 0, m = v;
+    for (uint32_t i = 0; i < 160; i++) {
+        if (i == 16) { m = ~v & 0xFF; io_wr(0x211B, m); io_wr(0x211B, 0); }
+        uint32_t r[3];
+        for (int k = 0; k < 3; k++) {
+            uint32_t cc = mrd8(0xB9B5A3 + i * 3 + k) & 0x1F;
+            uint32_t p = ((int32_t)(int16_t)m * (int32_t)(int8_t)cc >> 8) & 0xFF;
+            r[k] = p < 0x1F ? p : 0x1F;
+            c0 = c1; c1 = cc;
+        }
+        col = r[0] | r[1] << 5 | r[2] << 10;
+        mwr16(0x7F0000 + i * 2, col);
+        if (i == 159) { WL(0x4C) = (uint8_t)(r[0] | r[1] << 5); WL(0x4D) = (uint8_t)((r[0] | r[1] << 5) >> 8); }
+    }
+    io_wr(0x211C, c0); io_wr(0x211C, c1);
+    WL(s & 0x1FFF) = 0x80; WL((s - 1) & 0x1FFF) = 0xB9;
+    a = col; x = 0x0140; y = 0x01E0; r65_db = 0x80; r65_n = -128; z = 0x80; c = 1;
+    return JUMPKEY | 0x0080CE49;
+}

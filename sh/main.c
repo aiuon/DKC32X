@@ -3415,7 +3415,7 @@ uint32_t frt_since_(uint16_t t0, uint32_t v0) { return frt_since(t0, v0); }
 static inline uint16_t frt_read_(void) { return frt_read(); }
 static inline uint32_t vcount_(void) { return vcount; }
 #endif
-#if defined(GAMEPROF) || defined(FEPHASE)
+#if defined(GAMEPROF) || defined(FEPHASE) || defined(FEPHASEDW)
 uint16_t ares_phase __attribute__((aligned(4)));
 #endif
 #ifdef PROFH

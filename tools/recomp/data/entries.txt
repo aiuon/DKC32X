@@ -7,3 +7,4 @@
 00BF841B
 00BF8363
 00BF8433
+0080CE49  # (I21h) the intro NMI after its fade colours (hle_intro_fade jumps here)

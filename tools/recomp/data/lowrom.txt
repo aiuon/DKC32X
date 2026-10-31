@@ -64,5 +64,6 @@
 # (I21) front-end / start-up code: room in the resident region (it was 80 bytes from the 3 MB limit)
 0080D199
 0080CCB6
+0080CE49
 0080C093
 0080F31F

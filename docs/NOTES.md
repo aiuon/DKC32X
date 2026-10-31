@@ -1821,3 +1821,45 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
 - I21g checks: plain build md5 526988dc...; PicoDrive GAMEBOT 12000 + STACKCHK 1968 / 1372 (same end
   picture as I21f); boot sweep 0 / 91; no SH-2 code changed (host reg not rerun).
 
+## 2026-10-31: I21h - the intro cross-fade: HLE of its colour loop + a step dissolve (BUGLOG "I21h")
+- Roles (measured, NOTES I21g had them the other way round): main = BG1 the jungle, fading in; sub =
+  BG2 Cranky's platform, fading out; CGADSUB 21 (BG1 + backdrop add the sub).  Mixed pixels (both
+  non-zero) on lines 140-223 (84 lines, x ~8-248).
+- Where the time went (MiSTer model = ares_run.sh ... mister, FEDBG build): bars 11 / 12 are now
+  vblanks spent between pictures (game frames) / in fe_frame, x 2 (the FRT phase bars wrap after 1.37
+  frames: useless for long phases).  Before: 14 / 2 vblanks a picture during the fade, dg 12 game
+  frames a picture.  Host: sim_icnt.c (sim.c + per-frame game_frame wall time + CALLGRIND_TOGGLE_COLLECT
+  at 1380 / 1430; valgrind --collect-atstart=no): F80CCB6 + io_wr / io_rd / game_ppu_hook / fe_reg
+  ~2/3 of the game frame in the fade; interpreted instructions ~60 a frame (r65interp copy with
+  R65_ICNT).  ares ARES_SHPROF wrote empty files this session (profClock not advancing in this build -
+  instruction counts only); not needed in the end.
+- hle_intro_fade (game_hle.c): entered by the NMI's two branches to 80CDBE (mode 0), returns JUMPKEY |
+  0x0080CE49 (an entry now: entries.txt, translate.txt, lowrom.txt next to 80CCB6).  Colours 0-15 x v,
+  16-159 x ~v & 0xFF (v = ~((A & 3F) << 2)), mid byte of the product, min 0x1F.  io_wr only for the last
+  $211B pair and the last two $211C writes (the m7 latch / fe_reg state as the loop leaves it).
+  Checks: sim_h (mkref.sh from a fresh r65.py output) vs sim_xc WRAMHASH 100-1500 identical; fade shots
+  1370-1450 identical; gdb break count 65.
+- fescr.c dissolve (map_mem 14112-14672, non-mode-7 screens only): FE_WD [2][224] step each buffer's
+  line was drawn / stepped at (0xFF none), FE_MIXM / FE_MIXS colours met as main / sub in mixed pixels
+  (whole screen), FE_DW the step, FE_DBI, FE_DY [2] (14640) the step pass's next line per buffer,
+  FE_DSUB colours whose blackness decided a pixel, FE_SDK0 / FE_SBLK (14656) BG colours never seen
+  non-black (sticky; a change -> those lines redrawn).  Step = clamp(16 (r - 1/8) / (3/4)) rounded to a
+  multiple of 4; nothing met -> 16; both sides black -> unchanged.  Step pass (before the line loop):
+  lines with records, at another step, signature unchanged; the columns whose dither value is between
+  the two steps (none -> just the new step); sprite rows without a clean copy -> full redraw; budget:
+  8 lines at least, then until the next vblank, unlimited at steps 0 / 16.  fast path off while any
+  line of the buffer is behind.
+- Host tools (fehost.c): FEDCHK=1 (DCHK f w checked bad lag), FEDBUD=n (step pass budget in lines),
+  FEDW=1 (DW f w bm/nm bs/ns), FELAG=frame (the lines behind).  sim_h = sim3 objs from
+  /tmp/claude-0/i21g/g65h.  fecmp.sh with FEROM=... BINS=xc (sim_ref = fehost_ref.c including the I21g
+  fescr.c copy /tmp/claude-0/i21g/fescr_before.c).
+- Results: PicoDrive fade pictures every 3-4 frames (was 6-10), MiSTer model every 6-8 (was 16-24);
+  the platform visible and dissolving in quarters (25 / 50 / 75 %) over ~30 frames, clean jungle at the
+  end in both.
+- I21h checks: plain build md5 b2e0fd3e... (DKC_SURVEY=work/survey, --snaps work/snaps); Linux
+  convert.py from bundle21h (linapp21h, 174 s) and the Wine .bat run (wtest21h, 220 s): byte-identical.
+  Host reg.py 309/309 WRAM-identical (sim_i21h = I21g game code vs sim_h = with hle_intro_fade).
+  PicoDrive GAMEBOT 12000 + STACKCHK master 1976 / 4080, slave 1372 / 2048 (the bot's end picture
+  differs from I21g: the intro now takes fewer vblanks, the game starts earlier).  Boot sweep 0 / 91.
+  scanbundle: only unicodedata.pyd.  fecmp.sh I21g vs I21h: only the dissolve's screens (intro
+  girders, ending / credits speech text) differ.
