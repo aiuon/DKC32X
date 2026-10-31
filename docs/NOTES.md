@@ -1797,3 +1797,27 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   DBG_FREE (free movement) does not spawn the millstones.
 - I21f checks: plain build md5 8f3b1a9f...; host reg.py 309/309 WRAM-identical to I21e; PicoDrive
   GAMEBOT 12000 + STACKCHK master 1968 / 4080, slave 1372 / 2048; boot sweep 0 / 105.
+## 2026-10-31: I21g - flicker parity, cone lines, Mine Cart Madness tracks (BUGLOG "I21g")
+- md_vint: vcx / vcy / vcf read once at the top; fl_k = (sval(vcx, scB, 0) + sval(vcy, scB + 2, 1) + 1)
+  & 1 when the picture changes (planes & 2), table = fl_ph ^ fl_k, CRAM written only when it changes.
+  update_scroll gets the same vcx / vcy.  Test: scratchpad-free script in the transcript - per frame
+  the mean of (x + y even) minus odd high-pass values over the wall; the sign must alternate.
+  Old 68000 binary into a new ROM for A/B: splice at 0x3F0 (slot = the build's md.bin size).
+- lamp_block: cone dots on rows (iy & 1) == 0 with LAMP_FLICK (else the I18 checkerboard).
+- runtime_palette 80905C: palette 0 colours 1-15 = DATA_B9A2DE.  Free movement through the level:
+  -DDBG_GOTO=900,0x27 -DDBG_FREE=6000,6 (shots /tmp/claude-0/i21g/mc2).
+- Intro cross-fade (Cranky's platform -> jungle, ~50 frames from frame ~1600 after power-on): SNES
+  mode 1, TM 13 (OBJ, BG2, BG1), TS 02 (BG2), CGADSUB 21 = BG1 + backdrop ADD the subscreen (full add,
+  no halving); the game fades BG1's palette down and BG2's up.  BG1 (the girders) covers ~24% of the
+  picture; under it ~970 different (girder, jungle) colour pairs - far more than free CRAM (sprites are
+  shown: CRAM 128-255 are theirs, fescr's colour sums need that room).  fescr's sprite path does
+  "dark colour -> the other, else a checkerboard of both"; the darkness of colours changes every frame
+  of the fade, so every line is redrawn by the software PPU: ~3 pictures a second on PicoDrive.
+  Options (not done): (a) structural rule independent of the palette (BG1 transparent -> BG2 as is,
+  exact; BG1 opaque -> a dissolve of the cached BG1 / BG2 indices, 4x4 order, weight from the two
+  palettes' brightness) - only the girder band's changed pixels redrawn, exact at both ends, darker
+  mid-fade in the band; (b) direct colour mode (15 bit, 256 x 224 fits the frame buffer) with per-pixel
+  sums - a new render path.
+- I21g checks: plain build md5 526988dc...; PicoDrive GAMEBOT 12000 + STACKCHK 1968 / 1372 (same end
+  picture as I21f); boot sweep 0 / 91; no SH-2 code changed (host reg not rerun).
+

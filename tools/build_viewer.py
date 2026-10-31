@@ -1049,6 +1049,11 @@ def runtime_palette(L, lv, cg):
         # colour 0 (backdrop) is written black every frame (CODE_80B1BA)
         for i in range(0, 16):
             pal[i] = 0
+        if lv['nmi'] == '80905C':
+            # (I21g) Mine Cart Madness has no hanging lamps: palette 0 stays DATA_B9A2DE (snes9x: the same
+            # values in every frame) - its BG1 mine cart tracks use it (they were black)
+            for i in range(1, 16):
+                pal[i] = rom.u16(0xB9A2DE + i * 2)
     elif lv['nmi'] in ('809137', '809196'):
         # Stop & Go / Loopy Lights (barrel lights): BG2 (the cave wall, palette 1) = DATA_B9A2FC like
         # the walkway levels; the light keyframes (LIGHTS) darken / brighten it.  (The capture holds the
@@ -1671,9 +1676,13 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
     print('   lamp light %s, scene %s' % (w, [(c & 31, (c >> 5) & 31, c >> 10) for c in lvcol[:3]]))
     blk += b''.join(be16(c) for c in lvcol) + b''.join(be16(v) for v in w)
     blk += bytes(int(v) for v in img.ravel())                                       # [HS][176]
-    # the cone on Genesis plane B (in front of BG2 on plane A, behind the 32X BG1): a 50% checkerboard
+    # the cone on Genesis plane A (in front of BG2 on plane B, behind the 32X BG1): a 50% checkerboard
     # of dots in colour 1-10 of line 3 (per-pixel light level), the other phase every other frame by
-    # a 1-pixel H scroll; the lamp's swing = per-line H scroll (a skew about row 25)
+    # a 1-line V scroll (md lc_ph); the lamp's swing = per-line H scroll (a skew about row 25).
+    # (I21g) With the wall's flicker (LAMP_FLICK) every other LINE instead: the wall's own checkerboard
+    # alternates per pixel every vblank, and a checkerboard cone flipping at the same rate always left
+    # the same wall phase visible in its gaps - per line (the swing skew) another one: bars that came
+    # and went.  Whole lines hide both checkerboard halves alike, so the gaps show the wall's true mix.
     ctiles, cmap = [], []
     for ty in range(H // 8):
         for tx in range(W // 8):
@@ -1685,7 +1694,7 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
                     v = min(10, int(L5[iy, ix]))
                     # (levels 1-2 add at most 2 x 2 and nothing at all with the flicker's d: their
                     # dots would only show the scene mean - left out, the faint halo goes with them)
-                    if v >= 3 and not ((ix + iy) & 1):
+                    if v >= 3 and not ((iy if LAMP_FLICK else ix + iy) & 1):
                         t[y * 4 + (x >> 1)] |= v << (0 if x & 1 else 4)
                         any_ = True
             if any_:

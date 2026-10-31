@@ -69,7 +69,7 @@ static int16_t lc_op = -1;                  /* lamp being written / cleared, its
    CRAM (A) and a second one (B) every vblank - colours between two Genesis levels show as a 1-px
    checkerboard of the two that swaps every frame (build_viewer genesis_planes, flick) */
 static const uint16_t *fl_a, *fl_b;
-static uint16_t fl_on, fl_ph;
+static uint16_t fl_on, fl_ph, fl_k, fl_sel;
 static uint16_t lc_row, lc_clear;
 /* Slipslide glimmer (md flag 128): highlight sprites over the BG2 crystals, timed like the SNES
    (CODE glow routine: 0x60-0x9F frames apart, 4 glimmers x 8 frames at new random positions) */
@@ -544,7 +544,8 @@ static void load_md(const uint16_t *md)
             fl_a = cram;
             fl_b = after;
             after += 64;
-            fl_ph = 0;
+            fl_ph = fl_k = 0;
+            fl_sel = 0xFFFF;
             fl_on = 1;
         }
         bm_ax = BM_AX0; bm_ay = BM_AY0;
@@ -997,13 +998,27 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
     if (bg3_swap) { uint16_t *t = bg3col; bg3col = bg3nxt; bg3nxt = t; bg3_swap = 0; }
     for (int i = 0; i < 8; i++) dbg_comm[i] = COMM(i * 2);
     if (active) {
-        if (fl_on) {                            /* (I21f) flicker: the other CRAM (lines 0-2), first thing */
-            const uint16_t *c = (fl_ph ^= 1) ? fl_b : fl_a;
-            VDP_CTRL = 0x8F02;
-            cram_w(0);
-            for (int i = 0; i < 48; i += 8) {
-                VDP_DATA = c[i]; VDP_DATA = c[i + 1]; VDP_DATA = c[i + 2]; VDP_DATA = c[i + 3];
-                VDP_DATA = c[i + 4]; VDP_DATA = c[i + 5]; VDP_DATA = c[i + 6]; VDP_DATA = c[i + 7];
+        /* (I21g) the camera / picture this vblank shows, read once (update_scroll below uses the same) */
+        const uint16_t vcx = COMM(C_CAMX), vcy = COMM(C_CAMY), vcf = COMM(C_FRAME);
+        if (fl_on) {
+            /* (I21f) flicker: CRAM lines 0-2 from table A or B, first thing.  (I21g) The checkerboard is
+               in plane B's coordinates, so a plane scroll by an odd number of pixels swaps its halves
+               on screen: the table now follows the vblank count XOR the parity of plane B's H + V
+               scroll (the one this frame shows) - every screen pixel alternates every vblank whatever
+               the 32X's picture rate (frame drops made pixels stay 2 vblanks on one colour: a 15 Hz
+               flash) */
+            if (vcf != last_frame && (planes & 2))
+                fl_k = (sval(vcx, scB, 0) + sval(vcy, scB + 2, 1) + 1) & 1;
+            uint16_t sel = (uint16_t)((fl_ph ^= 1) ^ fl_k);
+            if (sel != fl_sel) {
+                const uint16_t *c = sel ? fl_b : fl_a;
+                fl_sel = sel;
+                VDP_CTRL = 0x8F02;
+                cram_w(0);
+                for (int i = 0; i < 48; i += 8) {
+                    VDP_DATA = c[i]; VDP_DATA = c[i + 1]; VDP_DATA = c[i + 2]; VDP_DATA = c[i + 3];
+                    VDP_DATA = c[i + 4]; VDP_DATA = c[i + 5]; VDP_DATA = c[i + 6]; VDP_DATA = c[i + 7];
+                }
             }
         }
         if (wx_buf_ready) {                     /* CRAM first, while the beam is surely in vblank */
@@ -1018,11 +1033,11 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
             if (lc_on) lc_d = 0xFFFF;           /* (the lamp colours again) */
         }
         if (lc_on) lc_colours();
-        uint16_t cf = COMM(C_FRAME);
+        uint16_t cf = vcf;
         uint16_t f = cf;
         if (f != last_frame) {
             last_frame = f;
-            update_scroll(COMM(C_CAMX), COMM(C_CAMY), fx == 6 && !lc_on ? 32 : 0);
+            update_scroll(vcx, vcy, fx == 6 && !lc_on ? 32 : 0);
             if (bm_lvl) bm_write();
         }
         if (hv_on) {                            /* blizzard (CODE_808B1F): frames, wind drift + sway */

@@ -237,6 +237,9 @@ them. Keep this file current when something structural changes.
   minutes (I21f B-PDBOOT: ~1 build in 50, decided by the 68000 binary's size).  Never start the PWM
   timer / slave interrupt sources in that first run.  Check every build: boot sweep
   (/tmp/claude-0/i21f/mdv/sweep2.sh BASE TAG: 105 boot timings on the instrumented pd_dbg core).
+- A temporal (flicker) pattern on a Genesis plane must be screen-locked: the plane's own coordinates
+  move with its scroll, and an odd scroll step swaps a checkerboard's halves (I21g B-FLICKSTALL).
+  Anything drawn over it with its own 50 % pattern must hide both halves alike (lines, not dots).
 - The 60 FPS MODE's slave draws picture N while the master runs logic N+1: anything the sprite /
   canvas bands read must come from a per-buffer snapshot, not from state the logic rewrites
   (I21f B-MSSNAP: the millstone).
@@ -390,6 +393,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
 - I21f: lamp levels' walls by the flicker trick (two CRAMs swapped every vblank, checkerboard-only,
   B-LAMPFLICK); PicoDrive boot freeze at the Nintendo screen fixed (music starts with the first song
   request, B-PDBOOT); the millstone drawn from the picture's own snapshot (B-MSSNAP, 60 FPS MODE).
+- I21g: the flicker's table follows plane B's scroll parity (steady at any 32X frame rate,
+  B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
 Open:
 - Loopy Lights' light cones (32X-side: no CRAM for a lit BG1 set), Stop & Go's lamp cones.
 - OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch

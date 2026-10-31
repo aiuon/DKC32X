@@ -1217,3 +1217,28 @@ dithering only by the checkerboard rule; Millstone Mayhem "sprite priorities are
   behind it - the 32X draws the same in PicoDrive and ares (MiSTer model, 22 fps, frame skip; 60 FPS
   MODE): the pot passes behind the stone, the Gnawty and the Kongs in front.  The reported cells over
   the ring were not reproduced in those runs (NOTES I21f).
+
+### I21g (2026-10-31): lamp flicker steady at any frame rate, cone lines, Mine Cart Madness tracks
+User report (I21f build): Winky's Walkway's flicker "works well in theory" but becomes a flashing mess
+whenever frames drop (60 FPS MODE a bit better); the lamp light's dither makes dark vertical bars flash
+over the flickering wall; Mine Cart Madness's tracks completely black; the intro's platform -> jungle
+cross-fade crawls and barely fades (answered: NOTES I21g).
+- B-FLICKSTALL: the 68000 did swap the CRAM every vblank, but the wall's checkerboard lives in plane
+  B's coordinates: a plane scroll by an odd number of pixels swaps its halves on screen.  With the
+  plane moving 1 px at irregular moments (the parallax plane at half speed, the 32X's picture rate) a
+  pixel's colour stayed for 2 vblanks now and then - 15 Hz patches, worse with frame drops.  Now the
+  table shown = vblank count XOR the parity of plane B's H + V scroll for that frame (md_vint reads the
+  camera once and works the parity out with update_scroll's own formula): every screen pixel
+  alternates every vblank.  Measured (PicoDrive, bot running, 40 consecutive frames, the checker's
+  screen phase): before "+-+-----+++---++++----++--+++--++++++++-", after strictly "+-+-+-...".
+- B-CONEBARS: the Genesis cone was a checkerboard of light dots flipped every vblank (1-line V scroll)
+  - at the same rate as the wall, so its gaps always showed the same wall phase; with the swing's
+  per-line skew a different one per line band: bars that came and went.  Now (lamp levels with the
+  flicker) the cone is every other LINE, flipped every vblank: whole lines hide both checkerboard
+  halves alike, the gaps show the wall's real mix.  (A static checkerboard cone would still bias the
+  1/4 - 3/4 mixes; the halves-only wall was tried - flat olive, the browns gone.)
+- B-MCMTRACKS (Mine Cart Madness): the walkway levels' rule "palette 0 colours 1-15 = the lamp light,
+  black away from lamps" (build_viewer runtime_palette) also blacked out Mine Cart Madness's palette 0
+  - its BG1 mine cart tracks.  That level has no hanging lamps (snes9x: palette 0 = DATA_B9A2DE in
+  every frame): it keeps those colours now.
+
