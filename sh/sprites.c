@@ -598,6 +598,11 @@ SDRAM_CODE static void tile8(const uint32_t *rows, int32_t sx, int32_t sy, const
    priority 2 goes behind the opaque pixels of BG1 high-priority tiles (exit huts, bonus doors) */
 const uint16_t *volatile spr_prio_grid, *volatile spr_prio_mask;
 volatile int32_t spr_prio_gw, spr_prio_gh;
+/* (I21k) wall mode (main.c): the canvas is the walkway wall, BG1 an overlay - BG1's grid position is the
+   canvas position + (spr_prio_dx, spr_prio_dy); spr_wall_lut[c] = 1 where colour c is BG1 or a sprite
+   (sprites behind BG1 show over the wall's colours) */
+volatile int32_t spr_prio_dx, spr_prio_dy;
+const uint8_t *volatile spr_wall_lut;
 /* (perf) does the 8x8 screen square at (px, py) touch a BG1 high-priority tile? */
 static int prio_any(int32_t px, int32_t py, int32_t gx, int32_t gy)
 {
@@ -606,6 +611,8 @@ static int prio_any(int32_t px, int32_t py, int32_t gx, int32_t gy)
     int32_t gw = *(volatile int32_t *)((uint32_t)&spr_prio_gw | 0x20000000);
     int32_t gh = *(volatile int32_t *)((uint32_t)&spr_prio_gh | 0x20000000);
     if (!pm || !pg) return 0;
+    gx += *(volatile int32_t *)((uint32_t)&spr_prio_dx | 0x20000000);
+    gy += *(volatile int32_t *)((uint32_t)&spr_prio_dy | 0x20000000);
     int32_t tx0 = (gx + px) >> 3, tx1 = (gx + px + 7) >> 3, ty0 = (gy + py) >> 3, ty1 = (gy + py + 7) >> 3;
     for (int32_t ty = ty0; ty <= ty1; ty++)
         for (int32_t tx = tx0; tx <= tx1; tx++) {
@@ -647,6 +654,9 @@ static void tile8_behind(const uint32_t *rows, int32_t sx, int32_t sy, const uin
 {
     const uint16_t *pg = 0, *pm = 0;
     int32_t gw = 0, gh = 0;
+    const uint8_t *wl = *(const uint8_t *const *)((uint32_t)&spr_wall_lut | 0x20000000);
+    int32_t pdx = *(volatile int32_t *)((uint32_t)&spr_prio_dx | 0x20000000);
+    int32_t pdy = *(volatile int32_t *)((uint32_t)&spr_prio_dy | 0x20000000);
     if (prio2) {
         pg = *(const uint16_t *const *)((uint32_t)&spr_prio_grid | 0x20000000);
         pm = *(const uint16_t *const *)((uint32_t)&spr_prio_mask | 0x20000000);
@@ -661,14 +671,14 @@ static void tile8_behind(const uint32_t *rows, int32_t sx, int32_t sy, const uin
         if (hf) { w = __builtin_bswap32(w); w = ((w >> 4) & 0x0F0F0F0Fu) | ((w & 0x0F0F0F0Fu) << 4); }
         uint32_t line = (uint32_t)(gy + y) & 255;
         uint32_t a = (uint32_t)(FB_BASE + gx + CV_XOFF) + line * CV_P;
-        int32_t ty = (gy + y) >> 3, cy = ty >> 2, lastc = 0x7FFFFFFF, hi = 0;
+        int32_t ty = (gy + pdy + y) >> 3, cy = ty >> 2, lastc = 0x7FFFFFFF, hi = 0;
         for (int32_t c = 0; c < 8; c++, w <<= 4) {         /* (pixel c in the top nibble) */
             int32_t x = sx + c;
             uint32_t nib = w >> 28;
             if (!nib || x < 0 || x >= SCREEN_W) continue;
             volatile uint8_t *fb = (volatile uint8_t *)(0x24000000 + a + x);
             if (prio2) {                               /* only behind BG1 high-priority tiles */
-                int32_t tx = (gx + x) >> 3;
+                int32_t tx = (gx + pdx + x) >> 3;
                 if (tx != lastc) {
                     int32_t cx = tx >> 2;
                     lastc = tx;
@@ -676,7 +686,7 @@ static void tile8_behind(const uint32_t *rows, int32_t sx, int32_t sy, const uin
                 }
                 if (!hi) goto draw;
             }
-            if (*fb) continue;                         /* BG1 (or a sprite drawn before) is there */
+            if (wl ? wl[*fb] : *fb) continue;          /* BG1 (or a sprite drawn before) is there */
         draw:;
             uint32_t v = L[nib << 4];                  /* (pair LUT: high nibble = the left pixel) */
             *(volatile uint8_t *)(OVRB + a + x) = (uint8_t)(v >> 8);

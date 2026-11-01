@@ -1884,3 +1884,30 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   (multi-block sprites, BDF3E0 individual spawns).  GRPLOG prints "gfx" (free ones) too.
 - I21j checks: plain build md5 a3a996c1...; PicoDrive GAMEBOT 12000 + STACKCHK 1976 / 1372; boot sweep
   0 / 91; reg.py 309/309 vs I21h; bundle /tmp/claude-0/bundle21j: Linux convert.py (linapp21j, 150 s) and the Wine .bat run (wtest21j) byte-identical to the plain build; scanbundle: only unicodedata.pyd.
+## 2026-11-01: I21k - wall mode: the walkway wall on the 32X with real lamp light (BUGLOG "I21k")
+- Builder: WALL_LEVELS (env LAMP_WALL, default D9,30,2B): overlay 0 = BG1 ring placeholder (64 x 64, xm 5),
+  overlay 1 = the BG2 wall map (64 x 32 bake entries; asserts: palette 1 only, <= 128 pool tiles); level
+  flag 0x20; the lamp block's image is the whole cone (light slot 1-8 per pixel = WALL_LSLOT of the
+  captured level, shade >= 128), header word 0 = the shade's rows, then per row the light span [a, b)
+  and the swing sine (DATA_808BA8).  The Genesis planes / cone / flicker stay (LAMP WALLS GEN).
+- SH-2 (TCACHE builds; NO_WALL turns it off): shared_t wall / lw / wgx / wgy; CV_GX / CV_GY = the wall's
+  scroll (wall_gx / wall_gy from overlay 1's parameters); render_rect -> draw_wall_row (WT_PIX = the
+  wall's 4bpp tiles at map_mem 12288, decoded by WT_LUT, nibble 0 -> CRAM 16 = opaque black so the
+  Genesis wall behind never shows); wall_ring streams BG1's grid tiles (ovmap_ram[0], read uncached);
+  render_overlay_cvm draws it (marks restore the wall under it).  tc_fill maps BG1 palette 0 (black in
+  the pack) to colour 1: CRAM 2-15 become free.
+- Light: wall_cone (per canvas line, after the restores, before BG1): per buffer and canvas line the
+  last spans (WL_SPAN, map_mem 28672, uncached) - old minus new put back, the new span lit through
+  WL_LUT[slot][colour & 31]; WL_PIX = slots at half horizontal resolution (map_mem 18592).  Lit colours
+  (wall_light, present2): tone rep colours 2 / 6 / 9 of the mirrored palette + (2 x level - 2 d) x w / 32;
+  slots CRAM 2-15 (not 1), 4/8/12, 32/48/64/80, 128-208 step 16.  Wall colours = spr_bgpal 17-31 (the
+  NMI's DMA from $7F0002 lands there); colour changes force a synchronous swap (wall_changed).
+- Sprites behind BG1 (sprites.c): spr_wall_lut (colour -> BG1 / sprite, 0 = wall), spr_prio_dx / dy
+  (BG1's grid position against the canvas for the priority grid).
+- map_mem in wall levels: 0-8 K ring, 8-12 K wall map (tile | hflip << 8 | vflip << 9), 12-16 K wall
+  tiles, 16-17 K overlay marks, 17408 light LUT / rows / pixels, 28672 spans.  ring_cls (comp levels'
+  2 KB): wall_lut, WL_TONE, WL_SLOT, WT_LUT.
+- Test macros: WALLPROF (HUD row 1 = master restore / cone / overlay, slave the same, job 3 - % of a
+  frame), NO_CONE, WALL_DEFAULT=0.  wp6 numbers (D9 GAMEDEMO window): 58 34 52 / 36 46 30 / 64.
+- Checks: plain build md5 8e65ec58...; GAMEBOT 12000 + STACKCHK 1996 / 1388 (D9 bot run the same);
+  GEN mode T 164 (as I21j); no game-logic or 68000 change (reg.py / boot sweep not rerun).

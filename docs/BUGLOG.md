@@ -1327,3 +1327,22 @@ User report (I21i build) + ares state: same place, DK at the midway entrance (77
   others a main slot + a graphics slot) and fails the controller unless all of them fit; the same
   repro now waits and spawns the group whole (0E 0C 08).  reg.py 309/309 WRAM-identical with the SNES
   windows; WIDE survey (every level's pad / teleport job): still only Stop & Go Station.
+
+### I21k (2026-11-01): Winky's Walkway - the wall on the 32X, real lamp light (prototype)
+User (I21j build): the lamp levels' flicker wall (I21f) still doubles up or misses frames and flashes; what
+would it cost to have the 32X draw the background - it would look much better, and the lamps' light
+would not need dithering.
+- Diagnosis: the ROM's flicker alternates perfectly in PicoDrive and ares; the doubling is the display
+  chain (a 60 Hz alternation needs every vblank shown exactly once).  Not fixable in the ROM.
+- Prototype "wall mode" (sh/main.c, BUGLOG / NOTES I21k), pause menu LAMP WALLS 32X (default) / GEN:
+  the 32X canvas holds the wall (BG2: 127 4bpp tiles in SDRAM, scroll x / 2, y / 8 as the NMI), BG1 is
+  an overlay pass every picture from a 64 x 64 tile ring the master streams; the wall's colours follow
+  the game's dimmed palette 1 (the lamps' flicker, CODE_80B800) and the cones are real light: per pixel
+  wall colour + light level -> 24 free CRAM entries (3 wall tones x 8 levels, recomputed every
+  picture), the swing per line as the game's BG3 H-scroll (CODE_80B891), no dither, no flicker.  Winky's
+  Walkway, Tanked Up Trouble, Platform Perils (warm light); GEN = the I21f Genesis wall as before.
+- Cost (ares MiSTer model, GAMEDEMO window): master total per picture 289 % of a frame vs 164 % with the
+  Genesis wall (~21 vs ~37 fps); PicoDrive 15 vs 34.  The parallax makes the 32X redraw BG1 every picture
+  and put the wall back under the last one (tile granular) - frame buffer writes dominate (a test without
+  BG1's writes halved that pass).  Tried and dropped: exact footprint restore (ROM code, slower), long-
+  aligned BG1 writes (more bus words than put_row8), cone from frame buffer reads.

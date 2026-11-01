@@ -1552,6 +1552,10 @@ PD_MIN_ERR = float(os.environ.get('PD_MIN_ERR', '1500'))  # (I20: weighted squar
                                                           # with the shadow levels only clear misses get a checkerboard)
 PD_GAIN = float(os.environ.get('PD_GAIN', '0.6'))         # (the mix must be this much better than the nearest)
 LAMP_FLICK = int(os.environ.get('LAMP_FLICK', '1'))       # (I21f) lamp levels: flicker checkerboard (0 = the I18 Bayer dots)
+# (I21k) wall mode: the walkway levels' cave wall (BG2) drawn by the 32X (the canvas holds the wall, BG1 is an
+# overlay from a tile ring, the lamp cones light the wall's pixels through a palette LUT).  The Genesis wall
+# (flicker, I21f) stays in the pack: the pause menu's LAMP WALLS option picks one (sh/main.c wall_opt)
+WALL_LEVELS = [int(x, 16) for x in os.environ.get('LAMP_WALL', 'D9,30,2B').split(',') if x]
 FL_MIN_ERR = float(os.environ.get('FL_MIN_ERR', '150'))   # (I21f) flicker pairs: error below which the nearest level is kept
 FL_GAIN = float(os.environ.get('FL_GAIN', '0.8'))
 FL_QUARTER = int(os.environ.get('FL_QUARTER', '1'))       # (I21f) 1/4 and 3/4 mixes too
@@ -1583,7 +1587,10 @@ def bg1_opaque_fn(ts, grid, gw, gh, cx0, cy0):
     return f
 
 
-def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
+WALL_LSLOT = [0, 1, 1, 2, 3, 4, 5, 6, 7, 8, 8]     # (I21k) cone light level 0-10 -> LUT level slot 1-8 (0: none)
+
+
+def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None, wall=False):
     """Hanging lamps (walkway levels): the lamp shade + its additive blue light cone (BG3 on the main
     screen, scene on the sub screen, CGADSUB $24), baked into the 32X canvas by the SH-2: shade
     opaque, cone = a 50% checkerboard of dots (scene + 2 x light) where BG1 is transparent.
@@ -1643,7 +1650,19 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
         img[iy, ix] = cidx[c]
     HS = (max(iy for iy, ix in shade) + 8) & ~7 if shade else 8   # 32X image rows (the shade)
     img = img[:HS]
-    blk = be16(0) + be16(3) + be16(len(lamps)) + be16(HS)
+    HS0 = HS
+    if wall:
+        # (I21k) wall mode: the whole cone - light level slots 1-8 (sh/main.c wall_cone; the shade where
+        # it is), then per row the span [x0, x1) of the light pixels.  Header word 0 = the shade's rows
+        # (the Genesis wall's mode draws only those)
+        HS = H
+        img = np.zeros((H, W), int)
+        for iy in range(H):
+            for ix in range(W):
+                img[iy, ix] = WALL_LSLOT[min(10, int(L5[iy, ix]))]
+        for (iy, ix), c in shade.items():
+            img[iy, ix] = cidx[c]
+    blk = be16(HS0 if wall else 0) + be16(3) + be16(len(lamps)) + be16(HS)
     blk += b''.join(be16(x) + be16(y) for x, y in lamps)
     blk += b''.join(be16(c) for c in pal)
     # light level colours: mean unlit scene under the pixels of that level + 2 x the added blue
@@ -1676,6 +1695,12 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
     print('   lamp light %s, scene %s' % (w, [(c & 31, (c >> 5) & 31, c >> 10) for c in lvcol[:3]]))
     blk += b''.join(be16(c) for c in lvcol) + b''.join(be16(v) for v in w)
     blk += bytes(int(v) for v in img.ravel())                                       # [HS][176]
+    if wall:
+        for iy in range(H):
+            xs = [ix for ix in range(W) if 1 <= img[iy, ix] <= 8]
+            blk += bytes([min(xs), max(xs) + 1] if xs else [0, 0])
+        blk += bytes(rom.read(0x808BA8, 64))       # the swing's sine (CODE_80B891)
+        blk += b'\0' * (-len(blk) % 4)
     # the cone on Genesis plane A (in front of BG2 on plane B, behind the 32X BG1): a 50% checkerboard
     # of dots in colour 1-10 of line 3 (per-pixel light level), the other phase every other frame by
     # a 1-line V scroll (md lc_ph); the lamp's swing = per-line H scroll (a skew about row 25).
@@ -2166,6 +2191,25 @@ def build_level(L, lv, tilesets):
                     be = 0x7FFF
                 m.append(be)
         overlays.append(dict(layer=layer, w=wid, h=hgt, map=m, scroll=t['scroll'][layer]))
+    wall = lv['entrance'] in WALL_LEVELS
+    if wall:
+        # (I21k) overlay 0 = BG1 from a 64 x 64 tile ring the SH-2 streams (xm 5), overlay 1 = the wall
+        # map (the canvas: drawn by tiles, every tile including the empty ones)
+        bg = lv['bgs'][1]
+        assert bg['scs'] == 1 and not overlays
+        m = []
+        for ty in range(32):
+            for tx in range(64):
+                a = map_addr(bg['sc'], bg['scs'], tx, ty) * 2
+                m.append(ts.entry(vram, bg['name'], bg['bpp'], vram[a] | vram[a + 1] << 8))
+        # (the wall is palette 1 alone; a few BG1 cells use it too (Winky's Walkway: 16) - for sprites behind
+        # BG1 (sprites.c spr_wall_lut) their pixels count as wall: a door's frame, at most)
+        wallpal = set(ts.plain(be)[1] // 4 for be in m if not tile_is_empty(ts, be & 0x7FFF))
+        assert wallpal <= {1}, 'wall mode: the wall must be palette 1'
+        # (the SH-2 keeps the wall's 4bpp tiles in SDRAM: 128 at most, no composites)
+        assert len(set(ts.plain(be)[0] for be in m)) <= 128 and not any(ts.bake[be & 0x7FFF][0] == 'C' for be in m)
+        overlays = [dict(layer=1, w=64, h=64, map=[0x7FFF] * 4096, scroll=(5, 0, 5, 0, 0, None), role='ring'),
+                    dict(layer=2, w=64, h=32, map=m, scroll=t['scroll'][2], role='wall')]
     snow = snow_keys(lv['entrance'])
     if lv['entrance'] == 0xA7 and snow is None:  # (weather levels: the blizzard is on the Genesis)
         overlays.append(heavy_snow_overlay(L, lv, vram, ts, sc=0x7C00))
@@ -2382,7 +2426,8 @@ def build_level(L, lv, tilesets):
         gmaps['G'] = g_
     lamp = None
     if lv['entrance'] in LAMP_SPR:
-        lamp, cone = lamp_block(L, lv, bg1_opaque_fn(ts, grid, gw, gh, cx0, cy0), vram, cg)
+        lamp, cone = lamp_block(L, lv, bg1_opaque_fn(ts, grid, gw, gh, cx0, cy0), vram, cg, wall)
+    if lamp is not None:
         # (I18) S/H on: the cone on plane A in front of BG2 on plane B, both low priority = shadowed
         # (the cone colours at the shadow levels), except BG2's bright cells (the lanterns, normal
         # colours): high priority, in front of the cone - its dots would darken them (a dot replaces
@@ -3102,6 +3147,8 @@ def write_pack(built, tilesets, L, out):
             lflags |= (COMP[lv['entrance']]['K'] * COMP[lv['entrance']]['S']) << 8   # unlit bank U
         if b.get('glow'):
             lflags |= 0x10
+        if any(o.get('role') == 'wall' for o in b['overlays']):
+            lflags |= 0x20                # (I21k) wall mode
         lflags |= (7 + bank) << 24        # physical ROM bank shown in window 7 (SSF2 register value)
         rec += be32(f['o_md']) + be32(f['md_len']) + be32(lflags) + be32(f['o_md2']) + be32(f['o_fog'])
         rec += be32(f['o_snap'])
