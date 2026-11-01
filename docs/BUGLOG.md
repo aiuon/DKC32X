@@ -1346,3 +1346,13 @@ would not need dithering.
   and put the wall back under the last one (tile granular) - frame buffer writes dominate (a test without
   BG1's writes halved that pass).  Tried and dropped: exact footprint restore (ROM code, slower), long-
   aligned BG1 writes (more bus words than put_row8), cone from frame buffer reads.
+
+### I21l (2026-11-01): the I21k wall prototype withdrawn
+User (I21k, ares): far too slow, and tile glitches after losing a life (screenshot not received).
+- The wall mode is removed: sh/ and tools/ are the I21j sources again (plain build md5 a3a996c1...,
+  identical to I21j).  The lamp levels have the I21f / I21g Genesis wall again.  The prototype's code
+  stays in the repository history (commit "I21k") and NOTES I21k.
+- The life-loss glitch was not looked into further (the code is gone); I21j around a lost life in
+  Winky's Walkway: clean (PicoDrive shots, Kritter hits, DK -> Diddy, game over).
+- The user plays on ares: the flicker's doubled / missed frames come from ares presenting its ~59.9 Hz
+  pictures on the host display (a repeated or skipped picture shows one checkerboard phase twice).

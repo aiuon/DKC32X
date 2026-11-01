@@ -1911,3 +1911,7 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   frame), NO_CONE, WALL_DEFAULT=0.  wp6 numbers (D9 GAMEDEMO window): 58 34 52 / 36 46 30 / 64.
 - Checks: plain build md5 8e65ec58...; GAMEBOT 12000 + STACKCHK 1996 / 1388 (D9 bot run the same);
   GEN mode T 164 (as I21j); no game-logic or 68000 change (reg.py / boot sweep not rerun).
+## 2026-11-01: I21l - the I21k wall mode withdrawn (BUGLOG "I21l")
+- sh/main.c, sh/sprites.c, sh/fescr.c, tools/build_viewer.py back to I21j (bundle21j copies); the I21k
+  versions saved in /tmp/claude-0/wall/i21k_src and the git commit "I21k".  Plain build md5 a3a996c1...
+  (= I21j), so the I21j checks (GAMEBOT / STACKCHK / boot sweep / reg.py / bundle runs) stand.

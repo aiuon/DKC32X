@@ -75,10 +75,7 @@ them. Keep this file current when something structural changes.
 - Per level a "render mode" (cv): 0 classic tile rows, 1 fused canvas (most levels), 2 / 3 fog
   canvases (Misty / Poison Pond transparency), Torchlight beam (bm_*), rain (Ropey), snow weather,
   lamps (walkway levels), ripple (water levels, BG1 per-line shift + Genesis H-scroll), overlays.
-- Lamp levels, wall mode (I21k, pause menu LAMP WALLS 32X): the canvas holds the wall (BG2, its own
-  scroll via CV_GX / CV_GY), BG1 is an overlay pass every picture from a streamed tile ring, the cones
-  light the wall per pixel through 24 free CRAM entries (NOTES I21k).  ~45 % fewer pictures than GEN.
-- Lamp levels, LAMP WALLS GEN (I18 / I21f): S/H on; BG2 (wall) shadowed and dithered between the shadow levels (matrix =
+- Lamp levels (I18 / I21f): S/H on; BG2 (wall) shadowed and dithered between the shadow levels (matrix =
   Bayer with rows 2-3 rotated: both checkerboard halves get every other threshold); lantern cells
   (colours above the shadow range) high priority, normal levels; the cone = plane A 50 % dots at the
   shadow levels, the other half every vblank by a 1-line V scroll (68000 lc_ph).
@@ -136,8 +133,6 @@ them. Keep this file current when something structural changes.
 - Game levels: lower 16 KB = sprite chunky copy (spr_ck).
 - Torchlight (upper half): BMS span list 17408, BM_ST 20480, BM_LN 21376, bm_dmap 24576, bm_lines
   24704, bm_slotcol 25600, BM_TMP 25664, BMH [CV_H][6] 27840, bm_shown [224] 30912 (-> 31808, I14).
-- Wall levels (I21k): 0-8 K BG1 ring, 8-12 K wall map, 12-16 K wall tiles, 16-17 K marks, 17408- light
-  tables, 28672- cone spans; ring_cls holds wall_lut / WL_TONE / WL_SLOT / WT_LUT.
 - Front-end screens: FE_* tables (NOTES I11 / I12 lists), overlap the level tables - front-end only,
   rebuilt by load_level.  14112-14672 (screens without a mode 7 copy): the sprites + colour math
   dissolve's records (FE_WD, FE_MIXM / S, FE_DW, FE_DY, FE_DSUB, FE_SBLK - NOTES I21h).
@@ -157,8 +152,7 @@ them. Keep this file current when something structural changes.
 ### 4.4 32X palette conventions
 - CRAM 0 = sky (per-line H-int), 1-127 BG, 128-255 sprites; 253-255 = SNES sprite palette 7
   (don't use them for HUD / text: Funky's board went black when cab text wrote 254 / 255, I14).
-- Rain colours: CRAM 16 / 32 / 48 in game levels.  Wall mode: CRAM 16 = opaque black, the lit wall in
-  2-15, 32/48/64/80 and the sprite palettes' colour 0 slots 128-208. Pause menu text CRAM 96 / 112. Cabin text uses the
+- Rain colours: CRAM 16 / 32 / 48 in game levels. Pause menu text CRAM 96 / 112. Cabin text uses the
   brightest / darkest existing colours (cab_colours).
 
 ---------------------------------------------------------------------------------------------------
@@ -249,7 +243,7 @@ them. Keep this file current when something structural changes.
   shifted longs (I21k).
 - Code in ROM runs slower than the same code in SDRAM (the SDRAM is full: measure before moving).
 - A presented picture that changes CRAM must swap synchronously (present2's af_ok list); new per-picture
-  colours need their own test there (I21k wall_changed - the async path returned before them).
+  colours need their own test there (I21k: the async path returned before them).
 - The SNES has 8 sprite palettes (slot table $1AD3, counts $1AE3).  Anything that keeps more objects
   alive (OBJECT RANGE WIDE) can run out; the game's own overflow path freed palette 0 under its users
   (I21d B-PALOVF: rompatch PALFIX + WIDE backs off at 7 palettes in use).  A rompatch that changes
@@ -421,10 +415,9 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   request, B-PDBOOT); the millstone drawn from the picture's own snapshot (B-MSSNAP, 60 FPS MODE).
 - I21g: the flicker's table follows plane B's scroll parity (steady at any 32X frame rate,
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
-- I21k: wall mode prototype for the walkway lamp levels (32X wall, real lamp light, LAMP WALLS option).
+- I21k: a 32X-drawn walkway wall with real lamp light (prototype) - about half the frame rate; dropped
+  in I21l (sources back to I21j, the prototype kept in the I21k commit / NOTES I21k).
 Open:
-- Wall mode speed: exact restore under BG1 in SDRAM code / in the slave's early job, skip BG1 when it has
-  not moved against the wall, light BG1 and the sprites too (the SNES adds the cone over everything).
 - Loopy Lights' light cones (32X-side: no CRAM for a lit BG1 set), Stop & Go's lamp cones.
 - OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch
   WS_TUNE / r65_ws): waiting for the user's playthrough.  If a level breaks (I15: a barrel group in

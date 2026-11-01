@@ -327,12 +327,6 @@ static void fe_setup(int i)
     FE->pfull = 1;                        /* (fe_frame: a new colour sum table, all lines drawn) */
     FE->pfull_f = game_stats.frames - 60;
     spr_ck_attach(0);                     /* (map_mem's lower half: FE_LSIG; load_level attaches it again) */
-    wall_pal = wall_on = 0;               /* (I21k: no level's wall colours over the screen's) */
-    UNCACHED(&shared_state)->wall = 0;
-    {   extern const uint8_t *volatile spr_wall_lut;
-        extern volatile int32_t spr_prio_dx, spr_prio_dy;
-        *UNCACHED(&spr_wall_lut) = 0;
-        *UNCACHED(&spr_prio_dx) = *UNCACHED(&spr_prio_dy) = 0; }
     /* (H5: no flips here - the buffers still hold old pictures (mode 7 leaves its odd lines stale)
        and would be shown with a new line table; fe_frame's first two pictures draw everything,
        sides included) */

@@ -230,10 +230,6 @@ typedef struct {
     int32_t split;                   /* comp levels: first screen line of the slave's band */
     int32_t split_row;               /* other levels: first tile row of the slave's band */
     int32_t cv;                      /* incremental canvas mode (see render_rect) */
-    int32_t wall;                    /* (I21k) wall mode: the canvas holds the walkway wall (overlay 1's map,
-                                        its scroll), BG1 is overlay 0 (wall_ring), the lamp cones light it */
-    int32_t lw;                      /* (I21k) wall mode: the lamps' swing this picture (wall_cone) */
-    int32_t wgx, wgy;                /* (I21k) wall mode: the canvas origin (CV_GX / CV_GY of the camera) */
     /* canvas mode job (see cv_band): window N, still-valid part I, last HUD rect H (tile rects
        x0, x1, y0, y1), full redraw flag, buffer index, the slave's tile rows */
     int32_t cvN[4], cvI[4], cvH[4];
@@ -312,8 +308,6 @@ SDRAM_CODE __attribute__((noinline)) static void tc_fill(const shared_t *p, uint
     const uint8_t *dm = BM_DMAP_T;
 #pragma GCC unroll 0
     for (int n = 1; n < 16; n++) t[n] = dark ? dm[(pal + n) & 0x7F] : (uint8_t)(pal + n);
-    if (!pal && p->wall)                             /* (I21k) palette 0 (black) -> colour 1: 2-15 = lit wall */
-        for (int n = 1; n < 16; n++) t[n] = 1;
     for (int r = 0; r < 8; r++) {
         uint32_t w = src[r];
         uint32_t a0 = t[w >> 28], a1 = t[(w >> 24) & 15], a2 = t[(w >> 20) & 15], a3 = t[(w >> 16) & 15];
@@ -633,11 +627,8 @@ typedef struct { int32_t valid; trect_t w, hud; } cvbuf_t;
 static cvbuf_t cvb[2];
 /* canvas origin (grid pixels at screen 0,0): BG1, or for mode 2 the transparency layer (BG3 x 1.5) */
 /* (Poison Pond's fog, mode 2: 1.5 x the camera on both axes - in front of the playfield, for depth) */
-/* (I21k, wall mode: the walkway wall's scroll - overlay 1's parameters, y as the overlays') */
-static inline int32_t wall_gx(int32_t cx) { return scroll_val(cx, ovinfo[1].xm, ovinfo[1].xs, 0, 0xFFFF); }
-static inline int32_t wall_gy(int32_t cy) { return scroll_val(cy - 1, ovinfo[1].ym, ovinfo[1].ys, ovinfo[1].ysub, ovinfo[1].yclamp) + 1; }
-#define CV_GX(p, cx) ((p)->cv == 2 ? (cx) + ((cx) >> 1) : (p)->wall ? wall_gx(cx) : (cx) - (p)->ox0)
-#define CV_GY(p, cy) ((p)->cv == 2 ? (cy) + ((cy) >> 1) : (p)->wall ? wall_gy(cy) : (cy) - (p)->oy0)
+#define CV_GX(p, cx) ((p)->cv == 2 ? (cx) + ((cx) >> 1) : (cx) - (p)->ox0)
+#define CV_GY(p, cy) ((p)->cv == 2 ? (cy) + ((cy) >> 1) : (cy) - (p)->oy0)
 /* per buffer: BG1 tiles under its last overlay pass; the slave's marks for the current frame.  In the
    upper half of map_mem, which only comp levels use (and they have no canvas) */
 #define cv_ovd   ((uint32_t (*)[32][2])((uint8_t *)map_mem + 16384))
@@ -688,7 +679,6 @@ SDRAM_CODE static void draw_fog_row(const shared_t *p, volatile uint32_t *d, int
    pixels land where BG1 is transparent, every other pixel in level space (the other half in the
    other framebuffer), shade pixels always */
 static uint32_t lamp_n;
-static const uint16_t *lamp_w;         /* light colour per channel, 1/16 units */
 static const uint16_t *lamp_pos;
 static const uint8_t *lamp_img;
 static int32_t lamp_h;                 /* image rows (the shade) */
@@ -728,7 +718,7 @@ __attribute__((noinline)) static void lamp_row(const shared_t *p, volatile uint3
                     uint8_t b = s[c], v = (ix >= 0 && ix < 176) ? ir[ix] : 0;
                     o[c] = b;
                     if (!v) continue;
-                    if (v >= 128 && !(v & 15) && !noshade) { o[c] = v; ch = 1; }   /* (I21k: the shade only) */
+                    if ((v >= 128 && !(v & 15) && !noshade) || (v < 128 && !b && ((c ^ ph) & 1) == 0)) { o[c] = v; ch = 1; }
                 }
                 if (ch) {
                     q[0] = (uint32_t)o[0] << 24 | o[1] << 16 | o[2] << 8 | o[3];
@@ -1070,90 +1060,6 @@ __attribute__((noinline)) static void bm_spans_draw(const shared_t *p, int32_t r
     }
 }
 
-static uint8_t ring_cls[32][64];       /* (comp levels: BG1 tile classes; wall levels: tables) */
-/* (I21k) wall mode: the wall's tiles in SDRAM (map_mem 12-16 KB: overlay 1 is 64 x 32) - its 127 4bpp
-   tiles, decoded through a byte -> 2 pixels table (palette 1: 16 + v, 0 stays 0; [1] = h-flipped); overlay
-   1's map holds tile | h-flip << 8 | v-flip << 9 (load_level).  BG1 keeps the tile caches to itself. */
-#define WT_PIX ((const uint32_t *)((uint8_t *)map_mem + 12288))  /* [128][8] (-> 16384) */
-#define WT_LUT ((uint16_t *)((uint8_t *)ring_cls + 1024))        /* [2][256] (comp levels' memory) */
-static inline void wall_trow(uint32_t e, uint32_t r, uint32_t *w0, uint32_t *w1)
-{
-    uint32_t v = WT_PIX[(e & 0x7F) * 8 + ((e & 0x200) ? 7 - r : r)];
-    if (e & 0x100) {
-        const uint16_t *L = WT_LUT + 256;
-        *w0 = (uint32_t)L[v & 0xFF] << 16 | L[(v >> 8) & 0xFF];
-        *w1 = (uint32_t)L[(v >> 16) & 0xFF] << 16 | L[v >> 24];
-    } else {
-        const uint16_t *L = WT_LUT;
-        *w0 = (uint32_t)L[v >> 24] << 16 | L[(v >> 16) & 0xFF];
-        *w1 = (uint32_t)L[(v >> 8) & 0xFF] << 16 | L[v & 0xFF];
-    }
-}
-/* one canvas row of the wall (overlay 1's 64 x 32 map, every tile drawn) */
-__attribute__((noinline)) static void draw_wall_row(const shared_t *p, volatile uint32_t *d, int32_t ty, int32_t x0, int32_t x1)
-{
-    (void)p;
-    const uint16_t *mrow = ovmap_ram[1] + (ty & 31) * 64;
-    for (int32_t tx = x0; tx < x1; tx++, d += 2) {
-        uint32_t e = mrow[tx & 63];
-        volatile uint32_t *q = d;
-        for (uint32_t r = 0; r < 8; r++, q += CV_P / 4) {
-            uint32_t w0, w1;
-            wall_trow(e, r, &w0, &w1);
-            q[0] = w0; q[1] = w1;
-        }
-    }
-}
-
-/* (I21k) wall mode: BG1 = overlay 0, a 64 x 64 ring of grid tiles (tile tx, ty at (ty & 63) * 64 + (tx & 63),
-   0x7FFF = empty).  The master streams the columns / rows the window needs before each picture's job;
-   the ring holds tiles [wr_x0, wr_x0 + 64) x [wr_y0, wr_y0 + 64) */
-static int32_t wr_x0, wr_y0, wr_ok;
-static int wall_pal;                   /* game mode: CRAM 17-31 follow the game's palette 1 */
-static int wall_on;                    /* (master) a wall level is on screen: present2 sets its colours */
-#ifndef WALL_DEFAULT
-#define WALL_DEFAULT 1
-#endif
-static int wall_opt = WALL_DEFAULT;    /* (I21k) pause menu LAMP WALLS: 1 = 32X (wall mode), 0 = Genesis */
-static int32_t lb_rows;                /* the lamp image's rows (the shade's: lamp_h outside wall mode) */
-static uint16_t wall_col[16];
-/* (sprites.c tile8_behind) colour -> BG1 / sprite (not the wall): [256] in ring_cls (comp levels only) */
-#define wall_lut ((uint8_t *)ring_cls)
-static uint32_t wr_ent(const shared_t *p, int32_t tx, int32_t ty)
-{
-    int32_t cx = tx >> 2, cy = ty >> 2;
-    if (tx < 0 || ty < 0 || cx >= p->gw || cy >= p->gh) return 0x7FFF;
-    uint32_t e = VCH(p)[p->grid[cy * p->gw + cx] * 16 + (ty & 3) * 4 + (tx & 3)];
-    return rowmask[e & 0x7FFF] ? e : 0x7FFF;
-}
-static void wr_fill(const shared_t *p, int32_t xa, int32_t xb, int32_t ya, int32_t yb)
-{
-    for (int32_t ty = ya; ty < yb; ty++) {
-        uint16_t *m = ovmap_ram[0] + (ty & 63) * 64;
-        for (int32_t tx = xa; tx < xb; tx++) m[tx & 63] = (uint16_t)wr_ent(p, tx, ty);
-    }
-}
-static void wall_ring(const shared_t *p, int32_t camx, int32_t camy)
-{
-    int32_t xa = ((camx - p->ox0) >> 3) - 1, xb = xa + 43;      /* (the overlay pass reads 41 columns from x) */
-    int32_t ya = (camy - p->oy0) >> 3, yb = ya + 29;              /* (screen lines 0-223: 29 rows) */
-    int32_t nx = wr_x0, ny = wr_y0;
-    if (xa < nx) nx = xa;
-    else if (xb > nx + 64) nx = xb - 64;
-    if (ya < ny) ny = ya;
-    else if (yb > ny + 64) ny = yb - 64;
-    if (!wr_ok || nx - wr_x0 >= 64 || wr_x0 - nx >= 64 || ny - wr_y0 >= 64 || wr_y0 - ny >= 64) {
-        wr_fill(p, nx, nx + 64, ny, ny + 64);
-    } else {
-        if (nx < wr_x0) wr_fill(p, nx, wr_x0, ny, ny + 64);                  /* new columns (every row) */
-        else if (nx > wr_x0) wr_fill(p, wr_x0 + 64, nx + 64, ny, ny + 64);
-        int32_t ca = nx > wr_x0 ? nx : wr_x0, cb = nx < wr_x0 ? nx + 64 : wr_x0 + 64;   /* old columns: */
-        if (ny < wr_y0) wr_fill(p, ca, cb, ny, wr_y0);                       /* their new rows */
-        else if (ny > wr_y0) wr_fill(p, ca, cb, wr_y0 + 64, ny + 64);
-    }
-    wr_x0 = nx; wr_y0 = ny; wr_ok = 1;
-}
-
 SDRAM_CODE static void render_rect(const shared_t *p, const int32_t *r)
 {
     int32_t x0 = r[0], x1 = r[1], y0 = r[2], y1 = r[3];
@@ -1162,8 +1068,7 @@ SDRAM_CODE static void render_rect(const shared_t *p, const int32_t *r)
     for (int32_t ty = y0; ty < y1; ty++, cl += 8) {
         if (cl >= CV_H) cl -= CV_H;
         volatile uint32_t *d = FB32 + (FB_BASE + cl * CV_P + CV_XOFF + x0 * 8) / 4;
-        if (p->wall) draw_wall_row(p, d, ty, x0, x1);
-        else if (p->cv >= 2) draw_fog_row(p, d, ty, x0, x1);
+        if (p->cv >= 2) draw_fog_row(p, d, ty, x0, x1);
         else if (p->bm_game) beamg_row(p, d, ty, x0, x1);
         else if (p->bm_lvl) beam_row(p, d, ty, x0, x1);
         else {
@@ -1302,7 +1207,7 @@ CV_CODE static void render_overlay_cvm(const shared_t *p, int k, int32_t y0, int
    Those cells already carry the first pass's restore marks (same overlay, same place). */
 __attribute__((noinline)) static void ov_front(const shared_t *p, int32_t y0, int32_t y1, int bi, int32_t sgx, int32_t sgy)
 {
-    if (!p->cv || !p->nov || p->glow || p->wall) return;
+    if (!p->cv || !p->nov || p->glow) return;
     const uint32_t (*sm)[2] = (const uint32_t (*)[2])((uint32_t)&spr_marks[bi][0][0] | 0x20000000);
     uint32_t dummy[64];
     int32_t gy = p->camy - p->oy0;
@@ -1325,11 +1230,9 @@ CV_CODE static void render_overlay_cvm(const shared_t *p, int k, int32_t y0, int
                                        const uint32_t *cm)
 {
     const ov_t *o = &ovinfo[k];
-    /* (I21k, wall mode: BG1 from the ring - the master streams it, the slave's cache may hold old lines;
-       the canvas is the wall's) */
-    const uint16_t *map = p->wall ? UNCACHED(&ovmap_ram[0][0]) : ovmap_ram[k];
+    const uint16_t *map = ovmap_ram[k];
     const uint8_t *tiles = (const uint8_t *)tiles_ram;
-    int32_t gx = p->wall ? p->wgx : p->camx - p->ox0, gy = p->wall ? p->wgy : p->camy - p->oy0;
+    int32_t gx = p->camx - p->ox0, gy = p->camy - p->oy0;
     int32_t W8 = o->w * 8, H8 = o->h * 8;
     int32_t OX0 = p->ovx[k] & (W8 - 1);                 /* overlay x at screen x 0 */
     int32_t OY0 = p->ovy[k] + 1;                         /* overlay y at screen line 0 */
@@ -1552,6 +1455,7 @@ SDRAM_VIEWER static void lrow_prep(lrow_t *L, const uint32_t *mrow, uint32_t w, 
 #define RING_W 64
 #define RING_H 32
 uint32_t ring_ent[RING_H][RING_W];    /* (outside comp levels: the game's WRAM pages of class 16, mkgame.py) */
+static uint8_t ring_cls[RING_H][RING_W];
 static int32_t ring_x0 = -0x10000, ring_y0 = -0x10000;
 
 static void ring_fill(const shared_t *p, int32_t tx, int32_t ty)
@@ -1754,178 +1658,8 @@ static void cv_rect_rows(const shared_t *p, int32_t x0, int32_t x1, int32_t y0, 
     render_rect(p, r);
 }
 
-/* (I21k) wall mode: the hanging lamps' light.  The SNES adds BG3 (the cone, swinging by a per-line H scroll)
-   to the scene; here it lights the wall's pixels in the canvas, after the restores and before BG1: wall
-   colour c (CRAM 16-31, or 0) under light slot s (1-8, the lamp image) -> CRAM wl_slot[wl_tone[c] + s - 1],
-   24 entries the level leaves free (palette 0 = black: BG1's palette 0 pixels use colour 1, tc_fill),
-   recomputed every picture (wall_light: the game's dimmed wall colours + the flickering light).  Bright
-   wall colours (the lanterns) stay as they are.  The canvas tiles it changes are marked (restored). */
-#define WL_TONE ((uint8_t *)ring_cls + 256)    /* [256] colour -> tone * 8 (0xFF: not lit); comp levels' memory */
-#define WL_SLOT ((uint8_t *)ring_cls + 512)    /* [24] */
-static const uint8_t *wl_span, *wl_sw;      /* lamp image rows' light spans [224][2]; the swing sine [64] */
-static const uint8_t wl_tonec[16] = { 0, 0, 0, 0, 8, 8, 8, 8, 16, 16, 16, 16, 16, 0xFF, 0xFF, 0xFF };
-static const uint8_t wl_rep[3] = { 2, 6, 9 };                       /* each tone's colour */
-static const uint8_t wl_lv2[8] = { 3, 6, 8, 10, 12, 14, 16, 19 };   /* 2 x the light level of each slot */
-static const uint8_t wl_slots[24] = { 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 4, 8, 12, 32, 48, 64, 80,
-                                      128, 144, 160, 176, 192, 208 };
-/* the swing (CODE_80B891, as md update_scroll): f = $28 - 1 -> W; image row iy is shifted by
-   (-(iy - 24) * W - (W >> 4) * 256) >> 8 pixels */
-static int32_t wall_swing(uint32_t f)
-{
-    uint32_t f2 = (f << 1) & 0xFFFF, q = f2 & 0x7F;
-    if (q & 0x40) q ^= 0x7F;
-    int32_t v = wl_sw ? wl_sw[q] >> 1 : 0;
-    if (f2 & 0x80) v = ~v;
-    return v >> 1;
-}
-/* the light in SDRAM (map_mem's upper half - wall levels have no millstone / beam / rain there): per light
-   slot s a colour map WL_LUT[s][c & 31] (wall colours: 0, 16-31; s 0 = none), per image row its span [a, b)
-   and its slots at half horizontal resolution (pixel a + 2k and a + 2k + 1: byte k); per buffer and canvas
-   line the cone spans drawn there (2 lamps: canvas x from, to - 0, 0 none) */
-#define WL_LUT  ((uint8_t *)map_mem + 17408)               /* [9][32] (-> 17696) */
-#define WL_ROWA ((uint8_t *)map_mem + 17696)               /* [224] */
-#define WL_ROWB ((uint8_t *)map_mem + 17920)               /* [224] */
-#define WL_ROWO ((uint16_t *)((uint8_t *)map_mem + 18144)) /* [224] offset into WL_PIX */
-#define WL_PIX  ((uint8_t *)map_mem + 18592)               /* (-> 28672) */
-#define WL_SPAN ((volatile int16_t (*)[256][4])(((uint32_t)map_mem + 28672) | 0x20000000))   /* [2][256][4] */
-static int wall_light_setup(void)
-{
-    uint32_t n = 0;
-    for (int c = 0; c < 32; c++) {
-        WL_LUT[c] = (uint8_t)(c < 16 ? 0 : c);
-        for (int k = 1; k <= 8; k++) {
-            uint32_t t = WL_TONE[c < 16 ? 0 : c];
-            WL_LUT[k * 32 + c] = t == 0xFF ? (uint8_t)c : WL_SLOT[t + k - 1];
-        }
-    }
-    for (int i = 0; i < 2 * 256 * 4; i++) (&WL_SPAN[0][0][0])[i] = 0;
-    for (int iy = 0; iy < 224; iy++) {
-        uint32_t a = wl_span[iy * 2], b = wl_span[iy * 2 + 1];
-        WL_ROWA[iy] = (uint8_t)a; WL_ROWB[iy] = (uint8_t)b; WL_ROWO[iy] = (uint16_t)n;
-        if (a >= b) continue;
-        if (18592 + n + ((b - a + 1) >> 1) > 28672) return 0;
-        const uint8_t *r = lamp_img + iy * 176;
-        for (uint32_t x = a; x < b; x += 2) {
-            uint32_t v = r[x];
-            WL_PIX[n++] = v <= 8 ? (uint8_t)v : 0;
-        }
-    }
-    return 1;
-}
-/* canvas line cl, canvas x [xa, xb): the wall (pix = 0) or the lit wall (light slot of canvas x: pix[(x - o) >> 1]),
-   written as words (bytes at odd ends) */
-static void wl_put(uint32_t cl, int32_t xa, int32_t xb, const uint8_t *pix, int32_t o)
-{
-    const uint16_t *wm = ovmap_ram[1] + ((cl >> 3) & 31) * 64;
-    uint32_t base = FB_BASE + (cl & 255) * CV_P + CV_XOFF;
-    for (int32_t tx = xa >> 3; tx * 8 < xb; tx++) {
-        uint32_t w0, w1;
-        wall_trow(wm[tx & 63], cl & 7, &w0, &w1);
-        uint8_t px[8];
-        px[0] = w0 >> 24; px[1] = w0 >> 16; px[2] = w0 >> 8; px[3] = w0;
-        px[4] = w1 >> 24; px[5] = w1 >> 16; px[6] = w1 >> 8; px[7] = w1;
-        int32_t k0 = xa - tx * 8, k1 = xb - tx * 8;
-        if (k0 < 0) k0 = 0;
-        if (k1 > 8) k1 = 8;
-        if (pix)
-            for (int32_t k = k0; k < k1; k++)
-                px[k] = WL_LUT[pix[(tx * 8 + k - o) >> 1] * 32 + (px[k] & 31)];
-        volatile uint8_t *d = FB8 + base + tx * 8;
-        int32_t k = k0;
-        if (k & 1) { d[k] = px[k]; k++; }
-        for (; k + 1 < k1; k += 2) *(volatile uint16_t *)(d + k) = (uint16_t)(px[k] << 8 | px[k + 1]);
-        if (k < k1) d[k] = px[k];
-    }
-}
-/* this CPU's canvas tile rows [ra, rb): the old spans of this buffer's last picture put back to the wall
-   where the new ones do not cover them (inside the window still valid), then the new spans lit */
-__attribute__((noinline)) static void wall_cone(const shared_t *p, int32_t ra, int32_t rb)
-{
-    int32_t gx = CV_GX(p, p->camx), gy = CV_GY(p, p->camy);
-    int32_t bx = p->camx - p->ox0, by = p->camy - p->oy0;          /* BG1 grid pixel at screen (0, 0) */
-    const int32_t *I = p->cvI;
-    int32_t W = p->lw;
-    int32_t ox[2], oy[2], nl = 0;
-    for (uint32_t i = 0; i < lamp_n && nl < 2; i++) {
-        int32_t x = (int32_t)lamp_pos[2 * i] - 91 - p->ox0 - bx;   /* image origin on screen */
-        if (x >= 320 + 64 || x + 176 + 64 <= 0) continue;
-        ox[nl] = x;
-        oy[nl++] = 481 - (int32_t)lamp_pos[2 * i + 1] - p->oy0 - by;
-    }
-    volatile int16_t (*sp)[4] = WL_SPAN[p->cvbi];
-    int32_t va = p->cvfull ? 0x7FFFFFFF : I[2] * 8, vb = p->cvfull ? 0 : I[3] * 8;   /* canvas lines still valid */
-    int32_t xa = I[0] * 8, xb = I[1] * 8;
-    for (int32_t cl = ra * 8; cl < rb * 8; cl++) {
-        int32_t y = cl - gy;                                      /* screen line */
-        int32_t na[2] = { 0, 0 }, nb[2] = { 0, 0 }, no[2] = { 0, 0 };
-        const uint8_t *np[2] = { 0, 0 };
-        if (y >= 0 && y < SCREEN_H)
-            for (int32_t k = 0; k < nl; k++) {
-                int32_t iy = y - oy[k];
-                if (iy < 0 || iy >= lamp_h) continue;
-                int32_t a = WL_ROWA[iy], b = WL_ROWB[iy];
-                if (a >= b) continue;
-                int32_t o = ox[k] + (((iy - 24) * -W - ((W >> 4) << 8)) >> 8) + a;   /* screen x of image x a */
-                int32_t x0 = o, x1 = o + (b - a);
-                if (x0 < 0) x0 = 0;
-                if (x1 > 320) x1 = 320;
-                if (x0 >= x1) continue;
-                na[k] = gx + x0; nb[k] = gx + x1; no[k] = gx + o; np[k] = WL_PIX + WL_ROWO[iy];
-            }
-        volatile int16_t *op = sp[cl & 255];
-        if (cl >= va && cl < vb)
-            for (int32_t k = 0; k < 2; k++) {
-                int32_t a = op[k * 2], b = op[k * 2 + 1];
-                if (a >= b) continue;
-                if (a < xa) a = xa;
-                if (b > xb) b = xb;
-                /* old minus the new spans (in order of their starts) */
-                int32_t f = na[1] < na[0] ? 1 : 0;
-                for (int32_t j = 0; j < 2 && a < b; j++) {
-                    int32_t c0 = na[f ^ j], c1 = nb[f ^ j];
-                    if (c0 >= c1 || c1 <= a) continue;
-                    if (c0 >= b) break;
-                    if (c0 > a) wl_put((uint32_t)cl, a, c0, 0, 0);
-                    a = c1;
-                }
-                if (a < b) wl_put((uint32_t)cl, a, b, 0, 0);
-            }
-        for (int32_t k = 0; k < 2; k++) {
-            if (na[k] < nb[k]) wl_put((uint32_t)cl, na[k], nb[k], np[k], no[k]);
-            op[k * 2] = (int16_t)na[k]; op[k * 2 + 1] = (int16_t)nb[k];
-        }
-    }
-}
-/* the lit colours of this picture (master, present) */
-static void wall_light(int32_t d)
-{
-    for (int t = 0; t < 3; t++) {
-        uint32_t c = wall_col[wl_rep[t]];
-        for (int k = 0; k < 8; k++) {
-            int32_t l2 = wl_lv2[k] - 2 * d;
-            uint32_t o = 0x8000;
-            if (l2 < 0) l2 = 0;
-            for (int j = 0; j < 3; j++) {
-                uint32_t v = ((c >> (5 * j)) & 31) + ((uint32_t)(l2 * lamp_w[j]) >> 5);
-                o |= (v > 31 ? 31 : v) << (5 * j);
-            }
-            CRAM[wl_slots[t * 8 + k]] = (uint16_t)o;
-        }
-    }
-}
-
-
-#ifdef WALLPROF
-volatile uint32_t wallprof[8];   /* (test) FRT ticks: [0-2] master restore / cone / overlay, [3-5] slave */
-#define WP_T0 uint16_t wp_t = frt_read(); int wp_s = mask == &cv_smask[0][0] ? 3 : 0
-#define WP_ADD(k) do { uint16_t t_ = frt_read(); UNCACHED(&wallprof[0])[wp_s + (k)] += (uint16_t)(t_ - wp_t); wp_t = t_; } while (0)
-#else
-#define WP_T0 do { } while (0)
-#define WP_ADD(k) do { } while (0)
-#endif
 __attribute__((noinline)) static void cv_band(const shared_t *p, int32_t ra, int32_t rb, volatile uint32_t *mask)
 {
-    WP_T0;
     const int32_t *N = p->cvN, *I = p->cvI, *H = p->cvH;
     /* this CPU's overlay marks: cached (write-through, so the master can read the slave's
        uncached after the sync) - uncached read-modify-writes cost ~25 cycles each on MiSTer */
@@ -1991,23 +1725,17 @@ __attribute__((noinline)) static void cv_band(const shared_t *p, int32_t ra, int
     }
     if (p->bm_game) bm_spans_draw(p, ra, rb);
     else if (p->bm_lvl) beam_pass(p, ra, rb);
-    WP_ADD(0);
     if (p->nov) {
-        int32_t gy = CV_GY(p, p->camy);
+        int32_t gy = p->camy - p->oy0;
         int32_t l0 = ra * 8 - gy, l1 = rb * 8 - gy;
         if (l0 < 0) l0 = 0;
         if (l1 > SCREEN_H) l1 = SCREEN_H;
-#ifndef NO_CONE
-        if (p->wall && lamp_n) wall_cone(p, ra, rb);
-#endif
-        WP_ADD(1);
         if (p->glow) {
             render_overlay_glow(p, p->cvbi, l0 < l1 ? l0 : l1, l1, mask);
         }
         else
             for (int k = 0; k < p->nov; k++)
                 if (l0 < l1) render_overlay_cv(p, k, l0, l1, mask);
-        WP_ADD(2);
     }
 }
 
@@ -2204,7 +1932,7 @@ static uint32_t pm_req;                   /* (I12) the button the menu sends the
 static int start_block;                   /* (I12) Start still held from our level menu: not the game's */
 static int pm_shown, pm_frz;              /* (I12) pictures with the menu as it is (pm_key); no new pictures */
 static uint32_t pm_key;
-#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8 | (uint32_t)pm_stats << 9 | (uint32_t)wall_opt << 10)
+#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8 | (uint32_t)pm_stats << 9)
 /* 60 FPS mode (menu option, off by default: it adds a frame of input lag): the slave draws the whole
    picture of game frame N (BG strips, sprites, line table, HUD: job 5 with every row) while the master
    runs the logic of frame N + 1; the picture is shown once that logic is done.  Simple canvas levels
@@ -2229,7 +1957,7 @@ static uint32_t pm_exit_addr;             /* exit to map: the level's "cleared" 
 static uint8_t pm_exit_orig;
 static int32_t pm_exit_wait;
 /* (I21) the menu's items (drawn in the small font, 10 lines apart) */
-enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_WALL, PM_OBJ, PM_STATS, PM_EXIT, PM_LEVELS, PM_N };
+enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_OBJ, PM_STATS, PM_EXIT, PM_LEVELS, PM_N };
 static int pm_stats;                      /* (I21c) STATS: frame rate, SH-2 master / slave %, 68000 % (main's show_hud) */
 /* (I21) OBJECT RANGE: WIDE (default) = the game's sprite spawn / keep-alive windows follow the 32X's
    wider view (+32 px past each side, as the SNES's own windows reach past its 256 px view): objects no
@@ -2655,6 +2383,7 @@ static int glow_frame(shared_t *sh)
    (the object's y counts up from 504; the capture had the apex 24 lines below the origin) */
 static uint16_t lamp_pal[12];
 static const uint16_t *lamp_scene;     /* mean unlit scene colour under cone levels 1-10 */
+static const uint16_t *lamp_w;         /* light colour per channel, 1/16 units */
 static uint16_t lamp_cols[10];
 static uint32_t lamp_fc, lamp_d = 99;
 static volatile int lamp_dirty;
@@ -3319,26 +3048,6 @@ static uint16_t cframe(uint16_t f)
 {
     return f;                             /* (I21c: no view offset for the 68000 any more - md update_scroll) */
 }
-/* the lamps' flicker d (CODE_80B800 from the game's $28; the viewer: still) */
-static int32_t wall_d = -1;
-static int32_t wall_flick(void)
-{
-    uint32_t f = game_on ? game_wram16(0x28) : 0;
-    uint32_t e = f >> 2, t1 = e & 0x7F, t2 = ((e + f) >> 1) & 0x7F;
-    if (t1 & 0x40) t1 ^= 0x7F;
-    if (t2 & 0x40) t2 ^= 0x7F;
-    int32_t d = (t1 + t2) >> 5;
-    if ((f & 1) && ((t1 + t2) & 16)) d++;
-    return d;
-}
-/* (present2) colours to change this picture: a synchronous swap */
-static int wall_changed(void)
-{
-    if (!wall_on) return 0;
-    if (wall_pal)
-        for (int i = 1; i < 16; i++) if (spr_bgpal[16 + i] != wall_col[i]) return 1;
-    return lamp_n && wall_flick() != wall_d;
-}
 static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async)
 {
     dbg_presents++;
@@ -3372,7 +3081,7 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
         } else sync_why[14]++;
     }
 #endif
-    int af_ok = async && flip_async && !wall_changed() && !sky_next_on && (ripple ? !comp : !sft_show) && !disp_pending && !pending_pal && !spr_pal_dirty &&
+    int af_ok = async && flip_async && !sky_next_on && (ripple ? !comp : !sft_show) && !disp_pending && !pending_pal && !spr_pal_dirty &&
                 !bm_cram && !comp_pal_dirty && !wx_dirty && !lamp_dirty && !glow_dirty && glow_col == 0xFFFF;
     if (af_ok && ((REG16(VDP_FBCTL) & VDP_VBLK) || current_line() >= 222)) {
         /* (I19) a picture finished in the vblank (or just before it): the synchronous path waited for the
@@ -3489,16 +3198,6 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
         for (int i = 1; i < 128; i++)
             if ((i & 15) || !game_on || (i != 96 && i != 112)) CRAM[i] = wx_pal[i];   /* (96/112: HUD text) */
         wx_dirty = 0;
-    }
-    if (wall_on) {
-        /* (I21k) wall mode: the wall's colours = the game's palette 1 (CODE_80B800 dims a copy of
-           DATA_B9A2FC by the lamps' flicker, the NMI DMAs it to CGRAM 17-31), the lit ones with them */
-        if (wall_pal)
-            for (int i = 1; i < 16; i++) {
-                uint16_t c = spr_bgpal[16 + i];
-                if (c != wall_col[i]) { wall_col[i] = c; CRAM[16 + i] = c; }
-            }
-        if (lamp_n) wall_light(wall_d = wall_flick());
     }
     if (lamp_dirty) {
         for (int i = 0; i < 10; i++) CRAM[228 + i] = lamp_cols[i];
@@ -4034,7 +3733,6 @@ static void load_level(int idx, shared_t *sh)
         sh->nov = 0;
         sh->ovcap = sh->glow = 0;
         sh->cv = fog3 ? 3 : 2;
-        sh->wall = 0;
         CV3_ND[0] = CV3_ND[1] = 0;        /* (I9: no sprite rectangles to restore yet) */
         cvb[0].valid = cvb[1].valid = 0;
         cvb[0].hud = cvb[1].hud = (trect_t){ 0, 0, 0, 0 };   /* (the last level's HUD text rectangles) */
@@ -4239,7 +3937,6 @@ static void load_level(int idx, shared_t *sh)
     sh->oy0 = lv->cy0 * 32;
     sh->nov = lv->nov > 2 ? 2 : lv->nov;
     if (game_on && !fg_on) sh->nov = 0;   /* performance mode: no foreground overlay (caves) */
-    sh->wall = 0;
 #ifdef NOCANVAS
     sh->cv = 0;
 #else
@@ -4379,8 +4076,7 @@ static void load_level(int idx, shared_t *sh)
         const uint16_t *lb = PK(uint16_t, lv->off_fog);
         lamp_n = lb[2];
         *UNCACHED(&lamp_noshade) = game_on;     /* (G2: the game draws the swinging lamp itself) */
-        lamp_h = lb[0] ? lb[0] : lb[3];         /* (I21k: wall levels' image has the cone too - lb[3] rows) */
-        lb_rows = lb[3];
+        lamp_h = lb[3];
         lamp_pos = lb + 4;
         const uint16_t *lpal = lamp_pos + 2 * lamp_n;
         lamp_w = lpal + 22;                         /* (shade colours, light levels) */
@@ -4415,72 +4111,6 @@ static void load_level(int idx, shared_t *sh)
         sh->glow = 1;
         sh->nov = 0;
         glow_t = 0x60;
-    }
-    {   extern const uint8_t *volatile spr_wall_lut;
-        extern volatile int32_t spr_prio_dx, spr_prio_dy;
-        *UNCACHED(&spr_wall_lut) = 0;
-        *UNCACHED(&spr_prio_dx) = *UNCACHED(&spr_prio_dy) = 0;
-        wall_pal = wall_on = 0; }
-    if (lv->flags & 0x20) {
-        /* (I21k) the walkway wall: LAMP WALLS GEN = the Genesis wall (I21f flicker), the wall overlays unused */
-        sh->nov = sh->ovcap = 0;
-#if !defined(NO_WALL) && defined(TCACHE)
-        if (wall_opt && lv->nov == 2 && sh->cv == 1 && ovinfo[0].xm == 5) {
-            /* (I21k) wall mode: the canvas = the walkway wall (overlay 1), BG1 = overlay 0 (the ring, streamed
-               by wall_ring), restored under like any overlay pass; the game's wall colours (palette 1) are
-               mirrored every picture (the lamps' flicker dims them); the lamps light the wall (wall_cone) */
-            sh->wall = 1;
-            sh->nov = 1;
-            sh->ovcap = 1;
-            wr_ok = 0;
-            for (int i = 0; i < 64 * 64; i++) ovmap_ram[0][i] = 0x7FFF;
-            {   /* the wall's tiles into SDRAM, its map to tile | h-flip << 8 | v-flip << 9 */
-                const tileset_t *ts = (const tileset_t *)sh->ts;
-                uint8_t *tmp = (uint8_t *)map_mem + 17408;               /* [pool tile] -> SDRAM tile + 1 (the
-                                                                            light's place, set up after) */
-                uint32_t nt = 0, np = ts->npool < 3072 ? ts->npool : 3072;
-                for (uint32_t i = 0; i < np; i++) tmp[i] = 0;
-                for (int i = 0; i < 64 * 32; i++) {
-                    uint32_t e = ovmap_ram[1][i], be = PK(uint32_t, ts->off_bake)[e & 0x7FFF], pidx = be >> 16;
-                    if (pidx >= np) pidx = 0;
-                    if (!tmp[pidx] && nt < 128) {
-                        const uint32_t *src = (const uint32_t *)(PACK + ts->off_pool + pidx * 32);
-                        for (int r = 0; r < 8; r++) ((uint32_t *)WT_PIX)[nt * 8 + r] = src[r];
-                        tmp[pidx] = (uint8_t)++nt;
-                    }
-                    ovmap_ram[1][i] = (uint16_t)((tmp[pidx] ? tmp[pidx] - 1 : 0) | (be & 1) << 8 | (e >> 15) << 9);
-                }
-                for (int b = 0; b < 256; b++) {
-                    uint32_t h = b >> 4, l = b & 15;
-                    h += 16; l += 16;                    /* (0 -> 16 = opaque black: the Genesis wall is behind) */
-                    WT_LUT[b] = (uint16_t)(h << 8 | l);
-                    WT_LUT[256 + b] = (uint16_t)(l << 8 | h);
-                }
-            }
-            wall_pal = game_on;
-            wall_on = 1;
-            CRAM[16] = 0x8000;
-            wall_d = -1;
-            {   const uint16_t *pal = PK(uint16_t, lv->off_pal);
-                for (int i = 0; i < 16; i++) wall_col[i] = pal[16 + i]; }
-            for (int c = 0; c < 256; c++) {
-                wall_lut[c] = c != 0 && (c < 16 || c >= 32);   /* 1 = BG1 / a sprite (sprites.c) */
-                WL_TONE[c] = c >= 16 && c < 32 ? wl_tonec[c - 16] : 0xFF;
-            }
-            WL_TONE[0] = 0;
-            for (int k = 0; k < 24; k++) { WL_SLOT[k] = wl_slots[k]; wall_lut[wl_slots[k]] = 0; }
-            wl_span = 0;
-            lamp_h = lb_rows;
-            if (lamp_n && lamp_h == 224) {
-                wl_span = lamp_img + 224 * 176;
-                wl_sw = wl_span + 224 * 2;
-                if (!wall_light_setup()) lamp_n = 0;
-            } else
-                lamp_n = 0;
-            {   extern const uint8_t *volatile spr_wall_lut;
-                *UNCACHED(&spr_wall_lut) = wall_lut; }
-        }
-#endif
     }
     cvb[0].valid = cvb[1].valid = 0;
         cvb[0].hud = cvb[1].hud = (trect_t){ 0, 0, 0, 0 };   /* (the last level's HUD text rectangles) */
@@ -5337,7 +4967,6 @@ void m_main(void)
                             break;
                         }
                         case PM_RIPPLE: rip_on ^= 1; pm_fg_reload = 1; break;   /* (reload, as FG) */
-                        case PM_WALL: wall_opt ^= 1; pm_fg_reload = 1; break;   /* (I21k) */
                         case PM_LEVELS: go_menu = 1; break;                  /* our level menu */
                         }
                     }
@@ -6148,18 +5777,10 @@ void m_main(void)
                 sh->ovy[k] = (f & 1) ^ 1;
                 sh->wob_phase = (~(f >> 1)) & 31;
                 sh->anim_cur[k] = (f & 0xE) >> 1;
-            } else if (o->xm == 5) {
-                /* (I21k) the BG1 ring: grid pixels */
-                sh->ovx[k] = camx - sh->ox0;
-                sh->ovy[k] = camy - sh->oy0 - 1;
             } else {
                 sh->ovx[k] = scroll_val(camx, o->xm, o->xs, 0, 0xFFFF);
                 sh->ovy[k] = scroll_val(camy - 1, o->ym, o->ys, o->ysub, o->yclamp);
             }
-        }
-        if (sh->wall) {
-            wall_ring(sh, camx, camy);
-            sh->lw = wall_swing(game_on ? game_wram16(0x28) - 1u : (uint32_t)anim_frame);
         }
         if (lamp_n)
             ;   /* (the cone + its flicker are on the Genesis; lamp_frame's CRAM 228-237 = sprite palette 6) */
@@ -6253,7 +5874,6 @@ void m_main(void)
             trect_t I = { N.x0 > cb->w.x0 ? N.x0 : cb->w.x0, N.x1 < cb->w.x1 ? N.x1 : cb->w.x1,
                           N.y0 > cb->w.y0 ? N.y0 : cb->w.y0, N.y1 < cb->w.y1 ? N.y1 : cb->w.y1 };
             int full = !cb->valid || I.x0 >= I.x1 || I.y0 >= I.y1;
-            sh->wgx = gx; sh->wgy = gy;
 #ifdef PICPROF
             pp_full = full * 10 + (!cb->valid);
 #endif
@@ -6565,11 +6185,6 @@ void m_main(void)
             }
 #endif
             spr_clear_marks(bi);
-            if (sh->wall) {   /* (I21k) BG1's grid position against the canvas (the wall): its priorities */
-                extern volatile int32_t spr_prio_dx, spr_prio_dy;
-                *UNCACHED(&spr_prio_dx) = camx - sh->ox0 - gx;
-                *UNCACHED(&spr_prio_dy) = camy - sh->oy0 - gy;
-            }
             /* split line: balanced between the CPUs (by last frame's band times), on a canvas tile row */
             static int32_t spl = SCREEN_H / 2;
             int32_t split = ((gy + spl + 7) & ~7) - gy;
@@ -6842,21 +6457,6 @@ void m_main(void)
                 fmt_num(line + 6, dl, 2); line[8] = ' ';
                 fmt_num(line + 9, ds, 2); line[11] = ' ';
                 fmt_num(line + 12, dt, 3); line[15] = 0;
-#ifdef WALLPROF
-                {   static uint32_t wsum[8], wn;
-                    if (game_stats.frames >= 60 && game_stats.frames < 360) {
-                        for (int k = 0; k < 6; k++) wsum[k] += UNCACHED(&wallprof[0])[k];
-                        wsum[6] += *UNCACHED(&sh->j3_ticks);
-                        wn++;
-                    }
-                    for (int k = 0; k < 6; k++) UNCACHED(&wallprof[0])[k] = 0;
-                    if (wn) for (int k = 0; k < 7; k++) {
-                        uint32_t v = wsum[k] * 100 / wn / FRAME_TICKS;
-                        fmt_num(line + k * 3, v > 99 ? 99 : v, 2); line[k * 3 + 2] = ' ';
-                    }
-                    line[20] = 0;
-                }
-#endif
             }
 #endif
 #ifdef PROFT
@@ -6891,7 +6491,7 @@ void m_main(void)
             if (pm_key != PM_KEY()) { pm_key = PM_KEY(); pm_shown = 0; }
             pm_shown++;
             static const char *const it[PM_N] = { "RESUME", "FRAME SKIP", "60FPS MODE", "FOREGROUND", "RIPPLE",
-                                                  "LAMP WALLS", "OBJECT RANGE", "STATS", "EXIT TO MAP", "LEVEL SELECT" };
+                                                  "OBJECT RANGE", "STATS", "EXIT TO MAP", "LEVEL SELECT" };
             int32_t gx = CV_GX(sh, camx), gy = CV_GY(sh, camy);
             /* (I21) small font: 6 px characters, 10 px lines */
             const int bx = 92, by = 64, bw = 136, bh = 22 + PM_N * 10;
@@ -6906,7 +6506,6 @@ void m_main(void)
                 if (i == PM_PIPE) v = pipe_mode ? "ON" : "OFF";
                 if (i == PM_FG) v = fg_on ? "ON" : "OFF";
                 if (i == PM_RIPPLE) v = rip_on ? "ON" : "OFF";
-                if (i == PM_WALL) v = wall_opt ? "32X" : "GEN";
                 if (i == PM_OBJ) v = obj_wide ? "WIDE" : "SNES";
                 if (i == PM_STATS) v = pm_stats ? "ON" : "OFF";
                 if (v) text57_cv(bx + 100, yy, v, 112, 96);
