@@ -1584,7 +1584,9 @@ static int fe_roll(int bi, int obj, uint32_t sig)
         if (FE_L8[L_MODE][y] != m0 || FE_L8[L_TM][y] != tm0 || (FE_L8[L_TS][y] & 0x1F) || FE_L16[L_H1][y] != h0) ok = 0;
         vary |= FE_L16[L_V1][y] != v0;
     }
-    if (!ok || !vary) {
+    if (!ok || (!vary && !on)) {          /* (I21n: once rolling, the screen stays a row cache - the still
+                                             title between the rolls and the squish costs nothing then; the
+                                             way back to lines redrew all 224 every time, ~15 vblanks on MiSTer) */
         if (on) {                         /* (out of the roll: every line drawn again, as lines) */
             FE_ROLLON = 0;
             for (int y = 0; y < SCREEN_H; y++) {

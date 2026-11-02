@@ -1408,3 +1408,24 @@ values needed); the title screen's page roll "so painfully slow" - 60 fps if pos
   lines differ only in V, each BG1 row is drawn once into canvas slot R of the buffer and a line is a
   line table entry (Mickey Mania's trick).  Now 60 fps in ares (30 in the MiSTer model).
 
+### I21o (2026-11-02): the title squish, the light-switch cones redone
+User (ares, after I21n): the title's squish / flip after the two rolls "slows down considerably"; the
+I21n cones in Stop & Go / Loopy Lights "look really, really bad" - neon lines (half a McCollough
+effect); asked for another way to fake additive light, or the old dither / flicker blend.
+- Title squish (B-TITLESQUISH): CODE_80DB85's body (CODE_80DB93, its loops DC1C / DC30 / DC47) ran in
+  the interpreter (~3.5k instructions a frame): translated.  The roll / squish row cache stays on for
+  the rest of the screen once it has been used (I21n went back to drawing 224 lines whenever the
+  title stood still between the effects: ~15 vblanks on MiSTer each time).  The squish is a vertical
+  scale - a line table entry per line, no pixel work (horizontal squishing would need per-pixel work).
+  Now every vblank in the ares MiSTer model.
+- Cones (B-LIGHTLAMPS2): every BG1 pixel in the cone takes a lit colour: the colours BG1 uses are
+  clustered (pixel-weighted, on their colours in both lights states) into the 13 spare CRAM entries
+  (colour 0 of BG palettes 1-5 and of the 8 sprite palettes); a cluster's entry = its mean colour + the
+  light, per lights state - additive light posterized to 13 colours.  The light fades downwards as on
+  the SNES (measured in Stop & Go: +8 red at the top, +4 at row 160, +1 at 192; flat across): solid
+  above, an 8 x 8 Bayer dither below where it fades out.  Over BG2 (Genesis) the same mask as S/H
+  highlight sprites (the shadowed BG2 at normal brightness: its own texture lit, no tint), hidden with
+  the lights off in Loopy.  The cone tiles are drawn once with their light (lamp_lrow replaces
+  draw_tile_row there: one frame-buffer write per word).  Cost, Loopy's first 300 frames: ares 0.96 ->
+  1.06 vblanks a picture, MiSTer model 1.54 -> 1.72 (I21n lines: 1.82).  Still no swing.
+

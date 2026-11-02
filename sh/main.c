@@ -734,72 +734,80 @@ __attribute__((noinline)) static void lamp_row(const shared_t *p, volatile uint3
     }
 }
 
-/* (I21n) Stop & Go Station / Loopy Lights: the hanging lamps' cones (the lights block's tail).  The Genesis
-   cone on plane A shows only where BG1 is see-through (BG1 covers 72-86 % of these levels - the walkway's
-   10 %), so over BG1 the cone is baked into the canvas as its tiles are drawn: every other line in the
-   cone (its whole silhouette: the SNES cone is one flat colour here; the same lines as the Genesis's),
-   a BG1 pixel of palette p becomes that palette's spare colour lamp_lslot[p] (its colour 0; 96 / 112
-   are the HUD text -> the sprite palettes' colour 0 slots 128 / 144) = the palette's mean colour + the light, per lights state (ws_frame lerps
-   lamp_litc, present writes it).  Still: the cone does not swing here (nor on the Genesis) */
+/* (I21n) Stop & Go Station / Loopy Lights: the hanging lamps' cones (the lights block's tail).  BG1 covers
+   72-86 % of these levels (the walkway's 10 %), so the cone is baked into the canvas as its tiles are
+   drawn: every BG1 pixel in the cone's silhouette becomes its colour's lit slot (cmap: the BG colours
+   clustered into 13 spare CRAM entries - colour 0 of BG palettes 1-5 and of the sprite palettes) =
+   the slot's mean colour + the light, per lights state (ws_frame lerps lamp_litc, present writes it) -
+   additive light posterized to 13 colours, no dot pattern (round 1's lines were "neon").  Over BG2
+   (Genesis) the cone = S/H highlight sprites ('H2').  Still: no swing */
 static uint32_t lamp_ln;              /* (the master's: colours; the rows read shared_t ln / lpos / ...) */
 static const uint16_t *lamp_lit;
-static uint16_t lamp_litc[8];
-static const uint8_t lamp_lslot[8] = { 0, 16, 32, 48, 64, 80, 128, 144 };
+static uint16_t lamp_litc[16];
+static const uint8_t lamp_lslot[14] = { 0, 16, 32, 48, 64, 80, 128, 144, 160, 176, 192, 208, 224, 240 };
 __attribute__((noinline)) static void lamp_lrow(const shared_t *p, volatile uint32_t *d, int32_t ty, int32_t x0, int32_t x1)
 {
+    /* draw_tile_row with the cones: the tiles under a cone drawn here, lit where the mask says (each
+       framebuffer word written once - lit after drawn was twice the frame-buffer writes) */
     const uint32_t n = (uint32_t)p->ln;
-    if (ty < 0 || (ty >> 2) >= p->gh) return;
     const uint16_t *pos = p->lpos;
     const uint8_t *img = p->limg;
     const int32_t h = p->lh;
     const uint8_t *cmap = p->lcmap;
     int32_t cy = ty >> 2;
+    int row_ok = ty >= 0 && cy < p->gh;
+    int32_t la[2], lb[2], ly[2], lx[2], nl = 0;      /* (the lamps whose cone covers this tile row: 2 at most) */
+    if (row_ok) {
+        /* (the lamps are in x order: the first whose cone reaches x0, by halves) */
+        int32_t xa = x0 * 8 + p->ox0 + 91 - 176;
+        uint32_t lo = 0, hi = n;
+        while (lo < hi) {
+            uint32_t mid = (lo + hi) >> 1;
+            if ((int32_t)pos[2 * mid] <= xa) lo = mid + 1; else hi = mid;
+        }
+        for (uint32_t i = lo; i < n && nl < 2; i++) {
+            int32_t gx0 = (int32_t)pos[2 * i] - 91 - p->ox0;
+            if (gx0 >= x1 * 8) break;
+            int32_t iy0 = ty * 8 - (481 - (int32_t)pos[2 * i + 1] - p->oy0);
+            if (iy0 <= -8 || iy0 >= h) continue;
+            la[nl] = gx0 >> 3; lb[nl] = (gx0 + 176) >> 3; ly[nl] = iy0; lx[nl] = gx0; nl++;
+        }
+    }
     const uint16_t *grow = p->grid + cy * p->gw;
     const uint16_t *vrow = VCH(p) + (ty & 3) * 4;
-    /* (the lamps are in x order: the first whose cone reaches x0, by halves - this runs for every
-       restored tile row: a loop over Loopy's 22 lamps there took Loopy from ~45 to ~16 fps) */
-    int32_t xa = x0 * 8 + p->ox0 + 91 - 176;
-    uint32_t lo = 0, hi = n;
-    while (lo < hi) {
-        uint32_t mid = (lo + hi) >> 1;
-        if ((int32_t)pos[2 * mid] <= xa) lo = mid + 1; else hi = mid;
-    }
-    for (uint32_t i = lo; i < n; i++) {
-        int32_t gx0 = (int32_t)pos[2 * i] - 91 - p->ox0;
-        if (gx0 >= x1 * 8) break;
-        int32_t gy0 = 481 - (int32_t)pos[2 * i + 1] - p->oy0;
-        int32_t iy0 = ty * 8 - gy0;
-        if (iy0 <= -8 || iy0 >= h) continue;
-        int32_t ta = gx0 >> 3, tb = (gx0 + 176 + 7) >> 3;
-        if (ta < x0) ta = x0;
-        if (tb > x1) tb = x1;
-        if (tb > p->gw * 4) tb = p->gw * 4;
-        for (int32_t tx = ta < 0 ? 0 : ta; tx < tb; tx++) {
-            uint32_t e = vrow[grow[tx >> 2] * 16 + (tx & 3)];
-            const uint8_t *s = (const uint8_t *)tile_ptr(p, e & 0x7FFF);
-            int32_t sst = 8;
-            if (e & 0x8000) { s += 56; sst = -8; }
-            volatile uint32_t *q = d + (tx - x0) * 2;
-            int32_t ix0 = tx * 8 - gx0;
-            for (int32_t r = 0; r < 8; r++, s += sst, q += CV_P / 4) {
-                int32_t iy = iy0 + r;
-                if (iy < 0 || iy >= h || (iy & 1)) continue;
-                int32_t c0 = img[iy * 2] - ix0, c1 = img[iy * 2 + 1] - ix0;   /* (the cone's span in this tile) */
-                if (c0 < 0) c0 = 0;
-                if (c1 > 8) c1 = 8;
-                if (c0 >= c1) continue;
-                uint8_t o[8];
-                int ch = 0;
-                for (int32_t c = 0; c < 8; c++) o[c] = s[c];
-                for (int32_t c = c0; c < c1; c++) {
-                    uint32_t b = o[c], pp = b < 128 ? cmap[b] : 0;
-                    if (pp) { o[c] = lamp_lslot[pp]; ch = 1; }
-                }
-                if (ch) {
-                    q[0] = (uint32_t)o[0] << 24 | o[1] << 16 | o[2] << 8 | o[3];
-                    q[1] = (uint32_t)o[4] << 24 | o[5] << 16 | o[6] << 8 | o[7];
-                }
+    static const uint32_t bm[16] = { 0, 0xFF, 0xFF00, 0xFFFF, 0xFF0000, 0xFF00FF, 0xFFFF00, 0xFFFFFF,
+        0xFF000000, 0xFF0000FF, 0xFF00FF00, 0xFF00FFFF, 0xFFFF0000, 0xFFFF00FF, 0xFFFFFF00, 0xFFFFFFFF };
+    for (int32_t tx = x0; tx < x1; tx++, d += 2) {
+        int32_t cx = tx >> 2;
+        volatile uint32_t *q = d;
+        if (!row_ok || tx < 0 || cx >= p->gw) {
+            for (int k = 0; k < 8; k++, q += CV_P / 4) { q[0] = 0; q[1] = 0; }
+            continue;
+        }
+        uint32_t e = vrow[grow[cx] * 16 + (tx & 3)];
+        const uint32_t *s = tile_ptr(p, e & 0x7FFF);
+        int32_t st = 2;
+        if (e & 0x8000) { s += 14; st = -2; }
+        int j = nl > 0 && tx >= la[0] && tx < lb[0] ? 0 : nl > 1 && tx >= la[1] && tx < lb[1] ? 1 : -1;
+        if (j < 0) {
+            for (int k = 0; k < 8; k++, q += CV_P / 4, s += st) { q[0] = s[0]; q[1] = s[1]; }
+            continue;
+        }
+        int32_t iy = ly[j];
+        const uint8_t *mr = img + (tx * 8 - lx[j]) / 8;
+        for (int k = 0; k < 8; k++, q += CV_P / 4, s += st, iy++) {
+            uint32_t w0 = s[0], w1 = s[1];
+            uint32_t m = iy >= 0 && iy < h ? mr[iy * 22] : 0;   /* (the lit pixels: bit 7 = the leftmost) */
+            if (m) {                              /* (cmap: a BG colour's lit CRAM index, or itself) */
+                uint32_t a0 = (uint32_t)cmap[(w0 >> 24) & 127] << 24 | (uint32_t)cmap[(w0 >> 16) & 127] << 16 |
+                              (uint32_t)cmap[(w0 >> 8) & 127] << 8 | cmap[w0 & 127];
+                uint32_t a1 = (uint32_t)cmap[(w1 >> 24) & 127] << 24 | (uint32_t)cmap[(w1 >> 16) & 127] << 16 |
+                              (uint32_t)cmap[(w1 >> 8) & 127] << 8 | cmap[w1 & 127];
+                uint32_t k0 = bm[m >> 4], k1 = bm[m & 15];
+                w0 = (a0 & k0) | (w0 & ~k0);
+                w1 = (a1 & k1) | (w1 & ~k1);
             }
+            q[0] = w0; q[1] = w1;
         }
     }
 }
@@ -1147,11 +1155,9 @@ SDRAM_CODE static void render_rect(const shared_t *p, const int32_t *r)
         else if (p->bm_game) beamg_row(p, d, ty, x0, x1);
         else if (p->bm_lvl) beam_row(p, d, ty, x0, x1);
         else {
-            draw_tile_row(p, d, ty, x0, x1, CV_P / 4);
+            if (p->ln) lamp_lrow(p, d, ty, x0, x1);   /* (I21n: the light-switch levels' cones) */
+            else draw_tile_row(p, d, ty, x0, x1, CV_P / 4);
             if (lamp_img) lamp_row(p, d, ty, x0, x1);
-#ifndef NOLLROW
-            if (p->ln) lamp_lrow(p, d, ty, x0, x1);
-#endif
         }
     }
 }
@@ -2725,8 +2731,8 @@ static void ws_frame(shared_t *sh, int32_t camx)
         if (ws_k >= (1u << ws_shift)) { ws_cur = ws_to; ws_from = ws_to; ws_k = 0; }
     }
     if (lamp_ln)                          /* (I21n) the cones' dot colours (present) */
-        for (int k = 1; k < 8; k++)
-            lamp_litc[k] = (uint16_t)(0x8000 | ws_lerp(lamp_lit[ws_from * 8 + k], lamp_lit[ws_to * 8 + k], ws_k, ws_shift));
+        for (int k = 1; k < 14; k++)
+            lamp_litc[k] = (uint16_t)(0x8000 | ws_lerp(lamp_lit[ws_from * 16 + k], lamp_lit[ws_to * 16 + k], ws_k, ws_shift));
     if (!sh->bm_lvl) COMM(10) = 0x4000 | ws_from << 11 | ws_to << 8 | ws_k;   /* (beam: the apex, main loop) */
 }
 /* 32X quirk (also in the MiSTer core, VDP.sv): a BYTE write of 0 to the framebuffer is ignored -
@@ -3285,7 +3291,7 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
         lamp_dirty = 0;
     }
     if (lamp_ln)                          /* (I21n) the cones' dots (CRAM 32 .. 80 / 128 / 144: no pixel else) */
-        for (int k = 1; k < 8; k++) CRAM[lamp_lslot[k]] = lamp_litc[k];
+        for (int k = 1; k < 14; k++) CRAM[lamp_lslot[k]] = lamp_litc[k];
     if (glow_dirty) {
         for (int i = 0; i < 12; i++) CRAM[240 + i] = glow_cols[i];
         glow_dirty = 0;
@@ -4109,9 +4115,9 @@ static void load_level(int idx, shared_t *sh)
             sh->lh = t[1];
             sh->lpos = t + 2;
             lamp_lit = sh->lpos + 2 * t[0];
-            sh->lcmap = (const uint8_t *)(lamp_lit + 16);
-            sh->limg = (const uint8_t *)(lamp_lit + 16) + 128;
-            for (int k = 0; k < 8; k++) lamp_litc[k] = lamp_lit[k];
+            sh->lcmap = (const uint8_t *)(lamp_lit + 32);
+            sh->limg = (const uint8_t *)(lamp_lit + 32) + 128;
+            for (int k = 0; k < 16; k++) lamp_litc[k] = lamp_lit[k];
             sh->ln = t[0];
             lamp_ln = t[0];
         }

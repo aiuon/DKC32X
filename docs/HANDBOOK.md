@@ -77,9 +77,10 @@ them. Keep this file current when something structural changes.
   lamps (walkway levels), ripple (water levels, BG1 per-line shift + Genesis H-scroll), overlays.
 - Lamp levels (I21m, the steady wall): S/H on; BG2 (wall) in a fixed palette (the game's middle
   brightness, darks lifted, no flicker / dither); the cone = plane A lines, still (md lc_still).
-- Light-switch lamp levels (I21n, Stop & Go / Loopy Lights / Loopy's bonus 2): the cone as plane A
-  lines over BG2 (colours per lights state, the window plane hides it when off) + the same lines baked
-  into the canvas over BG1 (lamp_lrow: spare colour-0 slots per palette), still.
+- Light-switch lamp levels (I21o, Stop & Go / Loopy Lights / Loopy's bonus 2): the cone baked into
+  the canvas (lamp_lrow: BG1 colours -> 13 lit cluster colours in the spare colour-0 entries, solid
+  above, Bayer-dithered where the light fades) + S/H highlight sprites over BG2 from the same mask;
+  per lights state; still.
 - Front-end extras (I21n): the intro platform = a front Genesis plane dissolved by the 68000
   (FE_FPLANE, fd_write); BG1-only per-line-V screens (the title roll) drawn as cached rows + line
   table (fe_roll).
@@ -432,6 +433,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
 - I21m: the steady lamp wall (no flicker: ares repeats / drops pictures, every 60 Hz trick flashes
   there), still cone lines.
+- I21o: title squish translated (row cache kept for the whole screen), light-switch cones as lit
+  colours + highlight sprites (the I21n lines looked like neon).
 - I21n: intro platform dissolve on a front Genesis plane (Bayer 8 x 8 per tile), Stop & Go / Loopy
   lamp cones (Genesis + canvas), title page roll by line table + translated roll code.
 - I21k: a 32X-drawn walkway wall with real lamp light (prototype) - about half the frame rate; dropped

@@ -1958,4 +1958,22 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   AUTOLEVEL 9 / 36 / 110).  bundle21n: scanbundle only unicodedata.pyd; Linux convert.py (linapp21n,
   138 s; DKC_HARNESS + DKC_SNES9X_TRACE = the trace core - the plain snes9x core misses the level-start
   snapshots) and the Wine .bat run (wtest21n) byte-identical to the plain build.
+## 2026-11-02: I21o - title squish, light-switch cones as lit colours (BUGLOG "I21o")
+- translate.txt + 0080DB93 DC1C DC30 DC47 (IKEYPROF in pd_dbg, frames 8300 -> 8600: DB93 64 calls x 3.5k
+  instructions).  fescr.c fe_roll: `!vary && !on` - once on, it stays on while BG1 alone is shown.
+- build_viewer: LAMP_LSLOTS (16 32 48 64 80 128 .. 240), _wkmeans (weighted, pure Python, seeded);
+  lamp_block llt: lmask = silhouette (L5 >= 1) x Bayer < 8 x min(8, row max of L5); the 32X tail's
+  image = that mask [rows][22] bits, the dotted map = BG colour -> lit CRAM index (or itself); lit
+  colours [2][16].  The 'C' plane-A cone is not used in these levels any more: 'H2' highlight sprites
+  from the same mask (identical 16-tile sprite blocks shared), md H2 header word 3 = flags (2: hidden
+  in state 0) -> lh_flags / lh_hide (set from the C_HUD keyframe messages; lh_write writes no sprites).
+- sh/main.c lamp_lrow(p, d, ty, x0, x1) = draw_tile_row with the cones (render_rect calls it instead
+  when p->ln); up to 2 lamps a tile row; whole-word cmap mapping, byte masks bm[16].  It is ROM code
+  (972 B; SDRAM has 560 B left).
+- Bench (GAMEDEMO GAMEPROF NO_FSKIP AUTOLEVEL=36): ares default total 096 (no cones) / 129 (first
+  full-coverage try) / 112 (word-wise) / 106 (single write); MiSTer model 154 / 203 / 187 / 172.
+- Checks: plain build md5 764c2baf... (tools/prebuilt/md.bin refreshed); GAMEBOT 12000 + STACKCHK
+  2004 / 1372; PicoDrive S&G / Loopy GAMEDEMO pictures; ares MiSTer-model title roll + squish.
+  bundle21o: scanbundle only unicodedata.pyd; Linux convert.py (linapp21o) and Wine .bat (wtest21o)
+  byte-identical to the plain build.
 

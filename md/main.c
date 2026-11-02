@@ -81,6 +81,7 @@ static uint16_t lc_still;                   /* (I21m) the cone stays still: no h
    them at normal brightness), a 32 x 32 sprite grid per lamp image, each sprite row skewed by the swing */
 static const uint16_t *lh_pos, *lh_spr, *lh_swing;
 static uint16_t lh_n, lh_ns, lh_pivot, lh_on;
+static uint16_t lh_flags, lh_hide;          /* (I21n) header word 3 (2: hidden in lights state 0), hidden now */
 static uint16_t lh_buf[80 * 4];
 /* (I21n) the intro's front plane (md flag 1024, build_viewer FE_FPLANE): Cranky's platform on plane B in
    front of the 32X's jungle, dissolved pixel by pixel - C_HUD 0xC000 | brightness << 7 | step (0 = all
@@ -166,7 +167,7 @@ static void lh_write(uint16_t camx, uint16_t camy)
     if (f2 & 0x80) v = (int16_t)~v;
     int16_t W = (int16_t)(v >> 1);
     uint16_t n = 0;
-    for (uint16_t i = 0; i < lh_n; i++) {
+    for (uint16_t i = 0; i < lh_n && !lh_hide; i++) {
         int16_t ox = (int16_t)(uint16_t)(lh_pos[2 * i] * 8 - camx);
         int16_t oy = (int16_t)(uint16_t)(lh_pos[2 * i + 1] * 8 - (uint16_t)cy);
         if (ox >= 320 + 64 || ox <= -176 - 64 || oy >= 224 || oy <= -224) continue;
@@ -668,6 +669,8 @@ static void load_md(const uint16_t *md)
             lh_n = after[0];
             lh_ns = after[1] > 64 ? 64 : after[1];
             lh_pivot = after[2];
+            lh_flags = after[3];
+            lh_hide = (lh_flags & 2) != 0;          /* (the first message decides) */
             lh_pos = after + 4;
             lh_spr = lh_pos + 2 * after[0];
             lh_swing = lh_spr + 3 * after[1];
@@ -1279,6 +1282,16 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
                 if (win != lc_win) {
                     lc_win = win;
                     VDP_CTRL = win ? 0x9280 : 0x9200;
+                }
+            }
+            if (lh_on && lh_flags && (w & 0xC000) == 0x4000) {   /* (I21n) the highlight cone: off in a
+                                                                    lights state without a cone */
+                uint16_t f0 = (w >> 11) & 7, t0 = (w >> 8) & 7, k0 = w & 0x3F;
+                uint16_t st = (f0 == t0 || k0 * 2 >= (1 << wx_shift) ? t0 : f0) == 1;
+                uint16_t hide = (lh_flags & 2) && !st;
+                if (hide != lh_hide) {
+                    lh_hide = hide;
+                    last_frame ^= 0xFFFF;               /* (lh_write again) */
                 }
             }
             if ((w & 0xC000) == 0x4000 && w != wx_cur) {

@@ -1175,6 +1175,30 @@ COMP = {
 }
 
 
+# (I21n) the 32X's lit-colour slots in the light-switch levels (sh/main.c lamp_lslot, same order)
+LAMP_LSLOTS = (16, 32, 48, 64, 80, 128, 144, 160, 176, 192, 208, 224, 240)
+
+
+def _wkmeans(points, weights, k, iters=40):
+    """k-means with point weights (deterministic: pure Python, seeded)"""
+    import random
+    pts = list(points)
+    if len(pts) <= k:
+        return [tuple(float(v) for v in p_) for p_ in pts], list(range(len(pts)))
+    random.seed(1)
+    cents = [tuple(float(v) for v in pts[i]) for i in sorted(random.sample(range(len(pts)), k))]
+    assign = [0] * len(pts)
+    for _ in range(iters):
+        for i, q in enumerate(pts):
+            assign[i] = min(range(k), key=lambda c: sum((a - b) ** 2 for a, b in zip(q, cents[c])))
+        for c in range(k):
+            ws = [(pts[i], weights[i]) for i in range(len(pts)) if assign[i] == c]
+            tw = sum(w for _, w in ws)
+            if tw:
+                cents[c] = tuple(sum(m[j] * w for m, w in ws) / tw for j in range(len(pts[0])))
+    return cents, assign
+
+
 def _kmeans(points, k, iters=30):
     import random
     pts = list(points)
@@ -1793,18 +1817,36 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
     # (I21m) the steady wall's cone: S/H highlight sprites (palette 3 colour 14) where the light level is
     # >= LH_THRESH, 32 x 32 sprites on the image's 32-pixel grid (rows skewed by the swing per 32 lines,
     # md lh_write), each its own 16 tiles (sprite tiles run down the columns first)
+    # (I21n round 2) the light-switch levels' cone: lit where the 8 x 8 Bayer threshold is below the
+    # light level (/ 8; the SNES's S&G cone measured: +8 red at its top, +4 at row 160, +1 at 192) - solid
+    # in the upper part, an ordered dither only where the light fades out
+    B8 = ((0, 32, 8, 40, 2, 34, 10, 42), (48, 16, 56, 24, 50, 18, 58, 26), (12, 44, 4, 36, 14, 46, 6, 38),
+          (60, 28, 52, 20, 62, 30, 54, 22), (3, 35, 11, 43, 1, 33, 9, 41), (51, 19, 59, 27, 49, 17, 57, 25),
+          (15, 47, 7, 39, 13, 45, 5, 37), (63, 31, 55, 23, 61, 29, 53, 21))
+    # (the S&G / Loopy cone is one colour across - BG3 colours 1-14 all the same, CODE_80B206 - and fades
+    # downwards only: per row the walkway cone's brightest level, which follows the measured fade)
+    rmax = [int(L5[iy].max()) for iy in range(H)]
+    lmask = [[bool(llt) and L5[iy, ix] >= 1 and B8[iy & 7][ix & 7] < 8 * min(8, rmax[iy]) for ix in range(W)] for iy in range(H)]
     spr, stiles = [], []
     for by in range(0, H, 32):
         for bx in range(0, W, 32):
-            px = [[LH_PIX if by + y < H and bx + x < W and L5[by + y, bx + x] >= LH_THRESH else 0 for x in range(32)]
-                  for y in range(32)]
+            px = [[LH_PIX if by + y < H and bx + x < W and (lmask[by + y][bx + x] if llt else L5[by + y, bx + x] >= LH_THRESH) else 0
+                   for x in range(32)] for y in range(32)]
             if not any(any(r) for r in px):
                 continue
-            t0 = len(stiles)
+            blk16 = []
             for tx in range(4):
                 for ty in range(4):
                     q = [[px[ty * 8 + y][tx * 8 + x] for x in range(8)] for y in range(8)]
-                    stiles.append(bytes((q[y][x] << 4) | q[y][x + 1] for y in range(8) for x in range(0, 8, 2)))
+                    blk16.append(bytes((q[y][x] << 4) | q[y][x + 1] for y in range(8) for x in range(0, 8, 2)))
+            t0 = None
+            for k0 in range(0, len(stiles), 16):          # (I21n) a sprite like another one: its tiles
+                if stiles[k0:k0 + 16] == blk16:
+                    t0 = k0
+                    break
+            if t0 is None:
+                t0 = len(stiles)
+                stiles += blk16
             spr.append((bx, by, t0))
     cone['hl'] = dict(spr=spr, tiles=stiles)
     print('   lamps: highlight cone %d sprites, %d tiles' % (len(spr), len(stiles)))
@@ -1815,12 +1857,16 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
         cone['pivot'] = 0
         rows = [iy for iy in range(H) if (L5[iy] >= 1).any()]
         h32 = (max(rows) + 8) & ~7 if rows else 8
-        # the 32X's rows: per image row the cone's span [x0, x1) (one run: the silhouette is convex)
-        spans = b''
+        # the 32X's rows: the lit pixels as a bit mask [rows][22] (bit 7 = the leftmost pixel of 8)
+        rows_ = b''
         for iy in range(h32):
-            xs = [ix for ix in range(W) if L5[iy, ix] >= 1]
-            spans += bytes([xs[0], xs[-1] + 1] if xs else [0, 0])
-        return dict(lamps=sorted(lamps), img=spans, h=h32), cone
+            for bx8 in range(0, W, 8):
+                m = 0
+                for c in range(8):
+                    if lmask[iy][bx8 + c]:
+                        m |= 0x80 >> c
+                rows_ += bytes([m])
+        return dict(lamps=sorted(lamps), img=rows_, h=h32), cone
     return blk, cone
 
 
@@ -2114,14 +2160,14 @@ def lights_block(L, lv, wx):
     if 'lit' in wx:                               # Squawks' beam: the lit 32X palette (CRAM 128 +)
         blk += b''.join(be16(c) for c in wx['lit'])
     if 'lamp32' in wx:
-        # (I21n) the lamps' cones over BG1 (flicker word bit 8): u16 nlamps, image rows, (x, y)[n], the dot
-        # colours [2 states][8 BG palettes], u8 dotted colours [128] (palette, 0 = none), u8 the cone's span
-        # x0, x1 per image row [rows][2]
+        # (I21n) the lamps' cones over BG1 (flicker word bit 8): u16 nlamps, image rows, (x, y)[n], the lit
+        # slots' colours [2 states][16] (slot 1-13), u8 BG colour -> lit CRAM index [128] (itself: left), u8 the
+        # lit pixels [rows][22] (bit 7 = left)
         lp = wx['lamp32']
         blk += be16(len(lp['lamps'])) + be16(lp['h'])
         blk += b''.join(be16(x) + be16(y) for x, y in lp['lamps'])
         blk += b''.join(be16(c) for st in lp['lit'] for c in st)
-        blk += lp['cmap']                          # (u8 [128]: BG colour -> its palette's dot slot, 0 = none)
+        blk += lp['cmap']                          # (u8 [128]: BG colour -> its lit CRAM index, or itself)
         blk += lp['img']
         if len(blk) & 1:
             blk += b'\0'
@@ -2518,46 +2564,51 @@ def build_level(L, lv, tilesets):
                     for v in (bb >> 4, bb & 15):
                         if v:
                             used[pal16 * 4 + v] += 1
-            # per colour: dotted (into its palette's slot) unless a state without a cone shows it lit -
-            # its dots would show then (Loopy's wall lanterns: an orange glow with the lights off)
+            # (I21n, round 2) every BG1 pixel in the cone takes a lit colour (the I21n lines were "neon"):
+            # the colours BG1 uses, clustered (pixel-weighted, on their colours in every lights state)
+            # into the 13 spare CRAM entries (colour 0 of BG palettes 1-5 - 96 / 112 are the HUD text -
+            # and of the 8 sprite palettes); a slot's colour per state = its colours' mean + the light.
+            # Colours a state without a cone shows lit stay as they are (Loopy's wall lanterns: their
+            # slot would flatten them with the lights off)
             sts = LAMP_LIGHTS[lv['entrance']]['states']
             ch_ = lambda c, j: (c >> (5 * j)) & 31
-            dot = {}
+            cs = []
             for c in range(16, 128):
                 if not (c & 15) or not used[c]:
                     continue
                 if any(st is None and max(ch_(wx['pkeys'][si][c], j) for j in range(3)) > 2 for si, st in enumerate(sts)):
                     continue
-                dot[c] = c >> 4
+                cs.append(c)
+            feats = [tuple(ch_(wx['pkeys'][si][c], j) for si in range(len(sts)) for j in range(3)) for c in cs]
+            cents, asg = _wkmeans(feats, [used[c] for c in cs], len(LAMP_LSLOTS))
+            dot = {c: asg[i] + 1 for i, c in enumerate(cs)}
             lit = []
             for si, st in enumerate(sts):
-                pk = wx['pkeys'][si]
-                row = []
-                for pp in range(8):
-                    cs = [c for c in dot if dot[c] == pp]
-                    tot = sum(used[c] for c in cs)
-                    if not tot:
-                        row.append(0)
-                        continue
-                    m = [sum(used[c] * ch_(pk[c], j) for c in cs) / tot for j in range(3)]
+                row = [0]
+                for k in range(len(LAMP_LSLOTS)):
+                    m = cents[k][si * 3:si * 3 + 3] if k < len(cents) else (0, 0, 0)
                     add = st[1] if st else (0, 0, 0)
-                    q = [min(31, int(round(m[j] + 2 * add[j]))) for j in range(3)]
+                    q = [max(0, min(31, int(round(m[j] + add[j])))) for j in range(3)]
                     row.append(0x8000 | q[0] | q[1] << 5 | q[2] << 10)
+                row += [0] * (16 - len(row))
                 lit.append(row)
-            lamp['cmap'] = bytes(dot.get(c, 0) for c in range(128))
-            print('   lamps (32X dots): %d of %d colours' % (len(dot), sum(1 for c in range(128) if used[c])))
+            # (the 32X reads a colour's lit CRAM index directly: its slot, or the colour itself)
+            lamp['cmap'] = bytes(LAMP_LSLOTS[dot[c] - 1] if c in dot else c for c in range(128))
+            print('   lamps (32X): %d of %d colours lit through %d slots' % (len(dot), sum(1 for c in range(128) if used[c]), len(LAMP_LSLOTS)))
             lamp['lit'] = lit
             wx['lamp32'] = lamp
             lamp = None
-        if LAMP_STEADY and LAMP_HCONE:
-            # (I21m test) the steady wall: no plane A cone - S/H highlight sprites ('H2', md flag 512)
+        if (LAMP_STEADY and LAMP_HCONE) or lv['entrance'] in LAMP_LIGHTS:
+            # (I21m test) the steady wall: no plane A cone - S/H highlight sprites ('H2', md flag 512);
+            # (I21n) the light-switch levels' cone over BG2: highlight sprites over the whole silhouette
+            # (the shadowed BG2 at normal brightness under them - light, its own texture), still
             assert not any(v & 0x8000 for k, g in gmaps.items() if k != 'B' for v in g['map'])
             t0 = (len(gtiles) + 15) & ~15
             hl = cone['hl']
             assert t0 + len(hl['tiles']) < 0x500, 'lamps: no VRAM for the highlight cone'
             gtiles = gtiles + [b'\0' * 32] * (t0 - len(gtiles)) + hl['tiles']
             gmaps['H2'] = dict(map=[0], lamps=cone['lamps'], spr=[(bx, by, t0 + t) for bx, by, t in hl['spr']],
-                               swing=cone['swing'], pivot=cone['pivot'])
+                               swing=cone['swing'], pivot=cone['pivot'], flags=cone.get('flags', 0))
         else:
             # (I18) S/H on: the cone on plane A in front of BG2 on plane B, both low priority = shadowed
             # (the cone colours at the shadow levels), except BG2's bright cells (the lanterns, normal
@@ -3141,7 +3192,8 @@ def md_block(b, pf=None):
         # (I21m) the steady wall's highlight cone: u16 nlamps, nsprites, pivot row, 0, (cell x, cell y)[n] of
         # the image origins, (x, y, first tile)[nsprites] in the image, the swing sine DATA_808BA8[64]
         h_ = gm['H2']
-        hdr += be16(len(h_['lamps'])) + be16(len(h_['spr'])) + be16(h_['pivot']) + be16(0)
+        # (I21n) word 3 = flags as the 'C' block's (2: no cone in lights state 0 - the sprites off)
+        hdr += be16(len(h_['lamps'])) + be16(len(h_['spr'])) + be16(h_['pivot']) + be16(h_.get('flags', 0))
         hdr += b''.join(be16(x) + be16(y) for x, y in h_['lamps'])
         hdr += b''.join(be16(x) + be16(y) + be16(t_) for x, y, t_ in h_['spr'])
         hdr += b''.join(be16(v) for v in h_['swing'][:64])
