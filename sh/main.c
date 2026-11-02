@@ -259,6 +259,11 @@ typedef struct {
     char hud[20];
     const uint16_t *vch;             /* the level's vch table (vch_ram, or the pack in TCACHE builds) */
     const void *ts;                  /* (tileset_t) */
+    /* (I21n) Stop & Go / Loopy: the lamps' cones baked into the canvas (lamp_lrow) - here, as every job
+       copies this struct: no uncached reads per tile row */
+    int32_t ln, lh;
+    const uint16_t *lpos;
+    const uint8_t *limg, *lcmap;
     uint32_t *tcd;                   /* TCACHE: this CPU's tile cache: data, tags, index mask */
     uint16_t *tct;
     uint32_t tcm, tcn;               /* index mask, entries (index >= tcn: - 128) */
@@ -729,6 +734,76 @@ __attribute__((noinline)) static void lamp_row(const shared_t *p, volatile uint3
     }
 }
 
+/* (I21n) Stop & Go Station / Loopy Lights: the hanging lamps' cones (the lights block's tail).  The Genesis
+   cone on plane A shows only where BG1 is see-through (BG1 covers 72-86 % of these levels - the walkway's
+   10 %), so over BG1 the cone is baked into the canvas as its tiles are drawn: every other line in the
+   cone (its whole silhouette: the SNES cone is one flat colour here; the same lines as the Genesis's),
+   a BG1 pixel of palette p becomes that palette's spare colour lamp_lslot[p] (its colour 0; 96 / 112
+   are the HUD text -> the sprite palettes' colour 0 slots 128 / 144) = the palette's mean colour + the light, per lights state (ws_frame lerps
+   lamp_litc, present writes it).  Still: the cone does not swing here (nor on the Genesis) */
+static uint32_t lamp_ln;              /* (the master's: colours; the rows read shared_t ln / lpos / ...) */
+static const uint16_t *lamp_lit;
+static uint16_t lamp_litc[8];
+static const uint8_t lamp_lslot[8] = { 0, 16, 32, 48, 64, 80, 128, 144 };
+__attribute__((noinline)) static void lamp_lrow(const shared_t *p, volatile uint32_t *d, int32_t ty, int32_t x0, int32_t x1)
+{
+    const uint32_t n = (uint32_t)p->ln;
+    if (ty < 0 || (ty >> 2) >= p->gh) return;
+    const uint16_t *pos = p->lpos;
+    const uint8_t *img = p->limg;
+    const int32_t h = p->lh;
+    const uint8_t *cmap = p->lcmap;
+    int32_t cy = ty >> 2;
+    const uint16_t *grow = p->grid + cy * p->gw;
+    const uint16_t *vrow = VCH(p) + (ty & 3) * 4;
+    /* (the lamps are in x order: the first whose cone reaches x0, by halves - this runs for every
+       restored tile row: a loop over Loopy's 22 lamps there took Loopy from ~45 to ~16 fps) */
+    int32_t xa = x0 * 8 + p->ox0 + 91 - 176;
+    uint32_t lo = 0, hi = n;
+    while (lo < hi) {
+        uint32_t mid = (lo + hi) >> 1;
+        if ((int32_t)pos[2 * mid] <= xa) lo = mid + 1; else hi = mid;
+    }
+    for (uint32_t i = lo; i < n; i++) {
+        int32_t gx0 = (int32_t)pos[2 * i] - 91 - p->ox0;
+        if (gx0 >= x1 * 8) break;
+        int32_t gy0 = 481 - (int32_t)pos[2 * i + 1] - p->oy0;
+        int32_t iy0 = ty * 8 - gy0;
+        if (iy0 <= -8 || iy0 >= h) continue;
+        int32_t ta = gx0 >> 3, tb = (gx0 + 176 + 7) >> 3;
+        if (ta < x0) ta = x0;
+        if (tb > x1) tb = x1;
+        if (tb > p->gw * 4) tb = p->gw * 4;
+        for (int32_t tx = ta < 0 ? 0 : ta; tx < tb; tx++) {
+            uint32_t e = vrow[grow[tx >> 2] * 16 + (tx & 3)];
+            const uint8_t *s = (const uint8_t *)tile_ptr(p, e & 0x7FFF);
+            int32_t sst = 8;
+            if (e & 0x8000) { s += 56; sst = -8; }
+            volatile uint32_t *q = d + (tx - x0) * 2;
+            int32_t ix0 = tx * 8 - gx0;
+            for (int32_t r = 0; r < 8; r++, s += sst, q += CV_P / 4) {
+                int32_t iy = iy0 + r;
+                if (iy < 0 || iy >= h || (iy & 1)) continue;
+                int32_t c0 = img[iy * 2] - ix0, c1 = img[iy * 2 + 1] - ix0;   /* (the cone's span in this tile) */
+                if (c0 < 0) c0 = 0;
+                if (c1 > 8) c1 = 8;
+                if (c0 >= c1) continue;
+                uint8_t o[8];
+                int ch = 0;
+                for (int32_t c = 0; c < 8; c++) o[c] = s[c];
+                for (int32_t c = c0; c < c1; c++) {
+                    uint32_t b = o[c], pp = b < 128 ? cmap[b] : 0;
+                    if (pp) { o[c] = lamp_lslot[pp]; ch = 1; }
+                }
+                if (ch) {
+                    q[0] = (uint32_t)o[0] << 24 | o[1] << 16 | o[2] << 8 | o[3];
+                    q[1] = (uint32_t)o[4] << 24 | o[5] << 16 | o[6] << 8 | o[7];
+                }
+            }
+        }
+    }
+}
+
 /* Torchlight Trouble: Squawks' flashlight.  The scene is dark (32X CRAM 1-127) except inside a wedge
    from the apex (bm_ax, bm_ay) on screen: right of L(y) = ax + max((ay - y) * 1078, (y - ay) * 64) / 256
    (the SNES window edges: top -0.2375 px/px, lower-left +0.25).  Lit BG1 pixels use CRAM 128 + c
@@ -1074,6 +1149,9 @@ SDRAM_CODE static void render_rect(const shared_t *p, const int32_t *r)
         else {
             draw_tile_row(p, d, ty, x0, x1, CV_P / 4);
             if (lamp_img) lamp_row(p, d, ty, x0, x1);
+#ifndef NOLLROW
+            if (p->ln) lamp_lrow(p, d, ty, x0, x1);
+#endif
         }
     }
 }
@@ -2516,7 +2594,7 @@ static const uint16_t *ws_trig, *ws_pkeys, *ws_skeys;
 /* light-switch levels (block kind 6, Stop & Go Station / Loopy Lights): the barrels switch the
    lights when the view centre passes them (DK would touch them there) for their duration; Loopy's
    lights flicker out.  The state is the target of the fade engine above (1-step = instant). */
-static uint32_t lt_on, lt_n, lt_flicker, lt_state, lt_timer, lt_flick;
+static uint32_t lt_on, lt_n, lt_flicker, lt_state, lt_timer, lt_flick, lt_cone;
 static int32_t lt_prevc;
 static const uint16_t *lt_bar;
 static int32_t bm_ax0, bm_ay0;
@@ -2646,6 +2724,9 @@ static void ws_frame(shared_t *sh, int32_t camx)
         }
         if (ws_k >= (1u << ws_shift)) { ws_cur = ws_to; ws_from = ws_to; ws_k = 0; }
     }
+    if (lamp_ln)                          /* (I21n) the cones' dot colours (present) */
+        for (int k = 1; k < 8; k++)
+            lamp_litc[k] = (uint16_t)(0x8000 | ws_lerp(lamp_lit[ws_from * 8 + k], lamp_lit[ws_to * 8 + k], ws_k, ws_shift));
     if (!sh->bm_lvl) COMM(10) = 0x4000 | ws_from << 11 | ws_to << 8 | ws_k;   /* (beam: the apex, main loop) */
 }
 /* 32X quirk (also in the MiSTer core, VDP.sv): a BYTE write of 0 to the framebuffer is ignored -
@@ -3099,7 +3180,7 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
         COMM(C_CAMX) = camx;
         COMM(C_CAMY) = snes_y;
         (*frame_no)++;
-        if (lamp_n && game_on) {
+        if ((lamp_n || lt_cone) && game_on) {
             uint16_t f = (uint16_t)(game_wram16(0x28) - 1);
             if (f != (uint16_t)(*frame_no - 1)) *frame_no = f;
         }
@@ -3128,7 +3209,7 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
     COMM(C_CAMX) = camx;
     COMM(C_CAMY) = snes_y;
     (*frame_no)++;
-    if (lamp_n && game_on) {              /* lamp levels: the 68K's swing / flicker follow the game's $28 */
+    if ((lamp_n || lt_cone) && game_on) {   /* lamp levels: the 68K's swing / flicker follow the game's $28 */
         uint16_t f = (uint16_t)(game_wram16(0x28) - 1);
         if (f != (uint16_t)(*frame_no - 1)) *frame_no = f;
     }
@@ -3203,6 +3284,8 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
         for (int i = 0; i < 10; i++) CRAM[228 + i] = lamp_cols[i];
         lamp_dirty = 0;
     }
+    if (lamp_ln)                          /* (I21n) the cones' dots (CRAM 32 .. 80 / 128 / 144: no pixel else) */
+        for (int k = 1; k < 8; k++) CRAM[lamp_lslot[k]] = lamp_litc[k];
     if (glow_dirty) {
         for (int i = 0; i < 12; i++) CRAM[240 + i] = glow_cols[i];
         glow_dirty = 0;
@@ -3675,7 +3758,7 @@ static void load_level(int idx, shared_t *sh)
             rain_n = 0; rain_cntA[0] = rain_cntA[1] = 0; sh->rcntB[0] = sh->rcntB[1] = 0;
             sh->job = 0;
             rain_state = 0; wx_k = 0; wx_t = 0; wx_on = 0; wx_dirty = 0; bg_mirror = 0; wx_first = 1;
-            ws_on = 0; lt_on = 0;
+            ws_on = 0; lt_on = 0; lt_cone = 0;
             spr_ms_on = 0; ms_blk = 0; *UNCACHED(&ms_lvl) = 0;
         }
         music_play(0xFF, 0);
@@ -3956,6 +4039,8 @@ static void load_level(int idx, shared_t *sh)
     sh->bm_lvl = sh->bm_on = sh->bm_game = 0;
     lamp_n = 0;
     lamp_img = 0;
+    lamp_ln = 0;
+    sh->ln = 0;
     rain_n = 0;
     rain_cntA[0] = rain_cntA[1] = 0;
     sh->rcntB[0] = sh->rcntB[1] = 0;
@@ -3963,6 +4048,7 @@ static void load_level(int idx, shared_t *sh)
     rain_state = 0; wx_k = 0; wx_t = 0; wx_on = 0; wx_dirty = 0; bg_mirror = 0; wx_first = 1;
     ws_on = 0;
     lt_on = 0;
+    lt_cone = 0;
     {   /* temple levels: the millstone picture (block kind 7, sprites.c spr_ms_draw) */
         extern volatile int32_t spr_ms_on;
         extern const uint32_t *spr_ms_tiles;
@@ -4005,7 +4091,8 @@ static void load_level(int idx, shared_t *sh)
     if ((lv->flags & 0x10) && lv->off_fog && PK(uint16_t, lv->off_fog)[1] == 6) {
         const uint16_t *wb = PK(uint16_t, lv->off_fog);
         lt_n = wb[2];
-        lt_flicker = wb[3];
+        lt_flicker = wb[3] & 0xFF;
+        lt_cone = wb[3] >> 8;                       /* (I21n) the lamps' cones on the Genesis: C_FRAME = $28 - 1 */
         lt_bar = wb + 8;
         lt_state = lt_timer = lt_flick = 0;
         lt_prevc = (int32_t)0x80000000;            /* first frame: no crossing test */
@@ -4017,6 +4104,17 @@ static void load_level(int idx, shared_t *sh)
         ws_k = ws_t = 0;
         ws_on = lt_on = 1;
         lt_game = !wb[6];
+        if (lt_cone) {                              /* (I21n) the lamps' cones over BG1: the block's tail */
+            const uint16_t *t = ws_skeys + wb[4] + (wb[6] ? 128 : 0);
+            sh->lh = t[1];
+            sh->lpos = t + 2;
+            lamp_lit = sh->lpos + 2 * t[0];
+            sh->lcmap = (const uint8_t *)(lamp_lit + 16);
+            sh->limg = (const uint8_t *)(lamp_lit + 16) + 128;
+            for (int k = 0; k < 8; k++) lamp_litc[k] = lamp_lit[k];
+            sh->ln = t[0];
+            lamp_ln = t[0];
+        }
         COMM(10) = wb[6] ? 0x40FF : 0x4000;         /* (beam levels: apex message, 0xFF = off) */
         if (wb[6]) {                                /* Torchlight: Squawks' beam, lit palette at 128 */
             const uint16_t *lit = ws_skeys + wb[4];
@@ -4463,6 +4561,7 @@ static int fe_idx = -1;
 static uint32_t fe_palsum;
 static void fe_setup(int i) { (void)i; }
 static void fe_frame(uint16_t *f) { (void)f; }
+void fe_xfade(uint32_t a) { (void)a; }
 static uint32_t fe_ent_bank6(uint32_t e) { (void)e; return 0; }
 static int fe_same(void) { return 0; }
 static void fe_lend_early(void) {}

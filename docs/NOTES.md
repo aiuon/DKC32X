@@ -1927,3 +1927,35 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   redraw ~40 % of the screen every picture.
 - Checks: plain build md5 dd499f41... (tools/prebuilt/md.bin refreshed); Linux convert.py and Wine .bat runs byte-identical; GAMEBOT 12000 + STACKCHK 1976 / 1372; pd_dbg boot 400 frames: no
   BADEND / BADRUN (BADSYNC count as I21l); ares runs of D9 / 30 / 2B.
+## 2026-11-02: I21n - intro front plane, light-switch lamp cones, title roll (BUGLOG "I21n")
+- Intro front plane: build_viewer FE_FPLANE {0xCCB6: pal 0, fade table 0xB9B5A3}; fe_bg2_plane(front):
+  only palette-0 BG2 tiles (others -> a blank char), colours = the table x 255 / 256, flag 1024.  68000:
+  fd_on / fd_src (block tiles) / fd_n, fd_write (Bayer fd_bay as fescr's), C_HUD 0xC000 messages (127 =
+  plane hidden at once; first message after hidden = at once).  fescr: FE->fplane / fpwant (cross-fade
+  step >= 2) / fpmap (BG2 map = captured: fe_bg2_sum) / fpok (in use) / fpsw (2 budgeted pictures after
+  the switch) / fd / fbr; fe_tiles skips BG2 palette-0 tiles while fpok; fe_palette clears the BG
+  colours' priority bit while fpok.  game_hle.c hle_intro_fade calls fe_xfade(a) (weak symbol).
+  The I21h 4 x 4 dissolve code stays for the other screens (ending speech, credits).  The 8 x 8 32X
+  attempt: /tmp/claude-0/fpl/fescr_bay8.c.
+- Lamp cones in light-switch levels: build_viewer LAMP_LIGHTS {0x31, 0x36, 0x37}: spr range, script
+  (C5E9 / C5F3 / C5DF), per lights state (scene outside, added inside the cone) measured in snes9x
+  (/tmp/claude-0/lamps/cap e31 / e36 / e37: pokew $579 0x200 vs 0).  LIGHTS[0x37] = Loopy's.  Plane
+  swap BG2 -> B as the walkway; cone tiles over the whole silhouette (L5 >= 1; flat colour), still,
+  no swing; md 'C' header word 3 flags (1 = cols [2][4][10] by keyframe state, 2 = state 0 hidden by
+  the window plane: map $F000 zeroed, reg $92 = $80 / $00); lc_have 32 bits.  Lights block (kind 6)
+  flicker word bit 8 = cones: C_FRAME follows $28 (lt_cone) and the block's tail: nlamps, rows,
+  (x, y) sorted by x, dot colours [2][8], dotted-colour map [128], cone span per row [rows][2].
+  sh/main.c: shared_t ln / lh / lpos / limg / lcmap, lamp_lrow (binary search by x, spans, even
+  image rows), lamp_lslot {0, 16, 32, 48, 64, 80, 128, 144}, lamp_litc lerped in ws_frame, written by
+  present2 after the wx colours.  BG1 opacity measured: S&G 85.5 %, Loopy 71.9 %, Winky 9.5 %.
+- Title roll: translate.txt + 0080DB85 DD04 DD35 DCCA DD41 DB18 DD7A DCDD DCE7 DCEA DCF2 DD1D DD5E DD61
+  DD69 DB24 DB30 DB35 DB40 DB4E DD03 (found with -DIKEYPROF + pd_dbg SDRAM dumps at 4400 / 5000 / 6000 /
+  6700); not in sdram.txt (SDRAM: __end 0x603E580 of 0x603E800).  fescr.c fe_roll + map_mem 32384
+  FE_ROLLV [2][8] / FE_ROLLK [2] / FE_ROLLON (-> 32460); host test FEROLL=1.  ares MiSTer model: the
+  roll every 2 vblanks (was 8 .. 66, growing); default ares every vblank.
+- Checks: plain build md5 f2d74636... (tools/prebuilt/md.bin refreshed); GAMEBOT 12000 + STACKCHK
+  2004 / 1372; ares / PicoDrive: intro dissolve, title roll, S&G / Loopy / Loopy bonus 2 (GAMEDEMO
+  AUTOLEVEL 9 / 36 / 110).  bundle21n: scanbundle only unicodedata.pyd; Linux convert.py (linapp21n,
+  138 s; DKC_HARNESS + DKC_SNES9X_TRACE = the trace core - the plain snes9x core misses the level-start
+  snapshots) and the Wine .bat run (wtest21n) byte-identical to the plain build.
+

@@ -77,6 +77,12 @@ them. Keep this file current when something structural changes.
   lamps (walkway levels), ripple (water levels, BG1 per-line shift + Genesis H-scroll), overlays.
 - Lamp levels (I21m, the steady wall): S/H on; BG2 (wall) in a fixed palette (the game's middle
   brightness, darks lifted, no flicker / dither); the cone = plane A lines, still (md lc_still).
+- Light-switch lamp levels (I21n, Stop & Go / Loopy Lights / Loopy's bonus 2): the cone as plane A
+  lines over BG2 (colours per lights state, the window plane hides it when off) + the same lines baked
+  into the canvas over BG1 (lamp_lrow: spare colour-0 slots per palette), still.
+- Front-end extras (I21n): the intro platform = a front Genesis plane dissolved by the 68000
+  (FE_FPLANE, fd_write); BG1-only per-line-V screens (the title roll) drawn as cached rows + line
+  table (fe_roll).
 - Lamp levels before I21m (I18 / I21f, LAMP_STEADY=0): S/H on; BG2 (wall) shadowed and dithered between the shadow levels (matrix =
   Bayer with rows 2-3 rotated: both checkerboard halves get every other threshold); lantern cells
   (colours above the shadow range) high priority, normal levels; the cone = plane A 50 % dots at the
@@ -232,6 +238,11 @@ them. Keep this file current when something structural changes.
 - HLE functions must not use r65_mx (stale inside generated code).
 - A game routine that hammers PPU registers (the intro fade's 480 multiplier writes + reads a frame)
   costs a vblank on MiSTer through io_wr / io_rd hooks: measure game frames first, then HLE it (I21h).
+- Before drawing more per picture, look for interpreted 65816 code (-DIKEYPROF + pd_dbg SDRAM dumps:
+  keys with instruction counts) - the title roll was 83 % interpreter.  Translated loops can still
+  leave the translation at inner labels: add those keys too, re-check.
+- SDRAM (first 256 KB) is nearly full: new hot data belongs in shared_t / map_mem, not new globals;
+  per-tile-row hooks in render_rect run for every restored row (keep them to a few loads).
 - Incremental drawing spread over pictures (fescr's dissolve steps) needs its progress per frame
   buffer, a minimum of work per picture, and must not be skipped by the "nothing changed" fast path
   while it is behind; its records must not be cleared while lines still depend on them (I21h).
@@ -421,10 +432,12 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
 - I21m: the steady lamp wall (no flicker: ares repeats / drops pictures, every 60 Hz trick flashes
   there), still cone lines.
+- I21n: intro platform dissolve on a front Genesis plane (Bayer 8 x 8 per tile), Stop & Go / Loopy
+  lamp cones (Genesis + canvas), title page roll by line table + translated roll code.
 - I21k: a 32X-drawn walkway wall with real lamp light (prototype) - about half the frame rate; dropped
   in I21l (sources back to I21j, the prototype kept in the I21k commit / NOTES I21k).
 Open:
-- Loopy Lights' light cones (32X-side: no CRAM for a lit BG1 set), Stop & Go's lamp cones.
+- The light-switch levels' cones do not swing (the SNES's do, ~±13 px at row 100).
 - OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch
   WS_TUNE / r65_ws): waiting for the user's playthrough.  If a level breaks (I15: a barrel group in
   Barrel Cannon Canyon lost a member when only the spawn windows were widened), SNES restores the

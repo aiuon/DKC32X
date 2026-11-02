@@ -486,9 +486,11 @@ SDRAM_FN uint32_t hle_spr_sort(void)
    multiplicand = ~$4E, the last two $211C writes through io_wr (the front end's M7 latch); A = the
    last colour, X = $0140, Y = $01E0, DB = $80 (PEA $B980 / PLB / PLB: the two bytes stay below S),
    N = 1 / Z = 0 from the PLB, C = 1 from the CPY; then CODE_80CE49 (the rest of the NMI). */
+extern void fe_xfade(uint32_t a) __attribute__((weak));   /* (I21n, fescr.c) the intro's platform: its Genesis plane's dissolve */
 SDRAM_FN uint32_t hle_intro_fade(void)
 {
     if (r65_d != 0) return interp(0x0080CDBE);
+    if (fe_xfade) fe_xfade(a);
     uint32_t v = (~((a & 0x3F) << 2)) & 0xFF;
     WL(0x4E) = (uint8_t)v;
     io_wr(0x211B, v); io_wr(0x211B, 0);

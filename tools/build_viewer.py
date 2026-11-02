@@ -1579,6 +1579,17 @@ def glimmer_genesis(L, lv, vram, tile0):
 
 LAMP_SPR = {0xD9: (0xFDEE64, 0xFDEFBC), 0x30: (0xFDB658, 0xFDB9C0), 0x2B: (0xFDAEB8, 0xFDB2B0)}
 LAMP_SCRIPT = 0xC5DF          # hanging lamp object (sprite spawn script) in the level sprite lists
+# (I21n) the light-switch levels' hanging lamps (sprite 5A CeilingLight; their own spawn scripts): the same
+# BG3 cone as the walkway's (CODE_80B206 / 80B38B: $DD / $DF, the swing HDMA tables), a flat light per
+# lights state ($0579 bit 9 = the 68000's keyframe 1), measured in snes9x near the lamp: (scene outside
+# the cone, added inside), 5-bit.  Stop & Go Station: always lit - GO green (0), STOP red (1); Loopy
+# Lights: only with the lights on (None = no cone)
+LAMP_LIGHTS = {0x31: dict(spr=(0xFDB9C0, 0xFDBE28), script=0xC5E9,
+                          states=(((3.1, 5.1, 2.0), (1.1, 9.1, 0.2)), ((5.1, 2.1, 2.0), (9.3, 0.9, 0.2)))),
+               0x36: dict(spr=(0xFDBEE8, 0xFDC320), script=0xC5F3,
+                          states=(None, ((0.5, 0.2, 0.0), (2.9, 2.2, 2.0))))}
+# (Loopy Lights' second bonus room: Loopy's cone code, the walkway lamp's script; Loopy's lights, $0579)
+LAMP_LIGHTS[0x37] = dict(LAMP_LIGHTS[0x36], spr=(0xFDC320, 0xFDC368), script=0xC5DF)
 LAMP_DOT, LAMP_PAL0, LAMP_C = 250, 238, 31
 PLANE_DITHER = int(os.environ.get('PLANE_DITHER', '1'))   # (I19) Genesis planes: ordered dither in-line
 PD_MIN_ERR = float(os.environ.get('PD_MIN_ERR', '1500'))  # (I20: weighted squared 8-bit error below which the nearest colour is kept -
@@ -1644,12 +1655,13 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
     z = np.load(npz)
     blue, off, lx = z['blue'], z['off'], int(z['lx'])
     rom = L.rom
-    a, b = LAMP_SPR[lv['entrance']]
+    llt = LAMP_LIGHTS.get(lv['entrance'])
+    a, b = llt['spr'] if llt else LAMP_SPR[lv['entrance']]
     d = rom.read(a, b - a)
     lamps = []
     for j in range(0, len(d) - 7, 8):
         t, x, y, sc = (d[j + k] | d[j + k + 1] << 8 for k in (0, 2, 4, 6))
-        if t and sc == LAMP_SCRIPT:
+        if t and sc == (llt['script'] if llt else LAMP_SCRIPT):
             # cone origin (x - 91, 481 - y) snapped to the 8-pixel grid: the Genesis cone is plane
             # cells, the 32X shade moves with it (by at most 4 pixels)
             ox, oy = ((x - 91 + 4) >> 3) << 3, ((481 - y + 4) >> 3) << 3
@@ -1739,7 +1751,7 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
                     v = min(10, int(L5[iy, ix]))
                     # (levels 1-2 add at most 2 x 2 and nothing at all with the flicker's d: their
                     # dots would only show the scene mean - left out, the faint halo goes with them)
-                    if v >= 3 and not ((iy if (CONE_LINES if LAMP_STEADY else LAMP_FLICK) else ix + iy) & 1):
+                    if v >= (1 if llt else 3) and not ((iy if (CONE_LINES if LAMP_STEADY else LAMP_FLICK) else ix + iy) & 1):
                         t[y * 4 + (x >> 1)] |= v << (0 if x & 1 else 4)
                         any_ = True
             if any_:
@@ -1753,6 +1765,20 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
             l, c = k + 1 - d, lvcol[k]
             rgb = [((c >> (5 * j)) & 31) + ((2 * l * w[j]) >> 4 if l > 0 else 0) for j in range(3)]
             gcols.append(gen_level([min(31, v) for v in rgb], True))     # (I18: shadowed, S/H on)
+    if llt:
+        # (I21n) [lights state 0 / 1][d][level]: the dots (every other line) = scene + 2 x the light, flat
+        # (the SNES cone is one colour in these levels), no flicker; a state without a cone: 0 (the 68000
+        # turns the cone off - the window plane over plane A)
+        gcols = []
+        for st in llt['states']:
+            for d in range(4):
+                for k in range(10):
+                    if st is None:
+                        gcols.append(0)
+                        continue
+                    sc_, add = st
+                    gcols.append(gen_level([min(31, int(round(sc_[j] + 2 * add[j]))) for j in range(3)], True))
+        print('   lamps (light switch): states %s' % ['off' if st is None else 'on' for st in llt['states']])
     # swing (snes9x: skew about row 25, 126-frame period, -14..+18 px at row 140 from the captured
     # pose): per-row slope in 1/256 px
     # The SNES swing (CODE_80B891, the BG3 H-scroll HDMA table at 7F:0200/0500, built one frame
@@ -1762,7 +1788,8 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
     # (verified exactly against snes9x captures).  The 68K gets $28 - 1 as C_FRAME in lamp levels.
     swing = list(rom.read(0x808BA8, 64)) + [0] * 62          # (block layout: 126 words)
     cone = dict(lamps=[((x - 91) >> 3, (481 - y) >> 3) for x, y in lamps], map=cmap, tiles=ctiles,
-                cols=gcols, swing=swing, pivot=24)
+                cols=gcols, swing=swing, pivot=24,
+                flags=(1 | (2 if llt['states'][0] is None else 0)) if llt else 0)
     # (I21m) the steady wall's cone: S/H highlight sprites (palette 3 colour 14) where the light level is
     # >= LH_THRESH, 32 x 32 sprites on the image's 32-pixel grid (rows skewed by the swing per 32 lines,
     # md lh_write), each its own 16 tiles (sprite tiles run down the columns first)
@@ -1782,6 +1809,18 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
     cone['hl'] = dict(spr=spr, tiles=stiles)
     print('   lamps: highlight cone %d sprites, %d tiles' % (len(spr), len(stiles)))
     print('   lamps: %d, %d shade colours, Genesis cone %d tiles' % (len(lamps), len(cols), len(ctiles)))
+    if llt:
+        # (I21n) the 32X's part (lights block tail, sh/main.c lamp_row lit mode): the cone levels image
+        cone['swing'] = [0] * 126                     # (the 32X's dots are baked into the canvas: still)
+        cone['pivot'] = 0
+        rows = [iy for iy in range(H) if (L5[iy] >= 1).any()]
+        h32 = (max(rows) + 8) & ~7 if rows else 8
+        # the 32X's rows: per image row the cone's span [x0, x1) (one run: the silhouette is convex)
+        spans = b''
+        for iy in range(h32):
+            xs = [ix for ix in range(W) if L5[iy, ix] >= 1]
+            spans += bytes([xs[0], xs[-1] + 1] if xs else [0, 0])
+        return dict(lamps=sorted(lamps), img=spans, h=h32), cone
     return blk, cone
 
 
@@ -1920,6 +1959,8 @@ LIGHTS = {0x31: dict(spr=(0xFDB9C0, 0xFDBE28), base=0xE6F1, keys=((0, 3, 0), (2,
 # (I14) Torchlight's bonus rooms (the barrel room, the claptrap room): the same dark palette and beam -
 # their captures (with the beam on) gave the inverted colours (an icy white cave)
 LIGHTS[0xC1] = LIGHTS[0xC3] = LIGHTS[0x14]
+# (I21n) Loopy Lights' second bonus room: the same lights (the game's $0579 - CODE_80B38B), its lamp's cone
+LIGHTS[0x37] = dict(LIGHTS[0x36], spr=(0xFDC320, 0xFDC368))
 # (I20) Blackout Basement + its rooms: CGADSUB $A7 subtracts the fixed colour from BG1-3 and the backdrop
 # (never the sprites): 4 with the lights on, 30 off (the game's $2132 writes; flicker 2 = the SH-2 reads
 # that register's last value instead of $0579).  The captures held a dark frame's 30, which the colour
@@ -2063,13 +2104,27 @@ def lights_block(L, lv, wx):
     li = LIGHTS[lv['entrance']]
     bar = li['fixed'] if 'fixed' in li else light_barrels(L, li['spr'], li['base'])
     bm = li.get('beam', (0, 0))
-    blk = be16(0) + be16(6) + be16(len(bar)) + be16(li.get('flicker', 0)) + be16(2) + be16(0) + be16(bm[0]) + be16(bm[1])
+    # (I21n) flicker word bit 8: the lamps' cones on the Genesis (LAMP_LIGHTS) - the 68000's swing follows the game's $28
+    fw = li.get('flicker', 0) | (0x100 if 'lamp32' in wx else 0)
+    blk = be16(0) + be16(6) + be16(len(bar)) + be16(fw) + be16(2) + be16(0) + be16(bm[0]) + be16(bm[1])
     blk += b''.join(be16(x) + be16(d) for x, d in bar)
     blk += b''.join(be16(c) for k in range(2) for c in wx['gkeys'][k])
     blk += b''.join(be16(c) for k in range(2) for c in wx['pkeys'][k])
     blk += b''.join(be16(c) for c in wx['skeys'])
     if 'lit' in wx:                               # Squawks' beam: the lit 32X palette (CRAM 128 +)
         blk += b''.join(be16(c) for c in wx['lit'])
+    if 'lamp32' in wx:
+        # (I21n) the lamps' cones over BG1 (flicker word bit 8): u16 nlamps, image rows, (x, y)[n], the dot
+        # colours [2 states][8 BG palettes], u8 dotted colours [128] (palette, 0 = none), u8 the cone's span
+        # x0, x1 per image row [rows][2]
+        lp = wx['lamp32']
+        blk += be16(len(lp['lamps'])) + be16(lp['h'])
+        blk += b''.join(be16(x) + be16(y) for x, y in lp['lamps'])
+        blk += b''.join(be16(c) for st in lp['lit'] for c in st)
+        blk += lp['cmap']                          # (u8 [128]: BG colour -> its palette's dot slot, 0 = none)
+        blk += lp['img']
+        if len(blk) & 1:
+            blk += b'\0'
     print('   light barrels: %s' % bar)
     return blk
 
@@ -2258,7 +2313,7 @@ def build_level(L, lv, tilesets):
         pal, sky = comp_pal, comp_sky
     # ---- Genesis planes
     planes = [(role, layer) for layer, role in t['layers'].items() if role in ('A', 'B')]
-    if lv['entrance'] in LAMP_SPR:                       # walkway lamps: BG2 on plane B, the cone on A
+    if lv['entrance'] in LAMP_SPR or lv['entrance'] in LAMP_LIGHTS:   # lamps: BG2 on plane B, the cone on A
         planes = [('B' if r == 'A' else r, l) for r, l in planes]
     if lv['entrance'] in RAIN_LEVELS:
         planes = [(r, l) for r, l in planes if l != 3]      # BG3 = rain, drawn on the 32X
@@ -2446,8 +2501,54 @@ def build_level(L, lv, tilesets):
         assert len(gtiles) < 0x500
         gmaps['G'] = g_
     lamp = None
-    if lv['entrance'] in LAMP_SPR:
+    if lv['entrance'] in LAMP_SPR or lv['entrance'] in LAMP_LIGHTS:
         lamp, cone = lamp_block(L, lv, bg1_opaque_fn(ts, grid, gw, gh, cx0, cy0), vram, cg)
+        if lv['entrance'] in LAMP_LIGHTS:
+            # (the lamp is the game's sprite; the 32X block = the lights' + this tail): the dots over BG1
+            # (every other line in the cone, as the Genesis's over BG2) take a spare colour per BG palette
+            # (its colour 0: 32 .. 80; 96 / 112 are the HUD text in the game -> sprite palettes 0 / 1's
+            # colour 0, 128 / 144) = that palette's mean colour, as BG1 uses it, in the lights state's
+            # palette + 2 x the cone's light
+            import collections
+            used = collections.Counter()
+            for pidx, pal16, hf in ts.bake:
+                if pidx == 'C':
+                    continue
+                for bb in ts.pool[pidx]:
+                    for v in (bb >> 4, bb & 15):
+                        if v:
+                            used[pal16 * 4 + v] += 1
+            # per colour: dotted (into its palette's slot) unless a state without a cone shows it lit -
+            # its dots would show then (Loopy's wall lanterns: an orange glow with the lights off)
+            sts = LAMP_LIGHTS[lv['entrance']]['states']
+            ch_ = lambda c, j: (c >> (5 * j)) & 31
+            dot = {}
+            for c in range(16, 128):
+                if not (c & 15) or not used[c]:
+                    continue
+                if any(st is None and max(ch_(wx['pkeys'][si][c], j) for j in range(3)) > 2 for si, st in enumerate(sts)):
+                    continue
+                dot[c] = c >> 4
+            lit = []
+            for si, st in enumerate(sts):
+                pk = wx['pkeys'][si]
+                row = []
+                for pp in range(8):
+                    cs = [c for c in dot if dot[c] == pp]
+                    tot = sum(used[c] for c in cs)
+                    if not tot:
+                        row.append(0)
+                        continue
+                    m = [sum(used[c] * ch_(pk[c], j) for c in cs) / tot for j in range(3)]
+                    add = st[1] if st else (0, 0, 0)
+                    q = [min(31, int(round(m[j] + 2 * add[j]))) for j in range(3)]
+                    row.append(0x8000 | q[0] | q[1] << 5 | q[2] << 10)
+                lit.append(row)
+            lamp['cmap'] = bytes(dot.get(c, 0) for c in range(128))
+            print('   lamps (32X dots): %d of %d colours' % (len(dot), sum(1 for c in range(128) if used[c])))
+            lamp['lit'] = lit
+            wx['lamp32'] = lamp
+            lamp = None
         if LAMP_STEADY and LAMP_HCONE:
             # (I21m test) the steady wall: no plane A cone - S/H highlight sprites ('H2', md flag 512)
             assert not any(v & 0x8000 for k, g in gmaps.items() if k != 'B' for v in g['map'])
@@ -2858,27 +2959,63 @@ def fe_rare_fx(vr, rg, cg7):
     return bytes(blk)
 
 
-def fe_bg2_plane(vr, cg, rg):
+# (I21n) the intro (NMI CCB6): Cranky's platform = BG2 palette 0 (the sky above it on BG2 is another
+# palette) on a Genesis plane IN FRONT of the 32X's jungle, dissolved pixel by pixel by the 68000 (8 x 8
+# Bayer order in every tile: Phantasy Star II's title) as the jungle fades in - see fe_bg2_plane(front)
+FE_FPLANE = {0xCCB6: dict(pal=0, fade=0xB9B5A3)}
+
+
+def fe_bg2_plane(vr, cg, rg, front=None, rom=None):
     """the 68000's plane block (md_block layout: plane B only, scroll = BG2's H / V offset as posted by
-    the 32X) for a front-end screen's BG2 - None if the layer does not qualify"""
-    if (rg[0x2105] & 7) != 1 or not (rg[0x212C] & 2) or (rg[0x212D] & 2):
+    the 32X) for a front-end screen's BG2 - None if the layer does not qualify.  front (I21n): only BG2's
+    tiles in palette front['pal'], the colours of the cross-fade table front['fade'] at its start, flag
+    1024 (a front plane the 68000 dissolves; the 32X leaves those tiles out)"""
+    if not front and ((rg[0x2105] & 7) != 1 or not (rg[0x212C] & 2) or (rg[0x212D] & 2)):
+        return None
+    if front and (rg[0x2105] & 7) != 1:
         return None
     sc = rg[0x2108]
     bg = dict(bpp=4, scs=sc & 3, sc=(sc & 0xFC) << 8, name=(rg[0x210B] >> 4) << 12)
     wid, hgt = (64 if sc & 1 else 32), (64 if sc & 2 else 32)
+    ents = [[0] * wid for _ in range(hgt)]
+    blank = None
+    for t in range(1024):
+        o = (bg['name'] * 2 + t * 32) & 0xFFFF
+        if not any(vr[(o + i) & 0xFFFF] for i in range(32)):
+            blank = t
+            break
     for ty in range(hgt):
         for tx in range(wid):
             a = map_addr(bg['sc'], bg['scs'], tx, ty) * 2
             e = vr[a] | vr[a + 1] << 8
             t = (bg['name'] * 2 + (e & 0x3FF) * 32) & 0xFFFF
-            if any(vr[(t + i) & 0xFFFF] for i in range(32)) and (e & 0x2000):
+            if front and ((e >> 10) & 7) != front['pal']:
+                if blank is None:
+                    return None
+                e = blank
+            ents[ty][tx] = e
+            if any(vr[(t + i) & 0xFFFF] for i in range(32)) and (e & 0x2000) and not front:
                 return None                     # (a priority 1 tile: in front of BG1's low tiles)
-    lv = dict(regs=dict(CGADSUB=rg[0x2131], CGWSEL=rg[0x2130], fixed=[0, 0, 0]), bgs=[None, bg, None, None])
-    gtiles, gmaps, cram, _ = genesis_planes(vr, cg, lv, [('B', 2)])
+    regs = dict(CGADSUB=0 if front else rg[0x2131], CGWSEL=rg[0x2130], fixed=[0, 0, 0])
+    lv = dict(regs=regs, bgs=[None, bg, None, None])
+    if front:
+        # the palette's colours as the cross-fade loop (hle_intro_fade) writes them at its first step
+        # (x 0xFF / 256), not the capture's (taken part-way into the scene's own fade)
+        cg = bytearray(cg)
+        tab = rom.read(front['fade'], 48)
+        rgb = [[(255 * (tab[i * 3 + k] & 31)) >> 8 for k in range(3)] for i in range(16)]
+        for i in range(16):
+            c = 0
+            for k in range(3):
+                c |= rgb[i][k] << (5 * k)
+            cg[(front['pal'] * 16 + i) * 2] = c & 0xFF
+            cg[(front['pal'] * 16 + i) * 2 + 1] = c >> 8
+        cg = bytes(cg)
+    gtiles, gmaps, cram, _ = genesis_planes(vr, cg, lv, [('B', 2)], ents_override={'B': ents})
     cram = list(cram)
     cram[0] = gen_level(snes_rgb(cg[0] | cg[1] << 8), False)   # the backdrop (Genesis colour 0)
     g = gmaps['B']
-    flags = 2 | (4 if g['h'] == 64 else 0)
+    flags = 2 | (4 if g['h'] == 64 else 0) | (1024 if front else 0)
     hdr = bytearray()
     hdr += be16(len(gtiles)) + be16(flags)
     for v in [0, 0, 0, 0, 0, 0xFFFF] + [0, 0, 0, 0, 0, 0xFFFF]:    # (A unused; B: x = cam, y = cam)
@@ -2979,7 +3116,9 @@ def md_block(b, pf=None):
         # words), colours[4][10] (flicker d x level), swing: the game's sine DATA_808BA8[64] + 62 x 0
         c_ = gm['C']
         # (I21m) word 2 = 1: a still cone (the steady wall: no per-vblank alternation, no per-frame flicker step)
-        hdr += be16(len(c_['lamps'])) + be16(c_['pivot']) + be16(1 if LAMP_STEADY else 0) + be16(0)
+        # (I21n) word 3 = flags: 1 = colours per lights state ([2][4][10]: the keyframe the C_HUD messages
+        # are at), 2 = no cone in state 0 (the window plane hides plane A)
+        hdr += be16(len(c_['lamps'])) + be16(c_['pivot']) + be16(1 if LAMP_STEADY else 0) + be16(c_.get('flags', 0))
         hdr += b''.join(be16(x) + be16(y) for x, y in c_['lamps'])
         hdr += b''.join(be16(v) for v in c_['map'])
         hdr += b''.join(be16(v) for v in c_['cols'])
@@ -3271,11 +3410,11 @@ def write_pack(built, tilesets, L, out):
             vr = open(os.path.join(paths.SURVEY, 'fe', e['name'] + '.vram'), 'rb').read()
             assert len(vr) == 65536
             md = None
-            if e['nmi'] in FE_GPLANE and e['mode'] < 0x80:
+            if (e['nmi'] in FE_GPLANE or e['nmi'] in FE_FPLANE) and e['mode'] < 0x80:
                 cgp = os.path.join(paths.SURVEY, 'fe', e['name'] + '.cgram')
                 rgp = os.path.join(paths.SURVEY, 'fe', e['name'] + '.regs')
                 if os.path.exists(cgp) and os.path.exists(rgp):
-                    md = fe_bg2_plane(vr, open(cgp, 'rb').read(), open(rgp, 'rb').read())
+                    md = fe_bg2_plane(vr, open(cgp, 'rb').read(), open(rgp, 'rb').read(), FE_FPLANE.get(e['nmi']), L.rom)
             # (I21) the Rare logo's own effect (fe_rare_fx): with the mode 3 screen of NMI BC7B
             rfx = None
             if e['nmi'] == 0xBC7B and e['mode'] == 3:

@@ -63,7 +63,12 @@ static uint16_t hv_tile, hv_on, hv_f;
 /* walkway lamps (md flag 64): the light cones on plane A (BG2 on B), streamed per lamp as the view approaches;
    per-line H scroll = the lamp's swing (skew about row lc_pivot) + the checker phase (1 px, odd frames) */
 static const uint16_t *lc_pos, *lc_map, *lc_cols, *lc_swing;
-static uint16_t lc_n, lc_pivot, lc_on, lc_have, lc_t, lc_d, lc_vy, lc_ph;
+static uint16_t lc_n, lc_pivot, lc_on, lc_t, lc_d, lc_vy, lc_ph;
+static uint32_t lc_have;                    /* (I21n: 32 lamps - Loopy Lights has 22) */
+/* (I21n) the light-switch levels' cones (header word 3 lc_flags): 1 = colours per lights state (lc_cols
+   [2][4][10]; the state = the keyframe the C_HUD messages are at, half way through a fade), 2 = no cone in
+   state 0: the window plane (all-zero map at $F000) over the whole screen hides plane A */
+static uint16_t lc_flags, lc_st, lc_win;
 static int16_t lc_op = -1;                  /* lamp being written / cleared, its next row */
 /* (I21f) lamp levels' flicker checkerboard (md flag 256): CRAM lines 0-2 alternate between the block's
    CRAM (A) and a second one (B) every vblank - colours between two Genesis levels show as a 1-px
@@ -77,6 +82,17 @@ static uint16_t lc_still;                   /* (I21m) the cone stays still: no h
 static const uint16_t *lh_pos, *lh_spr, *lh_swing;
 static uint16_t lh_n, lh_ns, lh_pivot, lh_on;
 static uint16_t lh_buf[80 * 4];
+/* (I21n) the intro's front plane (md flag 1024, build_viewer FE_FPLANE): Cranky's platform on plane B in
+   front of the 32X's jungle, dissolved pixel by pixel - C_HUD 0xC000 | brightness << 7 | step (0 = all
+   there .. 64 = gone): pixel (x, y) of every tile goes at step fd_bay[y][x] + 1 (8 x 8 Bayer order, the
+   same in every tile: Phantasy Star II's title).  A step changes one row of each tile: only the rows
+   whose pixels changed are written, the row's two words over all tiles with auto-increment 32 */
+static const uint16_t *fd_src;
+static uint16_t fd_on, fd_n, fd_cur, fd_want, fd_inst, fd_hid;
+static const uint8_t fd_bay[8][8] = {
+    { 0, 32, 8, 40, 2, 34, 10, 42 }, { 48, 16, 56, 24, 50, 18, 58, 26 }, { 12, 44, 4, 36, 14, 46, 6, 38 },
+    { 60, 28, 52, 20, 62, 30, 54, 22 }, { 3, 35, 11, 43, 1, 33, 9, 41 }, { 51, 19, 59, 27, 49, 17, 57, 25 },
+    { 15, 47, 7, 39, 13, 45, 5, 37 }, { 63, 31, 55, 23, 61, 29, 53, 21 } };
 /* Slipslide glimmer (md flag 128): highlight sprites over the BG2 crystals, timed like the SNES
    (CODE glow routine: 0x60-0x9F frames apart, 4 glimmers x 8 frames at new random positions) */
 static const uint16_t *gl_blk;
@@ -96,6 +112,39 @@ volatile uint16_t dbg_comm[8];      /* COMM0..14 snapshot each vblank (debug aid
 static inline void vram_w(uint16_t a)
 {
     VDP_CTRL32 = 0x40000000UL | ((uint32_t)(a & 0x3FFF) << 16) | (a >> 14);
+}
+
+static RAM_CODE void fd_write(void)
+{
+    /* (a step a vblank, two when far behind: the SH-2 runs the game's frames in bursts between its
+       pictures - the steps came 4-12 at once, then none for as long) */
+    uint16_t d = fd_want;
+    if (fd_inst) ;
+    else if (d > fd_cur + 1) d = fd_cur + (d > fd_cur + 8 ? 2 : 1);
+    else if (d + 1 < fd_cur) d = fd_cur - (d + 8 < fd_cur ? 2 : 1);
+    uint16_t lo = fd_cur < d ? fd_cur : d, hi = fd_cur < d ? d : fd_cur;
+    fd_cur = d;
+    for (uint16_t y = 0; y < 8; y++) {
+        const uint8_t *b = fd_bay[y];
+        uint16_t ch = 0, mh = 0, ml = 0;
+        for (uint16_t x = 0; x < 8; x++) {
+            if (b[x] >= lo && b[x] < hi) ch = 1;
+            if (b[x] >= d) {
+                if (x < 4) mh |= (uint16_t)(0xF000 >> (4 * x));
+                else ml |= (uint16_t)(0xF000 >> (4 * (x - 4)));
+            }
+        }
+        if (!ch) continue;
+        VDP_CTRL = 0x8F20;
+        const uint16_t *s = fd_src + 16 + y * 2;    /* (tile 1 on: tile 0 is the blank one) */
+        vram_w((uint16_t)(32 + y * 4));
+        for (uint16_t t = 1; t < fd_n; t++, s += 16) VDP_DATA = *s & mh;
+        s = fd_src + 16 + y * 2 + 1;
+        vram_w((uint16_t)(32 + y * 4 + 2));
+        for (uint16_t t = 1; t < fd_n; t++, s += 16) VDP_DATA = *s & ml;
+    }
+    VDP_CTRL = 0x8F02;
+    fd_inst = 0;
 }
 static inline void cram_w(uint16_t a)
 {
@@ -400,7 +449,9 @@ static void do_command(uint16_t cmd)
         active = 0;
         anim_n = 0;
         lc_on = 0;
+        if (lc_win) { VDP_CTRL = 0x9200; lc_win = 0; }   /* (I21n) the window off */
         lh_on = 0;
+        fd_on = 0;
         hv_on = 0;
         gl_on = 0;
         wx_tab = 0;
@@ -413,6 +464,7 @@ static void do_command(uint16_t cmd)
     no_ripple = (cmd & 0x2000) && idx != 0x7FFF;     /* (I14: the options menu's RIPPLE OFF) */
     VDP_CTRL = 0x8134;                      /* display off */
     active = 0;
+    fd_on = 0;
     if (idx == 0x7FFF) {
         /* both planes: (I21) a VDP DMA fill (the CPU loop took ~3 frames the SH-2 waited for at every
            screen change); the last 16 bytes by the CPU (no fill length quirk can reach the sprites) */
@@ -436,6 +488,7 @@ static void do_command(uint16_t cmd)
         wx_tab = 0;
         wx_buf_ready = 0;
         lc_on = 0;
+        if (lc_win) { VDP_CTRL = 0x9200; lc_win = 0; }   /* (I21n) the window off */
         lh_on = 0;
         fl_on = 0;
         gl_on = 0;
@@ -551,17 +604,28 @@ static void load_md(const uint16_t *md)
             after = hv_frames + 8 * 1024;
         }
         lc_on = 0;
+        if (lc_win) { VDP_CTRL = 0x9200; lc_win = 0; }   /* (I21n) the window off */
         lh_on = 0;
         fl_on = 0;
         if (planes & 64) {                      /* lamp cones */
-            lc_n = after[0] > 16 ? 16 : after[0];
+            lc_n = after[0] > 32 ? 32 : after[0];
             lc_pivot = after[1];
             lc_still = after[2];                /* (I21m) the steady wall's cone */
+            lc_flags = after[3];
             lc_ph = 0;
             lc_pos = after + 4;
             lc_map = lc_pos + 2 * after[0];
             lc_cols = lc_map + 28 * 22;
-            lc_swing = lc_cols + 40;
+            lc_swing = lc_cols + ((lc_flags & 1) ? 80 : 40);
+            lc_st = 0;
+            if (lc_flags & 2) {                 /* (I21n) the window's map: zero, shown from line 0 (cone off) */
+                VDP_CTRL = 0x8F02;
+                vram_w(0xF000);
+                for (int i = 0; i < 2048; i++) VDP_DATA = 0;
+                VDP_CTRL = 0x9100;
+                VDP_CTRL = 0x9280;
+                lc_win = 1;
+            }
             after = lc_swing + 126;
             lc_have = 0; lc_op = -1; lc_t = 0; lc_d = 0xFFFF;
             lc_on = 1;
@@ -641,6 +705,7 @@ static void fe_plane(uint16_t i)
     wx_tab = 0;
     wx_buf_ready = 0;
     lc_on = 0;
+    if (lc_win) { VDP_CTRL = 0x9200; lc_win = 0; }
     if (lh_on) {                                /* (I21m) the lamp cone's sprites off */
         VDP_CTRL = 0x8F02;
         vram_w(VRAM_SPRITES);
@@ -648,6 +713,7 @@ static void fe_plane(uint16_t i)
     }
     lh_on = 0;
     fl_on = 0;
+    fd_on = 0;
     gl_on = 0;
     hv_on = 0;
     bm_lvl = bm_on = 0;
@@ -662,6 +728,11 @@ static void fe_plane(uint16_t i)
         const uint16_t *md = pack_ptr(off_md);
         for (int k = 0; k < 64; k++) { wx_ram[k] = 0; wx_ram[64 + k] = md[16 + k]; }
         load_md(md);
+        fd_on = (md[1] & 1024) != 0;            /* (I21n) the intro's front plane: dissolved by step */
+        fd_src = md + 304;
+        fd_n = md[0];
+        fd_cur = fd_want = 0;
+        fd_inst = fd_hid = 0;
         cram_w(0);                              /* (black until the first brightness message) */
         for (int k = 0; k < 64; k++)
             VDP_DATA = 0;
@@ -999,7 +1070,8 @@ static RAM_CODE void lc_colours(void)
         lc_d = d;
         VDP_CTRL = 0x8F02;
         cram_w(0x62);                       /* line 3, colours 1-10 */
-        for (int i = 0; i < 10; i++) VDP_DATA = lc_cols[d * 10 + i];
+        const uint16_t *c = lc_cols + ((lc_flags & 1) && lc_st ? 40 : 0);
+        for (int i = 0; i < 10; i++) VDP_DATA = c[d * 10 + i];
     }
 }
 static RAM_CODE void lc_frame(void)
@@ -1007,12 +1079,12 @@ static RAM_CODE void lc_frame(void)
     VDP_CTRL = 0x8F02;
     if (lc_op < 0) {
         int16_t vx = (int16_t)(COMM(C_CAMX) >> 3);
-        uint16_t want = 0;
+        uint32_t want = 0;
         for (uint16_t i = 0; i < lc_n; i++) {
             int16_t cx = (int16_t)lc_pos[2 * i];
             /* (I11) at most 63 cells wide: two cones 64 cells apart share their plane cells (the
                plane is 64 x 64); one would be written over the other while it is still in view */
-            if (cx + 22 > vx - 1 && cx < vx + 41) want |= 1u << i;
+            if (cx + 22 > vx - 1 && cx < vx + 41) want |= 1UL << i;
         }
         for (uint16_t i = 0; i < lc_n && lc_op < 0; i++)
             if ((lc_have & ~want) >> i & 1) { lc_op = i; lc_clear = 1; lc_row = 0; }
@@ -1034,16 +1106,16 @@ static RAM_CODE void lc_frame(void)
     }
     if (lc_row >= 28) {
         if (lc_clear) {
-            lc_have &= ~(1u << lc_op);
+            lc_have &= ~(1UL << lc_op);
             /* (I11) the cells just cleared may be another loaded cone's too (cones 42..63 cells apart
                meet at the plane's wrap): that cone is written again - it lost a chunk ("missing part
                of the beam" once it came into view) */
             for (uint16_t j = 0; j < lc_n; j++) {
                 if (!(lc_have >> j & 1)) continue;
                 uint16_t dc = (uint16_t)(lc_pos[2 * j] - cx) & 63, dr = (uint16_t)(lc_pos[2 * j + 1] - cy) & 63;
-                if ((dc < 22 || dc > 64 - 22) && (dr < 28 || dr > 64 - 28)) lc_have &= ~(1u << j);
+                if ((dc < 22 || dc > 64 - 22) && (dr < 28 || dr > 64 - 28)) lc_have &= ~(1UL << j);
             }
-        } else lc_have |= 1u << lc_op;
+        } else lc_have |= 1UL << lc_op;
         lc_op = -1;
     }
 }
@@ -1186,6 +1258,29 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
                 w = on ? 0x4000 | 1 << 11 | 1 << 8 : 0x4000;
                 if (on == bm_on) bm_write();
             }
+            if (fd_on && (w & 0xC000) == 0xC000) {   /* (I21n) the front plane: brightness + dissolve step */
+                uint16_t v = w & 0x7F;
+                if (v == 127) fd_want = 64, fd_inst = fd_hid = 1;   /* (not in use: gone at once) */
+                else {
+                    fd_want = v > 64 ? 64 : v;
+                    fd_inst = fd_hid;               /* (coming into use: at once, at its step) */
+                    fd_hid = 0;
+                }
+                w = 0x4000 | 1 << 8 | ((w >> 7) & 0x1F);
+            }
+            if (lc_on && lc_flags && (w & 0xC000) == 0x4000) {   /* (I21n) the cones' lights state */
+                uint16_t f0 = (w >> 11) & 7, t0 = (w >> 8) & 7, k0 = w & 0x3F;
+                uint16_t st = (f0 == t0 || k0 * 2 >= (1 << wx_shift) ? t0 : f0) == 1;
+                if (st != lc_st) {
+                    lc_st = st;
+                    lc_d = 0xFFFF;                  /* (its colours) */
+                }
+                uint16_t win = (lc_flags & 2) && !st;
+                if (win != lc_win) {
+                    lc_win = win;
+                    VDP_CTRL = win ? 0x9280 : 0x9200;
+                }
+            }
             if ((w & 0xC000) == 0x4000 && w != wx_cur) {
                 int16_t k = (int16_t)(w & 0x3F);
                 uint16_t from = (w >> 11) & 7, to = (w >> 8) & 7;
@@ -1233,6 +1328,7 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
                 if (bm_lvl) { bm_on = to == 1; bm_write(); }   /* Torchlight: the beam once Squawks is out */
                 if (bg3fade) bg3want = (uint16_t)k;      /* (recomputed in md_idle, outside the interrupt) */
             }
+            if (fd_on && fd_want != fd_cur) fd_write();
         }
         if (fx == 1 && cur_bg3col != bg3col[0]) {
             cur_bg3col = bg3col[0];

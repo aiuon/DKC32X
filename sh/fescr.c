@@ -68,6 +68,19 @@ typedef struct {
                                              write generations when its map was last checked */
     uint32_t gsum;                        /* (I11) the captured BG2 map's sum (the plane's) */
     uint32_t grg;                         /* (I11) BG2SC and its map rows' write generations at the last check */
+    uint8_t fplane;                       /* (I21n) the intro: BG2's palette-0 tiles (Cranky's platform) are a
+                                             Genesis plane IN FRONT of the 32X (md flag 1024), dissolved by the
+                                             68000 as the jungle fades in (fe_xfade).  In use (fpok) from the
+                                             cross-fade's second step (fpwant: until then the 32X draws the
+                                             platform - its 15-bit ramp; the Genesis levels split the art's
+                                             neighbouring shades into a checkerboard) while BG2's map is the
+                                             captured one (fpmap): its tiles not drawn here, the BG colours
+                                             without the priority bit (behind the plane), the sprites with */
+    uint8_t fpok, fpwant, fpmap;
+    uint8_t fpsw;                             /* (I21n) pictures to draw under the time budget after the switch (its
+                                             ~100 lines in one picture held the game - and the dissolve, which
+                                             follows the game's frames - for 13 vblanks on MiSTer) */
+    uint8_t fd, fbr;                      /* (I21n) its dissolve step (0 - 64) and the brightness (0 - 16) */
 } fe_state_t;
 typedef char fe_state_fits[sizeof(fe_state_t) <= 256 ? 1 : -1];
 /* each frame buffer keeps a clean copy (BGs only, no sprites) of lines FE_CY0.. in its free space
@@ -137,6 +150,11 @@ static const uint8_t fe_bay4[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 1
    logo's smoke over the logo is a new pair almost every pixel; and the colours' brightness (r + g + b) */
 #define FE_PRC    ((uint32_t *)((uint8_t *)map_mem + 31616))                    /* [128] (-> 32128) */
 #define FE_BRT    ((uint8_t *)map_mem + 32128)                                  /* [256] (-> 32384) */
+/* (I21n) the title's page roll (fe_roll): per buffer the BG1 rows cached in its frame buffer (row R at
+   canvas slot R), their key, and whether the last picture was a roll picture */
+#define FE_ROLLV  ((uint32_t (*)[8])((uint8_t *)map_mem + 32384))              /* [2][8] (-> 32448) */
+#define FE_ROLLK  ((uint32_t *)((uint8_t *)map_mem + 32448))                   /* [2] */
+#define FE_ROLLON (*(uint32_t *)((uint8_t *)map_mem + 32456))                   /* (-> 32460) */
 static uint32_t fe_dh(int y, const uint32_t *sd)
 {
     const uint32_t *u = FE_DUSED[y];
@@ -238,6 +256,28 @@ static uint32_t fe_bg2_sum(int cap)
     }
     return s;
 }
+/* (I21n) the front plane's message (68000 fd_write): brightness + dissolve step (0 - 64, paced there at a
+   step or two a vblank; 127 = BG2's map not the captured one: gone at once, the platform drawn here).  The
+   step goes out from the cross-fade's start (fe_xfade), before fe_frame takes the BG colours' priority
+   away (fpok): the 68000's first write (every row of every tile, ~1 frame) is done under the 32X's
+   platform - written while shown, it showed half done for a frame.  Until then the plane is whole,
+   under the 32X */
+static void fe_fdsend(void)
+{
+    COMM(10) = (uint16_t)(0xC000 | FE->fbr << 7 | (FE->fpwant && FE->fpmap ? FE->fd : 127));
+}
+/* (I21n) hle_intro_fade (game_hle.c): the intro's cross-fade at step a (0 - 63: the loop's $3F counter; the
+   platform's colours x (63 - a) / 64, the jungle's x a / 64) -> the platform's dissolve step 0 - 64 */
+void fe_xfade(uint32_t a)
+{
+#ifdef FEHOST
+    if (getenv("FEA")) printf("  XFADE f %u a %u fplane %d\n", game_stats.frames, a & 0x3F, fe_vm && fe_idx >= 0 ? FE->fplane : -1);
+#endif
+    if (!fe_vm || fe_idx < 0 || !FE->fplane) return;
+    FE->fd = (uint8_t)(((a & 0x3F) * 64 + 31) / 63);
+    if ((a & 0x3F) >= 2) FE->fpwant = 1;  /* (fe_frame switches; a = 1 also came once, long before) */
+    fe_fdsend();
+}
 static void fe_setup(int i)
 {
 #ifdef FEDBG
@@ -313,6 +353,12 @@ static void fe_setup(int i)
         uint32_t md = FE_U32(((const uint32_t *)((const fescr_t *)(t + 1) + n))[i]);
         FE->gplane = md != 0;
         FE->gsum = md ? fe_bg2_sum(1) : 0;
+        if (md) {                         /* (I21n) the block's flags word: 1024 = a front plane */
+            const uint8_t *mb = PACK + md;
+            FE->fplane = (mb[2] & 4) != 0;
+            if (FE->fplane) FE->gplane = 0;
+            FE->fd = 0;
+        }
         COMM(C_CMD) = md ? 0x9E00 | (uint16_t)i : 0x8000 | 0x7FFF;
     }
     while (COMM(C_CMD) & 0x8000)
@@ -593,6 +639,7 @@ static void fe_tiles(uint8_t *lb, uint8_t *src, int li, int bpp, int y, int pr, 
     x0 += 8 * k0;
     const uint8_t *vr = fe_vr;            /* (FE is uncached: read once) */
     uint8_t *cs = fe_chst(li, bpp);       /* (I11) blank characters: skipped before their bytes are read */
+    const uint32_t fpk = li == 1 && FE->fpok ? 0x1C00 : 0;   /* (I21n) BG2 palette 0: the Genesis front plane */
     if (!pr) {
         uint32_t vm = fe_vmask;
         const uint16_t *vmw = UNCACHED(FE_VM);
@@ -605,6 +652,7 @@ static void fe_tiles(uint8_t *lb, uint8_t *src, int li, int bpp, int y, int pr, 
     for (int k = k0; k < k1; k++, x0 += 8) {
         uint32_t e = ment[k];
         if ((uint32_t)((e >> 13) & 1) != (uint32_t)pr) continue;
+        if (fpk && !(e & fpk)) continue;
         {
             uint32_t c = e & 0x3FF, q = c & 3, cb = cs[c >> 2];
             if (!(cb & fe_cs_known[q])) {
@@ -1050,7 +1098,7 @@ static uint16_t fe_add(uint32_t m, uint32_t s)
 static void fe_palette(void)
 {
     uint32_t br = game_dark() ? 0 : (game_inidisp & 15) + 1;
-    uint32_t sum = br * 0x10001u + fe_npair * 77 + FE->subm * 0x55555 + FE->gplane * 0x3333;
+    uint32_t sum = br * 0x10001u + fe_npair * 77 + FE->subm * 0x55555 + FE->gplane * 0x3333 + FE->fpok * 0x7777;
     for (int i = 0; i < 128; i++) sum = sum * 31 + spr_bgpal[i] + spr_pal[i] * 7;
     if (FE->subm) sum = sum * 31 + fe_ppu.coldata[0] + (fe_ppu.coldata[1] << 5) + (fe_ppu.coldata[2] << 10) + fe_half * 77777;
     if (sum == fe_palsum) return;
@@ -1073,6 +1121,18 @@ static void fe_palette(void)
         CRAM[129 + k] = fe_scale(fe_add(m < 128 ? spr_bgpal[m] : spr_pal[m - 128], s < 128 ? spr_bgpal[s] : spr_pal[s - 128]), br);
     }
     uint16_t bd = fe_scale(spr_bgpal[0], br);
+    if (FE->fplane && FE->fbr != br) {    /* (the plane's brightness ready before it is shown: fe_xfade's
+                                             messages carry it - 0 made it a black platform for a frame) */
+        FE->fbr = (uint8_t)br;
+        if (!FE->fpok) fe_fdsend();
+    }
+    if (FE->fpok) {                       /* (I21n) the BGs behind the front plane (its see-through pixels show
+                                             them), the sprites in front of it */
+        for (int i = 1; i < 128; i++) CRAM[i] &= 0x7FFF;
+        bd &= 0x7FFF;
+        FE->fbr = (uint8_t)br;
+        fe_fdsend();
+    }
     if (FE->gplane) {
         /* (I11) BG2 on the Genesis: pixels without a 32X layer are see-through (no priority bit - the
            Genesis backdrop is the SNES one); the plane's colours at this brightness (68000 weather keys
@@ -1504,6 +1564,76 @@ static int rare_fx(uint16_t *frame_no)
 }
 
 #endif
+/* (I21n) the title's page roll (NMI 80DAE5: the attract loop's second title, CODE_80DC94 / 80DD04 - an
+   HDMA table of BG1 V scrolls, BG1 alone on the screen): every line shows some row of the same picture,
+   most lines a different one every frame - drawn line by line that was 15 vblanks a picture on MiSTer
+   (the roll took 40 s instead of 3).  Here a line is only a line table entry: BG1 row R is drawn once
+   into canvas slot R of this buffer (rows 0 - 255 of the 256-line map: the slots run into the clean
+   copies' space, unused on this screen - no sprites), and line y points at the slot of its row
+   (y + 1 + V(y)) - the trick of Mickey Mania's rotating tower.  1: drawn this way (FB16 set) */
+static int fe_roll(int bi, int obj, uint32_t sig)
+{
+    int on = FE_ROLLON;
+    int ok = !obj && !FE->m7 && !FE->m7w && !FE->subm && !FE->gplane && !FE->fplane && FE->nfr >= 1;
+    uint32_t m0 = FE_L8[L_MODE][0], tm0 = FE_L8[L_TM][0];
+    int16_t h0 = FE_L16[L_H1][0], v0 = FE_L16[L_V1][0];
+    uint32_t sc = game_ppu(0x2107);
+    if ((m0 & 7) != 1 || (tm0 & 0x1F) != 1 || (sc & 2)) ok = 0;   /* (mode 1, BG1 alone, a 256-line map) */
+    int vary = 0;
+    for (int y = 0; y < SCREEN_H && ok; y++) {
+        if (FE_L8[L_MODE][y] != m0 || FE_L8[L_TM][y] != tm0 || (FE_L8[L_TS][y] & 0x1F) || FE_L16[L_H1][y] != h0) ok = 0;
+        vary |= FE_L16[L_V1][y] != v0;
+    }
+    if (!ok || !vary) {
+        if (on) {                         /* (out of the roll: every line drawn again, as lines) */
+            FE_ROLLON = 0;
+            for (int y = 0; y < SCREEN_H; y++) {
+                FE_LSIG[0][y] = FE_LSIG[1][y] = 0xFFFFFFFFu;
+                FE_LSIG2[0][y] = FE_LSIG2[1][y] = 0;
+                FE_LSIGA[0][y] = FE_LSIGA[1][y] = 0;
+            }
+            FE_FOK[0] = FE_FOK[1] = 0;
+        }
+        return 0;
+    }
+    if (!on) {                            /* (into the roll: the clean copies' space is the rows' now) */
+        FE_ROLLON = 1;
+        FE_ROLLK[0] = FE_ROLLK[1] = 0;
+        for (int k = 0; k < 7; k++) FE->cval[0][k] = FE->cval[1][k] = 0;
+    }
+    uint32_t key = sig ^ (uint32_t)(uint16_t)h0 * 0x9E3779B1u ^ m0 << 8, base = (sc & 0xFC) << 8;
+    if (base >= 0x7000)                   /* (the map rows' write generations) */
+        for (uint32_t r = (base - 0x7000) >> 6; r < 64 && r < ((base - 0x7000) >> 6) + 16 + (sc & 1) * 16; r++)
+            key = key * 31 + FE_TRK->rgen[r];
+    key |= 1;
+    uint32_t *rv = FE_ROLLV[bi];
+    if (FE_ROLLK[bi] != key) {
+        FE_ROLLK[bi] = key;
+        for (int k = 0; k < 8; k++) rv[k] = 0;
+    }
+    for (int y = 0; y < SCREEN_H; y++) {
+        uint32_t R = (uint32_t)(y + 1 + FE_L16[L_V1][y]) & 255;
+        if (!(rv[R >> 5] & bit32[R & 31])) {
+            rv[R >> 5] |= bit32[R & 31];
+            volatile uint8_t *line = FB8 + FB_BASE + R * CV_P + CV_XOFF;
+            if (R >= SCREEN_H) {          /* (past the canvas: its sides black too) */
+                volatile uint32_t *d = (volatile uint32_t *)line;
+                for (int c = 0; c < 8; c++) { d[c] = FE_BORDER4; d[72 + c] = FE_BORDER4; }
+            }
+            FE_L16[L_V1][0] = (int16_t)((R - 1) & 0x3FF);   /* (line 0's registers: row R) */
+            FE->xa = 0; FE->xb = 256;
+            fe_line(0, line + 32, 0);
+            FE_L16[L_V1][0] = v0;
+            FE->nlines++;
+        }
+        FB16[y] = (uint16_t)((FB_BASE + R * CV_P + CV_XOFF) >> 1);
+    }
+#ifdef FEHOST
+    if (getenv("FEROLL")) printf("  ROLL f %u bi %d key %08X sig %08X rows %u\n", game_stats.frames, bi, key, sig, FE->nlines);
+#endif
+    return 1;
+}
+
 static void fe_frame(uint16_t *frame_no)
 {
     FEDBG_MARK(0);
@@ -1664,6 +1794,43 @@ static void fe_frame(uint16_t *frame_no)
             if (l != FE_LVL[i]) { FE_LVL[i] = (uint8_t)l; FE_LGEN[i & 127] = (uint16_t)og; lchg = 1; }
         }
     }
+    if (FE->fplane) {                     /* (I21n) the front plane = BG2's map now?  (else drawn here: 64 = the
+                                             plane all see-through) */
+        uint32_t sc = game_ppu(0x2108), base = (sc & 0xFC) << 8, h = sc;
+        if (base >= 0x7000)
+            for (uint32_t r = (base - 0x7000) >> 6; r < 64 && r < ((base - 0x7000) >> 6) + 32; r++) h = h * 31 + FE_TRK->rgen[r];
+        if (h != FE->grg) {
+            FE->grg = h;
+            FE->fpmap = fe_bg2_sum(0) == FE->gsum;
+        }
+        {
+            int ok = FE->fpmap && FE->fpwant;
+            if (ok != FE->fpok) {
+                FE->fpok = ok;
+                /* the lines over BG2 map rows with palette-0 tiles: drawn again (with / without them) */
+                uint32_t rows[2] = { 0, 0 }, msz = sc & 3;
+                for (uint32_t ty = 0; ty < 64; ty++) {
+                    if ((ty & 32) && !(msz & 2)) break;
+                    uint32_t mrow = base + (ty & 31) * 32 + ((msz & 2) && (ty & 32) ? ((msz & 1) ? 0x800 : 0x400) : 0);
+                    for (uint32_t tx = 0; tx < ((msz & 1) ? 64u : 32u); tx++) {
+                        uint32_t e = fe_vword(mrow + (tx & 31) + ((tx & 32) ? 0x400 : 0));
+                        if (!(e & 0x1C00) && (e & 0x3FF)) { rows[ty >> 5] |= bit32[ty & 31]; break; }
+                    }
+                }
+                for (int y = 0; y < SCREEN_H; y++) {
+                    uint32_t ty = ((uint32_t)(y + 1) + FE_VOFS(1)) >> 3 & ((msz & 2) ? 63 : 31);
+                    if (!(rows[ty >> 5] & bit32[ty & 31])) continue;
+                    FE_LSIG[0][y] = FE_LSIG[1][y] = 0xFFFFFFFF;
+                    FE_LSIG2[0][y] = FE_LSIG2[1][y] = 0;
+                    FE_LSIGA[0][y] = FE_LSIGA[1][y] = 0;
+                }
+                FE_FOK[0] = FE_FOK[1] = 0;
+                fe_palsum = 0xFFFFFFFF;
+                FE->fpsw = 2;
+                fe_fdsend();
+            }
+        }
+    }
     if (FE->gplane) {                     /* (I11) the plane's clouds still the game's? (a map written since) */
         uint32_t sc = game_ppu(0x2108), base = (sc & 0xFC) << 8, h = sc;
         if (base >= 0x7000)
@@ -1687,6 +1854,8 @@ static void fe_frame(uint16_t *frame_no)
         }
     }
     uint32_t sig = fe_signature();
+    FE->nlines = 0;
+    if (fe_roll(bi, obj, sig)) goto roll_done;
     uint32_t dsig = sig;                  /* (lines with colour math: the dark colours decide too) */
     for (int i = 0; i < 8; i++) dsig = (dsig ^ FE->sdark[i]) * 0x01000193u;
     const uint32_t (*mk)[2] = (const uint32_t (*)[2])UNCACHED(&spr_marks[bi][0]);
@@ -1816,7 +1985,7 @@ static void fe_frame(uint16_t *frame_no)
         for (int y = 0; y < SCREEN_H; y++)
             if (lsc[y] != FE_LSIG[bi][y])
                 n += !small || lsc2[y] != FE_LSIG2[bi][y];
-        nofit = n <= 120;                 /* (~6-8 frames at most: one consistent picture, no dissolve) */
+        nofit = n <= 120 && !FE->fpsw;    /* (~6-8 frames at most: one consistent picture, no dissolve) */
 #ifndef FEHOST
         vs0 = vcount; ft0 = frt_read();
 #endif
@@ -2016,6 +2185,7 @@ static void fe_frame(uint16_t *frame_no)
         }
     }
     if (!FE->m7w && !m7 && !done && !deferred) { FE_FKEY[bi] = fkey; FE_FOK[bi] = 1; }
+    if (!done && FE->fpsw) FE->fpsw--;
 lines_done:
 #ifdef FE_NOHOLD
     if (0) {
@@ -2042,6 +2212,7 @@ lines_done:
         int yy = (y & 1) && (FE_L8[L_MODE][y] & 7) == 7 && (FE_L8[L_MODE][y - 1] & 7) == 7 ? y - 1 : y;
         FB16[y] = (uint16_t)((FB_BASE + yy * CV_P + CV_XOFF) >> 1);
     }
+roll_done:
     FE->nfr++;
 #ifdef FEDBG
     dbg_v1 = vcount;
@@ -2145,13 +2316,13 @@ lines_done:
         fedbg_h[2] = (uint16_t)(fedbg_tk[2] - fedbg_tk[1]) * 64u / FRAME_TICKS;
         fedbg_h[3] = (uint16_t)(fedbg_tk[3] - fedbg_tk[2]) * 64u / FRAME_TICKS;
         fedbg_h[4] = (uint16_t)(t4 - fedbg_tk[3]) * 64u / FRAME_TICKS;
-        present(FE->gplane ? (int32_t)FE_HOFS(1) - 32 : 0, FE->gplane ? (int32_t)FE_VOFS(1) : 0, frame_no);
+        present(FE->gplane | FE->fplane ? (int32_t)FE_HOFS(1) - 32 : 0, FE->gplane | FE->fplane ? (int32_t)FE_VOFS(1) : 0, frame_no);
         fedbg_tp = frt_read();
         fedbg_h[5] = (uint16_t)(fedbg_tp - t4) * 64u / FRAME_TICKS;
     }
 #else
     /* (I11) the Genesis plane's scroll (BG2's; the SNES picture is 32 pixels into the Genesis screen) */
-    present(FE->gplane ? (int32_t)FE_HOFS(1) - 32 : 0, FE->gplane ? (int32_t)FE_VOFS(1) : 0, frame_no);
+    present(FE->gplane | FE->fplane ? (int32_t)FE_HOFS(1) - 32 : 0, FE->gplane | FE->fplane ? (int32_t)FE_VOFS(1) : 0, frame_no);
 #endif
     fe_palette();
 #ifdef FEDBG2

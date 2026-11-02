@@ -1373,3 +1373,38 @@ blue wall to show at all (S/H only halves / doubles: black stays black) - reject
   the pattern sideways, which leaves lines unchanged (ares: ~300 changed pixels a picture in the cone
   instead of ~2000 - a shimmer).
 - Platform Perils / Tanked Up Trouble: the same (their own cone colours).
+
+### I21n (2026-11-02): the intro's platform dissolve, Stop & Go / Loopy Lights lamp cones, the title roll
+User (ares, after I21m): "wherever the lamp sprite exists, the light should be there" (too many missing
+lamps to list); the intro's platform -> jungle fade "still looks a bit flashy and glitchy" - make the
+platform's pixels go in Bayer 8 x 8 order in every tile, like Phantasy Star II's title (no colour
+values needed); the title screen's page roll "so painfully slow" - 60 fps if possible.
+- Intro (B-INTRODISSOLVE): an 8 x 8 / 64-step version of the I21h 32X dissolve was tried first - it
+  needs a step pass over the 84 mixed lines every picture (a BG fetch per line, ~25k cycles on MiSTer):
+  with a budget the lines lagged different steps behind (bands), without it a picture took 17 vblanks.
+  Now Cranky's platform (BG2 palette 0) is a Genesis plane IN FRONT of the 32X from the cross-fade's
+  second step (build_viewer FE_FPLANE, md flag 1024): the 32X draws the jungle alone (no mixing), its BG
+  colours without the priority bit (behind the plane), the sprites with it; the 68000 clears the
+  platform's tile pixels in Bayer order (fd_write: only the tile rows whose pixels change, all tiles,
+  auto-increment 32), a step or two a vblank toward the game's step (hle_intro_fade -> fe_xfade, the
+  loop's $3F counter -> 0..64; C_HUD 0xC000 | brightness << 7 | step).  Before the cross-fade the 32X
+  draws the platform (its 15-bit ramp: the Genesis levels split the art's neighbouring shades into a
+  checkerboard); the step's message goes out before fe_frame takes the priority bits away (the 68000's
+  first full write is hidden), and with the brightness (0 made it a black platform for a frame).
+  ares MiSTer model: 1 step a vblank, smooth; PicoDrive the same.
+- Lamp cones (B-LIGHTLAMPS): Stop & Go Station (11 lamps, + aliases), Loopy Lights (22) and Loopy
+  Lights' 2nd bonus room (1, now a light-switch room like Loopy) had none.  Their BG1 covers 72-86 % of
+  the screen (the walkway's 10 %), so the walkway's Genesis cone hardly shows: the cone is in two parts
+  - plane A lines over BG2 (where the 32X is see-through; colours per lights state, the window plane
+  hides it in a state without a cone) and the same lines baked into the canvas over BG1 (sh/main.c
+  lamp_lrow: a BG1 pixel becomes its palette's spare colour 0 slot = the palette's mean + the light;
+  colours whose lights-off value is lit are left alone - Loopy's wall lanterns).  Stop & Go: GO green /
+  STOP red, always on; Loopy: only with the lights on.  No swing (baked).  Cost (ares MiSTer model,
+  Loopy's first 300 frames): render 5 -> 14 % of a frame, pictures 1.54 -> 1.82 vblanks.
+- Title roll (B-TITLEROLL): the attract loop's second title (NMI 80DAE5) rolls in by BG1 per-line V
+  scrolls; two things made it ~40 s on MiSTer instead of ~3: (1) the roll code ran in the 65816
+  interpreter (83 % of the screen's time; CODE_80DCCA / DCDD / DD04 / DD1D .. loops and DB85: 20 keys
+  translated), (2) every line was redrawn every picture.  fescr.c fe_roll: on a BG1-only screen whose
+  lines differ only in V, each BG1 row is drawn once into canvas slot R of the buffer and a line is a
+  line table entry (Mickey Mania's trick).  Now 60 fps in ares (30 in the MiSTer model).
+
