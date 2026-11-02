@@ -75,7 +75,9 @@ them. Keep this file current when something structural changes.
 - Per level a "render mode" (cv): 0 classic tile rows, 1 fused canvas (most levels), 2 / 3 fog
   canvases (Misty / Poison Pond transparency), Torchlight beam (bm_*), rain (Ropey), snow weather,
   lamps (walkway levels), ripple (water levels, BG1 per-line shift + Genesis H-scroll), overlays.
-- Lamp levels (I18 / I21f): S/H on; BG2 (wall) shadowed and dithered between the shadow levels (matrix =
+- Lamp levels (I21m, the steady wall): S/H on; BG2 (wall) in a fixed palette (the game's middle
+  brightness, darks lifted, no flicker / dither); the cone = plane A lines, still (md lc_still).
+- Lamp levels before I21m (I18 / I21f, LAMP_STEADY=0): S/H on; BG2 (wall) shadowed and dithered between the shadow levels (matrix =
   Bayer with rows 2-3 rotated: both checkerboard halves get every other threshold); lantern cells
   (colours above the shadow range) high priority, normal levels; the cone = plane A 50 % dots at the
   shadow levels, the other half every vblank by a 1-line V scroll (68000 lc_ph).
@@ -237,6 +239,8 @@ them. Keep this file current when something structural changes.
   14 main sprite slots or 8 palettes; the game skips what does not fit, and a skipped group member is
   gone for good (I21d palettes, I21i Barrel Cannon Canyon's groups): fall back to the SNES windows.
 - Sprite palette 7 (CRAM 253-255) is game data, not free HUD colours.
+- Nothing that alternates every frame survives an emulator that is not locked to the display (ares
+  repeats / drops pictures): flicker tricks flash there (I21f -> I21m).
 - Frame buffer writes are the 32X's scarcest resource (MiSTer model: a 16-bit write ~ 20 SH-2 cycles,
   both CPUs share the bus): a layer that moves against the canvas (parallax) costs its area twice every
   picture (draw + restore).  Count bus words, not instructions; byte / word mixes (put_row8) beat
@@ -415,6 +419,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   request, B-PDBOOT); the millstone drawn from the picture's own snapshot (B-MSSNAP, 60 FPS MODE).
 - I21g: the flicker's table follows plane B's scroll parity (steady at any 32X frame rate,
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
+- I21m: the steady lamp wall (no flicker: ares repeats / drops pictures, every 60 Hz trick flashes
+  there), still cone lines.
 - I21k: a 32X-drawn walkway wall with real lamp light (prototype) - about half the frame rate; dropped
   in I21l (sources back to I21j, the prototype kept in the I21k commit / NOTES I21k).
 Open:

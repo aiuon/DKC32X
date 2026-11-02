@@ -71,6 +71,12 @@ static int16_t lc_op = -1;                  /* lamp being written / cleared, its
 static const uint16_t *fl_a, *fl_b;
 static uint16_t fl_on, fl_ph, fl_k, fl_sel;
 static uint16_t lc_row, lc_clear;
+static uint16_t lc_still;                   /* (I21m) the cone stays still: no half swap, no odd-frame flicker step */
+/* (I21m) the steady lamp wall's cone: S/H highlight sprites (palette 3 colour 14: the shadowed wall under
+   them at normal brightness), a 32 x 32 sprite grid per lamp image, each sprite row skewed by the swing */
+static const uint16_t *lh_pos, *lh_spr, *lh_swing;
+static uint16_t lh_n, lh_ns, lh_pivot, lh_on;
+static uint16_t lh_buf[80 * 4];
 /* Slipslide glimmer (md flag 128): highlight sprites over the BG2 crystals, timed like the SNES
    (CODE glow routine: 0x60-0x9F frames apart, 4 glimmers x 8 frames at new random positions) */
 static const uint16_t *gl_blk;
@@ -98,6 +104,47 @@ static inline void cram_w(uint16_t a)
 static inline void vsram_w(uint16_t a)
 {
     VDP_CTRL32 = 0x40000010UL | ((uint32_t)(a & 0x3FFF) << 16);
+}
+
+static void lh_write(uint16_t camx, uint16_t camy)
+{
+    /* the swing as the cone's per-line H scroll (CODE_80B891, md update_scroll's lc path), one value
+       per 32-line sprite row (at its middle line) */
+    int16_t cy = (int16_t)(camy + 1);
+    uint16_t f2 = (uint16_t)(last_frame << 1), p = f2 & 0x7F;
+    if (p & 0x40) p ^= 0x7F;
+    int16_t v = (int16_t)(lh_swing[p] >> 1);
+    if (f2 & 0x80) v = (int16_t)~v;
+    int16_t W = (int16_t)(v >> 1);
+    uint16_t n = 0;
+    for (uint16_t i = 0; i < lh_n; i++) {
+        int16_t ox = (int16_t)(uint16_t)(lh_pos[2 * i] * 8 - camx);
+        int16_t oy = (int16_t)(uint16_t)(lh_pos[2 * i + 1] * 8 - (uint16_t)cy);
+        if (ox >= 320 + 64 || ox <= -176 - 64 || oy >= 224 || oy <= -224) continue;
+        for (uint16_t k = 0; k < lh_ns; k++) {
+            const uint16_t *e = lh_spr + k * 3;
+            int32_t acc = (int16_t)(e[1] + 16 - lh_pivot);
+            int32_t mw = -W;
+            __asm__("muls.w %1,%0" : "+d"(acc) : "d"(mw));
+            acc -= (int32_t)(W >> 4) << 8;
+            int16_t x = (int16_t)(ox + e[0] + (int16_t)(acc >> 8)), y = (int16_t)(oy + e[1]);
+            if (x <= -32 || x >= 320 || y <= -32 || y >= 224 || n >= 80) continue;
+            uint16_t *b = lh_buf + n * 4;
+            b[0] = (uint16_t)(y + 128);
+            b[1] = 0x0F00 | (uint16_t)(n + 1);
+            b[2] = 0x6000 | e[2];
+            b[3] = (uint16_t)(x + 128);
+            n++;
+        }
+    }
+    VDP_CTRL = 0x8F02;
+    vram_w(VRAM_SPRITES);
+    if (!n) {
+        VDP_DATA = 0; VDP_DATA = 0; VDP_DATA = 0; VDP_DATA = 0;
+        return;
+    }
+    lh_buf[(n - 1) * 4 + 1] &= 0xFF00;          /* (the list ends there) */
+    for (uint16_t i = 0; i < n * 4; i++) VDP_DATA = lh_buf[i];
 }
 
 static void bm_write(void)
@@ -353,6 +400,7 @@ static void do_command(uint16_t cmd)
         active = 0;
         anim_n = 0;
         lc_on = 0;
+        lh_on = 0;
         hv_on = 0;
         gl_on = 0;
         wx_tab = 0;
@@ -388,6 +436,7 @@ static void do_command(uint16_t cmd)
         wx_tab = 0;
         wx_buf_ready = 0;
         lc_on = 0;
+        lh_on = 0;
         fl_on = 0;
         gl_on = 0;
         bm_lvl = bm_on = 0;
@@ -502,10 +551,13 @@ static void load_md(const uint16_t *md)
             after = hv_frames + 8 * 1024;
         }
         lc_on = 0;
+        lh_on = 0;
         fl_on = 0;
         if (planes & 64) {                      /* lamp cones */
             lc_n = after[0] > 16 ? 16 : after[0];
             lc_pivot = after[1];
+            lc_still = after[2];                /* (I21m) the steady wall's cone */
+            lc_ph = 0;
             lc_pos = after + 4;
             lc_map = lc_pos + 2 * after[0];
             lc_cols = lc_map + 28 * 22;
@@ -548,6 +600,16 @@ static void load_md(const uint16_t *md)
             fl_sel = 0xFFFF;
             fl_on = 1;
         }
+        if (planes & 512) {                     /* (I21m) the highlight cone */
+            lh_n = after[0];
+            lh_ns = after[1] > 64 ? 64 : after[1];
+            lh_pivot = after[2];
+            lh_pos = after + 4;
+            lh_spr = lh_pos + 2 * after[0];
+            lh_swing = lh_spr + 3 * after[1];
+            after = lh_swing + 64;
+            lh_on = 1;
+        }
         bm_ax = BM_AX0; bm_ay = BM_AY0;
         bm_write();                             /* no sprites (the SAT's first entry ends the list) */
         VDP_CTRL = 0x8400 | VRAM_PLANE_B / 0x2000;
@@ -579,6 +641,12 @@ static void fe_plane(uint16_t i)
     wx_tab = 0;
     wx_buf_ready = 0;
     lc_on = 0;
+    if (lh_on) {                                /* (I21m) the lamp cone's sprites off */
+        VDP_CTRL = 0x8F02;
+        vram_w(VRAM_SPRITES);
+        VDP_DATA = 0; VDP_DATA = 0; VDP_DATA = 0; VDP_DATA = 0;
+    }
+    lh_on = 0;
     fl_on = 0;
     gl_on = 0;
     hv_on = 0;
@@ -925,7 +993,7 @@ static RAM_CODE void lc_colours(void)
     if (t1 & 0x40) t1 ^= 0x7F;
     if (t2 & 0x40) t2 ^= 0x7F;
     uint16_t d = (t1 + t2) >> 5;
-    if ((f & 1) && ((t1 + t2) & 16)) d++;
+    if ((f & 1) && ((t1 + t2) & 16) && !lc_still) d++;    /* (I21m: that step alternates every frame) */
     if (d > 3) d = 3;
     if (d != lc_d) {
         lc_d = d;
@@ -1039,6 +1107,7 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
             last_frame = f;
             update_scroll(vcx, vcy, fx == 6 && !lc_on ? 32 : 0);
             if (bm_lvl) bm_write();
+            if (lh_on) lh_write(vcx, vcy);
         }
         if (hv_on) {                            /* blizzard (CODE_808B1F): frames, wind drift + sway */
             uint16_t f = COMM(C_FRAME);         /* (the 32X draws the same flakes over BG1) */
@@ -1066,7 +1135,7 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
             VDP_DATA = V;
         }
         if (lc_on) {
-            lc_ph ^= 1;                         /* (I18) the cone's other checkerboard half */
+            if (!lc_still) lc_ph ^= 1;          /* (I18) the cone's other checkerboard half */
             VDP_CTRL = 0x8F02;
             vsram_w(0);
             VDP_DATA = (uint16_t)(lc_vy + lc_ph) & 0x3FF;

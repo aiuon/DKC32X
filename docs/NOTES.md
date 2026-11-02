@@ -1915,3 +1915,15 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
 - sh/main.c, sh/sprites.c, sh/fescr.c, tools/build_viewer.py back to I21j (bundle21j copies); the I21k
   versions saved in /tmp/claude-0/wall/i21k_src and the git commit "I21k".  Plain build md5 a3a996c1...
   (= I21j), so the I21j checks (GAMEBOT / STACKCHK / boot sweep / reg.py / bundle runs) stand.
+## 2026-11-01: I21m - the steady lamp wall (BUGLOG "I21m")
+- build_viewer: LAMP_STEADY (1), STEADY_DIM / GAIN / GAMMA (2, 1.3, 0.85), steady_gen (colkey of the wall
+  palette 1 in lamp levels), CONE_LINES (1), lamp 'C' header word 2 = still.  Tests kept: LAMP_HCONE=1 (the
+  cone as S/H highlight sprites, md flag 512, lh_write: 32 x 32 sprites per lamp image, skewed per sprite
+  row), STEADY_BLUE=1 (the wall's black as shadowed blue 1 so the highlight shows), LH_PIX / LH_THRESH.
+  LAMP_STEADY=0 = the I21f flicker wall.
+- Mock-up scripts: /tmp/claude-0/mock (mock.py, mock_ramp.py, mock_final.py: SNES wall + BG1 renders,
+  Genesis S/H per cell, blue-noise / mist variants).  Findings: the Genesis's dark levels per channel are
+  0 / 29 / 52 (shadow); a mist only flattens (no new levels); the hybrid idea would still have the 32X
+  redraw ~40 % of the screen every picture.
+- Checks: plain build md5 dd499f41... (tools/prebuilt/md.bin refreshed); Linux convert.py and Wine .bat runs byte-identical; GAMEBOT 12000 + STACKCHK 1976 / 1372; pd_dbg boot 400 frames: no
+  BADEND / BADRUN (BADSYNC count as I21l); ares runs of D9 / 30 / 2B.

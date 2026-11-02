@@ -170,6 +170,37 @@ def tile_is_full(ts, e):
 
 
 # ------------------------------------------------------------------ Genesis planes
+STEADY_PAL = {}                # (I21m) DATA_B9A2FC (the walkway wall palette), filled by build_level
+
+
+def steady_gen(rgb5, shadow, blue=True):
+    """(I21m) the steady lamp wall's Genesis colour (gen_level word) of a DATA_B9A2FC colour (5-bit)"""
+    t = [max(0, c - STEADY_DIM) * 255.0 / 31 for c in rgb5]
+    lum = lambda c: 0.30 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+    lt = lum(t)
+    lv = [GEN_LEVELS[L] if shadow else GEN_LEVELS[L * 2] for L in range(8)]
+    best = None
+    dark = lt < 70
+    if dark and lt > 0:
+        l2 = 255 * (lt / 255.0) ** STEADY_GAMMA * STEADY_GAIN
+        t = [c * l2 / lt for c in t]
+        lt = l2
+    for r in range(8):
+        for g in range(8):
+            for b in range(8):
+                c = (lv[r], lv[g], lv[b])
+                if dark:
+                    lc = lum(c)
+                    e = 4 * (lc - lt) ** 2 + sum(((x - lc) - (y - lt)) ** 2 for x, y in zip(c, t))
+                else:
+                    e = sum(w * (x - y) ** 2 for w, x, y in zip((3, 4, 2), c, t))
+                if best is None or e < best[0]:
+                    best = (e, r << 1 | g << 5 | b << 9)
+    if shadow and best[1] == 0 and STEADY_BLUE and blue:
+        return 1 << 9                         # (black: blue 1 - shadowed 0 0 29, under the highlight cone 0 0 52)
+    return best[1]
+
+
 def gen_level(c5, shadow):
     out = 0
     for i in range(3):
@@ -488,14 +519,14 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
     # so the dark walls get 9 shades between the shadow levels 0 / 29 / 52 instead of 3.  Plain colours
     # are (g, g).  Mixes only where they help (FL_MIN_ERR / FL_GAIN), per SNES palette the biggest gains
     # first while its colours fit a palette line; no room -> stricter, then none.
-    flick = flick_out is not None and normal and day is None and LAMP_FLICK
+    flick = flick_out is not None and normal and day is None and LAMP_FLICK and not LAMP_STEADY
     fl_thr = [(FL_MIN_ERR, FL_GAIN)]
 
     def tdither(pi, k):
         """lamp levels: 4x4 ordered dither (I11) - in the shadowed cells between the fine shadow levels
         (0 / 29 / 52 ..: a faint pattern, the wall's browns on average), in the lantern cells between
         the normal levels (their glow next to the shadowed wall).  (I21f: LAMP_FLICK=0 only)"""
-        return normal and day is None and not flick
+        return normal and day is None and not flick and not LAMP_STEADY
 
     fp_cache = {}
     fp_err = {}
@@ -683,6 +714,8 @@ def genesis_planes(vram, cg, lv, planes, dyn_layer=None, anim=None, ents_overrid
         """Genesis colour of SNES colour base + v (a tuple over the keyframes for weather levels)."""
         if pi['layer'] == dyn_layer and v == 1:
             return 'DYN'
+        if LAMP_STEADY and normal and day is None and pi['layer'] == 2 and base == 16:
+            return steady_gen(snes_rgb(STEADY_PAL[v]), sh, lv['entrance'] not in STEADY_WARM)   # (I21m) the steady wall
         ks = tuple(gen_level([min(31.0, x * lift) for x in apply_colormath(snes_rgb(q[(base + v) * 2] | q[(base + v) * 2 + 1] << 8),
                                                                           regs, pi['layer'])] if qi in nomath else
                              apply_colormath(snes_rgb(q[(base + v) * 2] | q[(base + v) * 2 + 1] << 8), regs, pi['layer']),
@@ -1552,6 +1585,18 @@ PD_MIN_ERR = float(os.environ.get('PD_MIN_ERR', '1500'))  # (I20: weighted squar
                                                           # with the shadow levels only clear misses get a checkerboard)
 PD_GAIN = float(os.environ.get('PD_GAIN', '0.6'))         # (the mix must be this much better than the nearest)
 LAMP_FLICK = int(os.environ.get('LAMP_FLICK', '1'))       # (I21f) lamp levels: flicker checkerboard (0 = the I18 Bayer dots)
+# (I21m) lamp levels: the STEADY wall (user's pick "B" of the I21l mock-ups): no flicker, no dither - the
+# wall at the game's middle brightness (DATA_B9A2FC - 2), its dark colours lifted (luminance^0.85 x 1.3)
+# onto the Genesis shadow levels by luminance first and hue second (no olive / red flips); the cone = S/H
+# highlight sprites (the wall under it at normal brightness - light, not blue)
+LAMP_STEADY = int(os.environ.get('LAMP_STEADY', '1'))
+STEADY_DIM, STEADY_GAIN, STEADY_GAMMA = 2, 1.3, 0.85
+STEADY_BLUE = int(os.environ.get('STEADY_BLUE', '0'))     # (test) the wall's black as a shadowed blue (for LAMP_HCONE)
+LAMP_HCONE = int(os.environ.get('LAMP_HCONE', '0'))       # (test, I21m) the cone as S/H highlight sprites (user: no)
+CONE_LINES = int(os.environ.get('CONE_LINES', '1'))       # (I21m) the steady cone's pattern: 1 lines (the swing shifts a checkerboard: shimmer), 0 checkerboard
+STEADY_WARM = {0x2B}          # (Platform Perils: warm lamps - the black stays black)
+LH_PIX = int(os.environ.get('LH_PIX', '14'))             # (test: 1-13 = a visible palette 3 colour)
+LH_THRESH = int(os.environ.get('LH_THRESH', '3'))         # cone light levels >= this are lit (highlight)
 FL_MIN_ERR = float(os.environ.get('FL_MIN_ERR', '150'))   # (I21f) flicker pairs: error below which the nearest level is kept
 FL_GAIN = float(os.environ.get('FL_GAIN', '0.8'))
 FL_QUARTER = int(os.environ.get('FL_QUARTER', '1'))       # (I21f) 1/4 and 3/4 mixes too
@@ -1694,7 +1739,7 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
                     v = min(10, int(L5[iy, ix]))
                     # (levels 1-2 add at most 2 x 2 and nothing at all with the flicker's d: their
                     # dots would only show the scene mean - left out, the faint halo goes with them)
-                    if v >= 3 and not ((iy if LAMP_FLICK else ix + iy) & 1):
+                    if v >= 3 and not ((iy if (CONE_LINES if LAMP_STEADY else LAMP_FLICK) else ix + iy) & 1):
                         t[y * 4 + (x >> 1)] |= v << (0 if x & 1 else 4)
                         any_ = True
             if any_:
@@ -1718,6 +1763,24 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
     swing = list(rom.read(0x808BA8, 64)) + [0] * 62          # (block layout: 126 words)
     cone = dict(lamps=[((x - 91) >> 3, (481 - y) >> 3) for x, y in lamps], map=cmap, tiles=ctiles,
                 cols=gcols, swing=swing, pivot=24)
+    # (I21m) the steady wall's cone: S/H highlight sprites (palette 3 colour 14) where the light level is
+    # >= LH_THRESH, 32 x 32 sprites on the image's 32-pixel grid (rows skewed by the swing per 32 lines,
+    # md lh_write), each its own 16 tiles (sprite tiles run down the columns first)
+    spr, stiles = [], []
+    for by in range(0, H, 32):
+        for bx in range(0, W, 32):
+            px = [[LH_PIX if by + y < H and bx + x < W and L5[by + y, bx + x] >= LH_THRESH else 0 for x in range(32)]
+                  for y in range(32)]
+            if not any(any(r) for r in px):
+                continue
+            t0 = len(stiles)
+            for tx in range(4):
+                for ty in range(4):
+                    q = [[px[ty * 8 + y][tx * 8 + x] for x in range(8)] for y in range(8)]
+                    stiles.append(bytes((q[y][x] << 4) | q[y][x + 1] for y in range(8) for x in range(0, 8, 2)))
+            spr.append((bx, by, t0))
+    cone['hl'] = dict(spr=spr, tiles=stiles)
+    print('   lamps: highlight cone %d sprites, %d tiles' % (len(spr), len(stiles)))
     print('   lamps: %d, %d shade colours, Genesis cone %d tiles' % (len(lamps), len(cols), len(ctiles)))
     return blk, cone
 
@@ -2093,6 +2156,8 @@ def snow_block(L, lv, snow, wx):
 
 
 def build_level(L, lv, tilesets):
+    if not STEADY_PAL:
+        STEADY_PAL.update({i: L.rom.u16(0xB9A2FC + i * 2) for i in range(16)})
     flick = {}                                   # (I21f) lamp levels: CRAM B of the flicker checkerboard
     rom = L.rom
     t = TYPES[lv['nmi']]
@@ -2383,24 +2448,34 @@ def build_level(L, lv, tilesets):
     lamp = None
     if lv['entrance'] in LAMP_SPR:
         lamp, cone = lamp_block(L, lv, bg1_opaque_fn(ts, grid, gw, gh, cx0, cy0), vram, cg)
-        # (I18) S/H on: the cone on plane A in front of BG2 on plane B, both low priority = shadowed
-        # (the cone colours at the shadow levels), except BG2's bright cells (the lanterns, normal
-        # colours): high priority, in front of the cone - its dots would darken them (a dot replaces
-        # the pixel: the light could only be added where the scene is dark)
-        for g in gmaps.values():
-            assert not any(v and (v >> 13) & 3 == 3 for v in g['map']), 'lamps: palette line 3 in use'
-        assert not any(v & 0x8000 for k, g in gmaps.items() if k != 'B' for v in g['map'])
-        print('   lamps: %d of %d BG2 cells bright (in front of the cone)' % (
-            sum(1 for v in gmaps['B']['map'] if v & 0x8000), len(gmaps['B']['map'])))
-        assert not any(gcram[48 + 1:48 + 11]), 'lamps: CRAM line 3 colours in use'
-        t0 = len(gtiles)
-        assert t0 + len(cone['tiles']) < 0x500
-        gtiles = gtiles + cone['tiles']
-        cone['tile0'] = t0
-        cone['map'] = [(t0 + i - 1) | 3 << 13 if i else 0 for i in cone['map']]
-        gmaps['A'] = dict(map=[0] * (64 * 64), w=64, h=64, shadow=False, layer=None, fixed=True)
-        gmaps['C'] = cone
-        assert all(len(g.get('map', [])) for g in gmaps.values())
+        if LAMP_STEADY and LAMP_HCONE:
+            # (I21m test) the steady wall: no plane A cone - S/H highlight sprites ('H2', md flag 512)
+            assert not any(v & 0x8000 for k, g in gmaps.items() if k != 'B' for v in g['map'])
+            t0 = (len(gtiles) + 15) & ~15
+            hl = cone['hl']
+            assert t0 + len(hl['tiles']) < 0x500, 'lamps: no VRAM for the highlight cone'
+            gtiles = gtiles + [b'\0' * 32] * (t0 - len(gtiles)) + hl['tiles']
+            gmaps['H2'] = dict(map=[0], lamps=cone['lamps'], spr=[(bx, by, t0 + t) for bx, by, t in hl['spr']],
+                               swing=cone['swing'], pivot=cone['pivot'])
+        else:
+            # (I18) S/H on: the cone on plane A in front of BG2 on plane B, both low priority = shadowed
+            # (the cone colours at the shadow levels), except BG2's bright cells (the lanterns, normal
+            # colours): high priority, in front of the cone - its dots would darken them (a dot replaces
+            # the pixel: the light could only be added where the scene is dark)
+            for g in gmaps.values():
+                assert not any(v and (v >> 13) & 3 == 3 for v in g['map']), 'lamps: palette line 3 in use'
+            assert not any(v & 0x8000 for k, g in gmaps.items() if k != 'B' for v in g['map'])
+            print('   lamps: %d of %d BG2 cells bright (in front of the cone)' % (
+                sum(1 for v in gmaps['B']['map'] if v & 0x8000), len(gmaps['B']['map'])))
+            assert not any(gcram[48 + 1:48 + 11]), 'lamps: CRAM line 3 colours in use'
+            t0 = len(gtiles)
+            assert t0 + len(cone['tiles']) < 0x500
+            gtiles = gtiles + cone['tiles']
+            cone['tile0'] = t0
+            cone['map'] = [(t0 + i - 1) | 3 << 13 if i else 0 for i in cone['map']]
+            gmaps['A'] = dict(map=[0] * (64 * 64), w=64, h=64, shadow=False, layer=None, fixed=True)
+            gmaps['C'] = cone
+            assert all(len(g.get('map', [])) for g in gmaps.values())
     lv['_gmaps'] = gmaps
     return dict(lv=lv, type=t, ts=ts, grid=grid, gw=gw, gh=gh, cx0=cx0, cy0=cy0, overlays=overlays,
                 pal=pal, sky=sky, gtiles=gtiles, gmaps=gmaps, gcram=gcram, ganim=ganim, gcram2=flick.get('cram2'),
@@ -2826,7 +2901,8 @@ def md_block(b, pf=None):
     gm = pf['gmaps'] if pf else b['gmaps']
     tall = any(g.get('h') == 64 for g in gm.values())
     flags = (1 if 'A' in gm else 0) | (2 if 'B' in gm else 0) | (4 if tall else 0) | (8 if 'S' in gm else 0) | \
-        (16 if 'H' in gm else 0) | (32 if 'L' in gm else 0) | (64 if 'C' in gm else 0) | (128 if 'G' in gm else 0)
+        (16 if 'H' in gm else 0) | (32 if 'L' in gm else 0) | (64 if 'C' in gm else 0) | (128 if 'G' in gm else 0) | \
+        (512 if 'H2' in gm else 0)
     cram2 = None if pf else b.get('gcram2')
     if cram2:
         flags |= 256                             # (I21f) flicker: CRAM B (lines 0-2) swapped in every other vblank
@@ -2902,7 +2978,8 @@ def md_block(b, pf=None):
         # lamp cones on plane A: u16 nlamps, pivot row, 0, 0, (cell x, cell y)[n], map[28][22] (plane
         # words), colours[4][10] (flicker d x level), swing: the game's sine DATA_808BA8[64] + 62 x 0
         c_ = gm['C']
-        hdr += be16(len(c_['lamps'])) + be16(c_['pivot']) + be16(0) + be16(0)
+        # (I21m) word 2 = 1: a still cone (the steady wall: no per-vblank alternation, no per-frame flicker step)
+        hdr += be16(len(c_['lamps'])) + be16(c_['pivot']) + be16(1 if LAMP_STEADY else 0) + be16(0)
         hdr += b''.join(be16(x) + be16(y) for x, y in c_['lamps'])
         hdr += b''.join(be16(v) for v in c_['map'])
         hdr += b''.join(be16(v) for v in c_['cols'])
@@ -2921,6 +2998,14 @@ def md_block(b, pf=None):
     if cram2:
         # (I21f) flicker: CRAM B, 64 words (the 68000 writes words 0-47 = lines 0-2 every other vblank)
         hdr += b''.join(be16(c) for c in cram2)
+    if 'H2' in gm:
+        # (I21m) the steady wall's highlight cone: u16 nlamps, nsprites, pivot row, 0, (cell x, cell y)[n] of
+        # the image origins, (x, y, first tile)[nsprites] in the image, the swing sine DATA_808BA8[64]
+        h_ = gm['H2']
+        hdr += be16(len(h_['lamps'])) + be16(len(h_['spr'])) + be16(h_['pivot']) + be16(0)
+        hdr += b''.join(be16(x) + be16(y) for x, y in h_['lamps'])
+        hdr += b''.join(be16(x) + be16(y) + be16(t_) for x, y, t_ in h_['spr'])
+        hdr += b''.join(be16(v) for v in h_['swing'][:64])
     if pf:
         # streamed plane A: u16 gw, gh, ox0, oy0, nvch, pad, grid[gw*gh], vch[nvch*16]
         hdr += be16(pf['gw']) + be16(pf['gh']) + be16(pf['ox0']) + be16(pf['oy0']) + be16(len(pf['vch']) // 16) + be16(0)

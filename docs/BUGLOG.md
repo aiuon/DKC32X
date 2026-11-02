@@ -1356,3 +1356,20 @@ User (I21k, ares): far too slow, and tile glitches after losing a life (screensh
   Winky's Walkway: clean (PicoDrive shots, Kritter hits, DK -> Diddy, game over).
 - The user plays on ares: the flicker's doubled / missed frames come from ares presenting its ~59.9 Hz
   pictures on the host display (a repeated or skipped picture shows one checkerboard phase twice).
+
+### I21m (2026-11-01): the lamp levels' wall without flicker (the steady wall)
+User (ares): no settings combination stopped the I21f flicker wall from flashing (still when standing,
+flashing again when the Kongs move).  Asked for a non-flashing mode; picked mock-up "B" (a bit brighter
+than the SNES) and the lamps' cone as before; the S/H highlight-sprite cone (also built) needed a dark
+blue wall to show at all (S/H only halves / doubles: black stays black) - rejected.
+- Why ares flashes: it shows its ~59.9 Hz pictures on the host display, a repeated or dropped picture
+  shows one flicker phase twice.  Any every-other-frame trick has that problem there.
+- The steady wall (tools/build_viewer.py LAMP_STEADY, default on): no flicker CRAM, no dither; the wall
+  palette fixed at the game's middle brightness (DATA_B9A2FC - 2, the SNES pulses -0 .. -4), its dark
+  colours lifted (luminance^0.85 x 1.3) and matched to the Genesis shadow levels by luminance first, hue
+  second (steady_gen: no olive / red flips); lantern cells normal as before.
+- The cone: the I21g lines, now still (md lc_still: no per-vblank half swap, no odd-frame flicker step -
+  that step alternates the cone colours every frame).  Lines rather than a checkerboard: the swing shifts
+  the pattern sideways, which leaves lines unchanged (ares: ~300 changed pixels a picture in the cone
+  instead of ~2000 - a shimmer).
+- Platform Perils / Tanked Up Trouble: the same (their own cone colours).
