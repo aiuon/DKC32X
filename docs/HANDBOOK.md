@@ -80,7 +80,9 @@ them. Keep this file current when something structural changes.
 - Light-switch lamp levels (I21o, Stop & Go / Loopy Lights / Loopy's bonus 2): the cone baked into
   the canvas (lamp_lrow: BG1 colours -> 13 lit cluster colours in the spare colour-0 entries, solid
   above, Bayer-dithered where the light fades) + S/H highlight sprites over BG2 from the same mask;
-  per lights state; still.
+  per lights state.  I21p: they swing (the 32X edges moved per line by the slave's job 3,
+  lamp_swing_pass; menu LAMP SWING), BG2's black is see-through on the Genesis and lit by CRAM 240
+  (no priority bit) inside the cone.
 - Front-end extras (I21n): the intro platform = a front Genesis plane dissolved by the 68000
   (FE_FPLANE, fd_write); BG1-only per-line-V screens (the title roll) drawn as cached rows + line
   table (fe_roll).
@@ -147,7 +149,7 @@ them. Keep this file current when something structural changes.
   dissolve's records (FE_WD, FE_MIXM / S, FE_DW, FE_DY, FE_DSUB, FE_SBLK - NOTES I21h).
 
 ### 4.3 ROM
-- First 256 KB: 68000 code, SH-2 boot + code, .data image, .sdgame image (finalize.py checks; ~3.9 KB
+- First 256 KB: 68000 code, SH-2 boot + code, .data image, .sdgame image (finalize.py checks; ~0.8 KB
   free).
 - Pack at 0x40000 (music, level data, front-end tables, palettes); game code at GAME_BASE; resident
   SNES pages. Resident end must stay <= 0x300000 (0x2FFD50 after I16 and I18 - FULL, 688 bytes left;
@@ -316,8 +318,9 @@ them. Keep this file current when something structural changes.
   (xg) - 0.3 - 2.3 s of MiSTer time per level start.  IKEYPROF on the real ROM counts every frame.
 - (I19) Room for translated code: the resident game region ends at 3 MB and GAME_BASE follows the
   pack, so shrinking SH-2 code does not move it.  The first 256 KB has its own room (~38 KB after
-  I19): put functions there with data/lowrom.txt (LOWROM_FN).  Each translated key also adds a
-  16-byte dispatch entry to the resident region (~0.4 KB free there now).
+  I19; ~0.8 KB after I21p - a GAMEBOT test build needs ~0.8 KB of it): put functions there with
+  data/lowrom.txt (LOWROM_FN).  Each translated key also adds a 16-byte dispatch entry to the resident
+  region (resident end 0x2FFEC0 after I21p: ~300 bytes).
 - (I20) Genesis S/H: a pixel is shadowed only if both planes' cells there are low priority (even
   transparent ones), and a high-priority plane B cell is drawn over a low plane A cell: per-cell
   shadow works for one plane, or for two when plane B is shadowed throughout.
@@ -433,6 +436,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
 - I21m: the steady lamp wall (no flicker: ares repeats / drops pictures, every 60 Hz trick flashes
   there), still cone lines.
+- I21p: cabins catch up logic frames + their NMI translated (Candy / Funky barrel no longer slow), the
+  light-switch cones swing (option LAMP SWING) and light BG2's black.
 - I21o: title squish translated (row cache kept for the whole screen), light-switch cones as lit
   colours + highlight sprites (the I21n lines looked like neon).
 - I21n: intro platform dissolve on a front Genesis plane (Bayer 8 x 8 per tile), Stop & Go / Loopy
@@ -440,7 +445,10 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
 - I21k: a 32X-drawn walkway wall with real lamp light (prototype) - about half the frame rate; dropped
   in I21l (sources back to I21j, the prototype kept in the I21k commit / NOTES I21k).
 Open:
-- The light-switch levels' cones do not swing (the SNES's do, ~±13 px at row 100).
+- LAMP SWING costs ~1/3 more time per picture in Loopy / S&G on ares although the pass's work is small
+  (I21p): find where the time goes (job 3 elapsed vs instructions).
+- Side bars flashing "when saving" (user, I21p): not reproduced in ares dumps of Candy's cabin.
+- Cabins: CODE_80FB59 (cabin frame logic, 4.4 KB translated) still interpreted - no ROM room.
 - OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch
   WS_TUNE / r65_ws): waiting for the user's playthrough.  If a level breaks (I15: a barrel group in
   Barrel Cannon Canyon lost a member when only the spawn windows were widened), SNES restores the

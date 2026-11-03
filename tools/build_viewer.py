@@ -1852,20 +1852,21 @@ def lamp_block(L, lv, bg1_opaque=None, vram=None, cg=None):
     print('   lamps: highlight cone %d sprites, %d tiles' % (len(spr), len(stiles)))
     print('   lamps: %d, %d shade colours, Genesis cone %d tiles' % (len(lamps), len(cols), len(ctiles)))
     if llt:
-        # (I21n) the 32X's part (lights block tail, sh/main.c lamp_row lit mode): the cone levels image
-        cone['swing'] = [0] * 126                     # (the 32X's dots are baked into the canvas: still)
-        cone['pivot'] = 0
+        # (I21n) the 32X's part (lights block tail, sh/main.c lamp_lrow): (I21p) the cones swing on both
+        # sides now - the Genesis highlight sprites per 32-line row (md lh_write, the real swing table and
+        # pivot), the 32X per line: each image row's silhouette span [xl, xr) and its light (Bayer
+        # threshold / 8, the pattern anchored to the level so that a swing changes only the edges)
         rows = [iy for iy in range(H) if (L5[iy] >= 1).any()]
         h32 = (max(rows) + 8) & ~7 if rows else 8
-        # the 32X's rows: the lit pixels as a bit mask [rows][22] (bit 7 = the leftmost pixel of 8)
         rows_ = b''
         for iy in range(h32):
-            for bx8 in range(0, W, 8):
-                m = 0
-                for c in range(8):
-                    if lmask[iy][bx8 + c]:
-                        m |= 0x80 >> c
-                rows_ += bytes([m])
+            xs = [ix for ix in range(W) if L5[iy, ix] >= 1]
+            if xs:
+                # (the captured edges have 1-pixel notches: the span fills them)
+                rows_ += bytes((xs[0], xs[-1] + 1, min(8, rmax[iy]), 0))
+            else:
+                rows_ += bytes(4)
+        rows_ += bytes(rom.read(0x808BA8, 64))       # (the swing table, as md's lh_swing)
         return dict(lamps=sorted(lamps), img=rows_, h=h32), cone
     return blk, cone
 
@@ -2580,20 +2581,49 @@ def build_level(L, lv, tilesets):
                     continue
                 cs.append(c)
             feats = [tuple(ch_(wx['pkeys'][si][c], j) for si in range(len(sts)) for j in range(3)) for c in cs]
-            cents, asg = _wkmeans(feats, [used[c] for c in cs], len(LAMP_LSLOTS))
+            # (I21p) the last slot (CRAM 240) = BG2's black under the cone: BG1's see-through pixels in the
+            # cone take it, without the priority bit - the 32X shows it only where the Genesis shows its
+            # backdrop, which BG2's black is now (its black pixels are see-through, below)
+            ncl = len(LAMP_LSLOTS) - 1
+            cents, asg = _wkmeans(feats, [used[c] for c in cs], ncl)
             dot = {c: asg[i] + 1 for i, c in enumerate(cs)}
             lit = []
             for si, st in enumerate(sts):
                 row = [0]
-                for k in range(len(LAMP_LSLOTS)):
+                add = st[1] if st else (0, 0, 0)
+                for k in range(ncl):
                     m = cents[k][si * 3:si * 3 + 3] if k < len(cents) else (0, 0, 0)
-                    add = st[1] if st else (0, 0, 0)
                     q = [max(0, min(31, int(round(m[j] + add[j])))) for j in range(3)]
                     row.append(0x8000 | q[0] | q[1] << 5 | q[2] << 10)
+                q = [max(0, min(31, int(round(add[j])))) for j in range(3)]
+                row.append(q[0] | q[1] << 5 | q[2] << 10)          # (no priority bit)
                 row += [0] * (16 - len(row))
                 lit.append(row)
-            # (the 32X reads a colour's lit CRAM index directly: its slot, or the colour itself)
-            lamp['cmap'] = bytes(LAMP_LSLOTS[dot[c] - 1] if c in dot else c for c in range(128))
+            # (the 32X reads a colour's lit CRAM index directly: its slot, or the colour itself; 0 = BG1
+            # see-through -> the lit black)
+            lamp['cmap'] = bytes(LAMP_LSLOTS[-1] if c == 0 else LAMP_LSLOTS[dot[c] - 1] if c in dot else c for c in range(128))
+            # (I21p) BG2's black (a colour black in both lights states) see-through on plane B: the Genesis
+            # backdrop (black) instead - the same picture, but the 32X's lit black can show there
+            gk = wx['gkeys']
+            blk_ = [[c > 0 and all(gk[k][l * 16 + c] & 0xEEE == 0 for k in range(len(gk))) for c in range(16)] for l in range(4)]
+            gm, newt, tid = gmaps['B']['map'], {}, {}
+            for i, v in enumerate(gm):
+                tn, pl = v & 0x7FF, (v >> 13) & 3
+                if not tn or not any(blk_[pl]):
+                    continue
+                if (tn, pl) not in newt:
+                    src = bytes(gtiles[tn])
+                    nb = bytes((0 if blk_[pl][b >> 4] else b & 0xF0) | (0 if blk_[pl][b & 15] else b & 15) for b in src)
+                    if nb == src:
+                        newt[(tn, pl)] = tn
+                    elif nb in tid:
+                        newt[(tn, pl)] = tid[nb]
+                    else:
+                        tid[nb] = newt[(tn, pl)] = len(gtiles)
+                        gtiles = gtiles + [nb]
+                gm[i] = (v & ~0x7FF) | newt[(tn, pl)]
+            assert len(gtiles) < 0x500, 'lamps: no VRAM for the see-through BG2 tiles'
+            print('   lamps: BG2 black see-through: %d colours, %d new tiles' % (sum(map(sum, blk_)), len(tid)))
             print('   lamps (32X): %d of %d colours lit through %d slots' % (len(dot), sum(1 for c in range(128) if used[c]), len(LAMP_LSLOTS)))
             lamp['lit'] = lit
             wx['lamp32'] = lamp

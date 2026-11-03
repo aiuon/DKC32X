@@ -1977,3 +1977,33 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   bundle21o: scanbundle only unicodedata.pyd; Linux convert.py (linapp21o) and Wine .bat (wtest21o)
   byte-identical to the plain build.
 
+## 2026-11-03: I21p - cabins at full speed, light-switch cones swing + light the black (BUGLOG "I21p")
+- Cabin tests in sim3: POKE=f:3E:00FA,f:40:00FA for every f in 1302..1440 (Candy; F5 = Funky - F4 loads
+  a level), JUMP0=0080BA2C FEVM=1 TXTLOG=1 SCRIPT=/tmp/claude-0/fpl/funky.txt (START every 100 frames,
+  then B every 54), sim_xcp 100 4800 XCFILE=...; /tmp/claude-0/fpl/cabiter.sh KEYS adds keys to
+  translate.txt + lowrom.txt, builds, rebuilds sim_xcp, runs both and diffs the text logs against the
+  first run (run_FA.log / run_F5.log).  Translated pieces hand over at labels that are their own
+  analyzer functions (F142 -> F18D -> F19C -> F1B2 ...): iterate.  Check badjump.py after each round
+  (FE3C, B8994E were BADJUMP; FE3C gave game error 2080FE48 in the sim).
+- Low ROM (first 256 KB): ~0.8 KB free after I21p (sh.bin 261296); a GAMEBOT build adds ~800 B.
+  Resident end 0x2FFEC0.  SDRAM __end 0x603E5D0.
+- main.c map mode 2 (cabins): fsteps = owed (2..4) - the catch-up below only ran in the level loop.
+- Lamp cones (S&G 31 / Loopy 36 / 37): block tail = nlamps, rows h, (x, y)[n], lit[2][16] (slot 13 =
+  CRAM 240 = black + light, no priority bit), cmap[128] (0 -> 240), rows [h][4] (xl, xr, light 1-8, 0),
+  swing table [64] (DATA_808BA8).  At level load cmap / positions / rows are copied to map_mem + 20480.
+  lamp_lrow: up to 2 lamps per tile row, per line span + lamp_bay[k][light] (Bayer by grid line / pixel).
+  lamp_swing_w(f) = md lh_write's W; LAMP_SHR8 = signed >> 8 without the libgcc call.  cvbuf lw = the
+  swing each buffer shows; job 3 (slave) predicts W from $28 + fsteps - 1 and runs lamp_swing_pass on
+  the buffer's window; cv_band (non-full) runs it again over cvI if the real W differs.
+- build_viewer: LAMP_LIGHTS levels: Genesis plane B tiles get BG2's black (black in every gkeys state)
+  as colour 0 (deduplicated new tiles); 12 BG1 clusters + the black slot; H2 swing table real, pivot 24.
+- md: lh_still (C_HUD 0x4000-type message with 0x2000 = LAMP SWING OFF, stripped before decoding).
+- Test macros: NO_LAMPSWING (the 32X cones still), LAMPDBG (GAMEPROF HUD: swing pass calls, lines,
+  lamps x10, iterations / 10, words per picture), LAMP_SWING_DEFAULT=0.  Bench on ares default timing:
+  /tmp/claude-0/fpl/arun3.sh (arun2 without the MiSTer model).  J3HUD shows job 3's time as L.
+- Numbers (ares default, GAMEDEMO NO_FSKIP, Loopy, T = vblanks per picture x 100): swing off 114,
+  on 153 (tile redraw version 364 MiSTer model / per-pixel on the master 263 MiSTer model).
+- Checks: plain build md5 2ce6edda... (tools/prebuilt/md.bin refreshed); verify2 (13 entrances x pad / tp, 1500 frames) vs the I21o
+  sim: all OK; cabin sims FA / F5 text logs identical to the I21o sim's; GAMEBOT 12000 + STACKCHK
+  2004 / 1372; ares S&G / Loopy GAMEDEMO pictures (swing, lit black); ares Candy cabin every-frame dumps
+  (default + MiSTer model): side bars black throughout.

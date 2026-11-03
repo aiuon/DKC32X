@@ -82,6 +82,7 @@ static uint16_t lc_still;                   /* (I21m) the cone stays still: no h
 static const uint16_t *lh_pos, *lh_spr, *lh_swing;
 static uint16_t lh_n, lh_ns, lh_pivot, lh_on;
 static uint16_t lh_flags, lh_hide;          /* (I21n) header word 3 (2: hidden in lights state 0), hidden now */
+static uint16_t lh_still;                   /* (I21p) LAMP SWING OFF (C_HUD keyframe messages' 0x2000) */
 static uint16_t lh_buf[80 * 4];
 /* (I21n) the intro's front plane (md flag 1024, build_viewer FE_FPLANE): Cranky's platform on plane B in
    front of the 32X's jungle, dissolved pixel by pixel - C_HUD 0xC000 | brightness << 7 | step (0 = all
@@ -165,7 +166,7 @@ static void lh_write(uint16_t camx, uint16_t camy)
     if (p & 0x40) p ^= 0x7F;
     int16_t v = (int16_t)(lh_swing[p] >> 1);
     if (f2 & 0x80) v = (int16_t)~v;
-    int16_t W = (int16_t)(v >> 1);
+    int16_t W = lh_still ? 0 : (int16_t)(v >> 1);
     uint16_t n = 0;
     for (uint16_t i = 0; i < lh_n && !lh_hide; i++) {
         int16_t ox = (int16_t)(uint16_t)(lh_pos[2 * i] * 8 - camx);
@@ -676,6 +677,7 @@ static void load_md(const uint16_t *md)
             lh_swing = lh_spr + 3 * after[1];
             after = lh_swing + 64;
             lh_on = 1;
+            lh_still = 0;
         }
         bm_ax = BM_AX0; bm_ay = BM_AY0;
         bm_write();                             /* no sprites (the SAT's first entry ends the list) */
@@ -1271,6 +1273,10 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
                 }
                 w = 0x4000 | 1 << 8 | ((w >> 7) & 0x1F);
             }
+            if (lh_on && (w & 0xE000) == 0x6000) {   /* (I21p) LAMP SWING OFF rides on the keyframe message */
+                w &= 0xDFFF;
+                if (!lh_still) { lh_still = 1; last_frame ^= 0xFFFF; }
+            } else if (lh_on && lh_still && (w & 0xC000) == 0x4000) { lh_still = 0; last_frame ^= 0xFFFF; }
             if (lc_on && lc_flags && (w & 0xC000) == 0x4000) {   /* (I21n) the cones' lights state */
                 uint16_t f0 = (w >> 11) & 7, t0 = (w >> 8) & 7, k0 = w & 0x3F;
                 uint16_t st = (f0 == t0 || k0 * 2 >= (1 << wx_shift) ? t0 : f0) == 1;

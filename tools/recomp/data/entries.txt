@@ -8,3 +8,6 @@
 00BF8363
 00BF8433
 0080CE49  # (I21h) the intro NMI after its fade colours (hle_intro_fade jumps here)
+# (I21p) cabin NMI helpers entered through no traced call (XC_PROF: no owner)
+0080CFBE
+0080CFE7

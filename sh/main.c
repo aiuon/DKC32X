@@ -264,6 +264,7 @@ typedef struct {
     int32_t ln, lh;
     const uint16_t *lpos;
     const uint8_t *limg, *lcmap;
+    int32_t lw, lwo;                 /* (I21p) the cones' swing W drawn now / last drawn in buffer cvbi */
     uint32_t *tcd;                   /* TCACHE: this CPU's tile cache: data, tags, index mask */
     uint16_t *tct;
     uint32_t tcm, tcn;               /* index mask, entries (index >= tcn: - 128) */
@@ -628,7 +629,7 @@ SDRAM_VIEWER static void render_rows(const shared_t *p, int r0, int r1)
 #define CV_TW   42
 #define CV_TH   30
 typedef struct { int32_t x0, x1, y0, y1; } trect_t;
-typedef struct { int32_t valid; trect_t w, hud; } cvbuf_t;
+typedef struct { int32_t valid; trect_t w, hud; int32_t lw; } cvbuf_t;   /* (lw: I21p the lamps' swing drawn) */
 static cvbuf_t cvb[2];
 /* canvas origin (grid pixels at screen 0,0): BG1, or for mode 2 the transparency layer (BG3 x 1.5) */
 /* (Poison Pond's fog, mode 2: 1.5 x the camera on both axes - in front of the playfield, for depth) */
@@ -737,29 +738,61 @@ __attribute__((noinline)) static void lamp_row(const shared_t *p, volatile uint3
 /* (I21n) Stop & Go Station / Loopy Lights: the hanging lamps' cones (the lights block's tail).  BG1 covers
    72-86 % of these levels (the walkway's 10 %), so the cone is baked into the canvas as its tiles are
    drawn: every BG1 pixel in the cone's silhouette becomes its colour's lit slot (cmap: the BG colours
-   clustered into 13 spare CRAM entries - colour 0 of BG palettes 1-5 and of the sprite palettes) =
+   clustered into 12 spare CRAM entries - colour 0 of BG palettes 1-5 and of the sprite palettes) =
    the slot's mean colour + the light, per lights state (ws_frame lerps lamp_litc, present writes it) -
-   additive light posterized to 13 colours, no dot pattern (round 1's lines were "neon").  Over BG2
-   (Genesis) the cone = S/H highlight sprites ('H2').  Still: no swing */
+   additive light posterized, no dot pattern (round 1's lines were "neon").  Over BG2 (Genesis) the
+   cone = S/H highlight sprites ('H2').  (I21p) BG1's see-through pixels in the cone take CRAM 240 = the
+   light on black, without priority: it shows where BG2 is black (see-through on the Genesis now).
+   (I21p) The cones swing as the SNES's (CODE_80B891): per image row a span [xl, xr) moved by the swing,
+   lit where the 8 x 8 Bayer threshold (anchored to the level, so a move changes only the edges) is
+   below the row's light; cv_band moves the edges pixel by pixel (lamp_swing_pass). */
 static uint32_t lamp_ln;              /* (the master's: colours; the rows read shared_t ln / lpos / ...) */
 static const uint16_t *lamp_lit;
+static const uint8_t *lamp_swtab;     /* (I21p) DATA_808BA8 (64 bytes): the swing */
 static uint16_t lamp_litc[16];
 static const uint8_t lamp_lslot[14] = { 0, 16, 32, 48, 64, 80, 128, 144, 160, 176, 192, 208, 224, 240 };
+#define LAMP_PIV 24                   /* (the swing's apex: image row 24) */
+#define LAMP_MARGIN 32                /* (the swing's reach beyond the image, px: |d| <= 29 at row 223) */
+static const uint8_t lamp_bay[8][9] = {   /* bit 7 - c set where Bayer[k][c] < 8 t (the row's light t) */
+    { 0x00, 0x88, 0xAA, 0xAA, 0xAA, 0xEE, 0xFF, 0xFF, 0xFF }, { 0x00, 0x00, 0x00, 0x44, 0x55, 0x55, 0x55, 0xDD, 0xFF },
+    { 0x00, 0x22, 0xAA, 0xAA, 0xAA, 0xBB, 0xFF, 0xFF, 0xFF }, { 0x00, 0x00, 0x00, 0x11, 0x55, 0x55, 0x55, 0x77, 0xFF },
+    { 0x00, 0x88, 0xAA, 0xAA, 0xAA, 0xEE, 0xFF, 0xFF, 0xFF }, { 0x00, 0x00, 0x00, 0x44, 0x55, 0x55, 0x55, 0xDD, 0xFF },
+    { 0x00, 0x22, 0xAA, 0xAA, 0xAA, 0xBB, 0xFF, 0xFF, 0xFF }, { 0x00, 0x00, 0x00, 0x11, 0x55, 0x55, 0x55, 0x77, 0xFF } };
+/* the swing W (md lh_write's): from the game's $28 - 1, as the 68000's C_FRAME */
+static int32_t lamp_swing_w(uint32_t f)
+{
+#ifdef NO_LAMPSWING
+    return 0;                             /* (test: the cones still) */
+#endif
+    uint32_t f2 = (f << 1) & 0xFFFF, p = f2 & 0x7F;
+    if (p & 0x40) p ^= 0x7F;
+    int32_t v = (int32_t)(int16_t)(lamp_swtab[p] >> 1);
+    if (f2 & 0x80) v = ~v;
+    return (int32_t)(int16_t)v >> 1;
+}
+/* image row iy's shift for swing W (md: acc = j * -W - (W >> 4 << 8), x += acc >> 8; j = iy - pivot) */
+/* (>> 8 of a signed value would be a libgcc call on the SH-2: biased, logical shlr8) */
+#define LAMP_SHR8(v) ((int32_t)((uint32_t)((v) + 0x40000000) >> 8) - 0x400000)
+static inline int32_t lamp_dx(int32_t iy, int32_t w) { return LAMP_SHR8((iy - LAMP_PIV) * -w - ((w >> 4) << 8)); }
+/* lamp i's lit span of grid line y (first, end x; empty: x0 >= x1) and its Bayer pattern */
 __attribute__((noinline)) static void lamp_lrow(const shared_t *p, volatile uint32_t *d, int32_t ty, int32_t x0, int32_t x1)
 {
     /* draw_tile_row with the cones: the tiles under a cone drawn here, lit where the mask says (each
        framebuffer word written once - lit after drawn was twice the frame-buffer writes) */
     const uint32_t n = (uint32_t)p->ln;
     const uint16_t *pos = p->lpos;
-    const uint8_t *img = p->limg;
-    const int32_t h = p->lh;
+    const uint8_t *rows = p->limg;
+    const int32_t h = p->lh, w = p->lw;
     const uint8_t *cmap = p->lcmap;
     int32_t cy = ty >> 2;
     int row_ok = ty >= 0 && cy < p->gh;
-    int32_t la[2], lb[2], ly[2], lx[2], nl = 0;      /* (the lamps whose cone covers this tile row: 2 at most) */
+    /* the lamps whose (swung) cone reaches this tile row: 2 at most; per line their span + pattern */
+    int16_t sx0[2][8], sx1[2][8];
+    uint8_t sp[2][8];
+    int32_t la[2], lb[2], nl = 0;
     if (row_ok) {
         /* (the lamps are in x order: the first whose cone reaches x0, by halves) */
-        int32_t xa = x0 * 8 + p->ox0 + 91 - 176;
+        int32_t xa = x0 * 8 + p->ox0 + 91 - 176 - LAMP_MARGIN;
         uint32_t lo = 0, hi = n;
         while (lo < hi) {
             uint32_t mid = (lo + hi) >> 1;
@@ -767,10 +800,26 @@ __attribute__((noinline)) static void lamp_lrow(const shared_t *p, volatile uint
         }
         for (uint32_t i = lo; i < n && nl < 2; i++) {
             int32_t gx0 = (int32_t)pos[2 * i] - 91 - p->ox0;
-            if (gx0 >= x1 * 8) break;
+            if (gx0 - LAMP_MARGIN >= x1 * 8) break;
             int32_t iy0 = ty * 8 - (481 - (int32_t)pos[2 * i + 1] - p->oy0);
             if (iy0 <= -8 || iy0 >= h) continue;
-            la[nl] = gx0 >> 3; lb[nl] = (gx0 + 176) >> 3; ly[nl] = iy0; lx[nl] = gx0; nl++;
+            int32_t a = 0x7FFF, b = -0x7FFF;
+            for (int k = 0; k < 8; k++) {
+                int32_t iy = iy0 + k;
+                sx0[nl][k] = sx1[nl][k] = 0;
+                sp[nl][k] = 0;
+                if (iy < 0 || iy >= h) continue;
+                const uint8_t *r = rows + iy * 4;
+                if (r[0] >= r[1] || !r[2]) continue;
+                int32_t dd = gx0 + lamp_dx(iy, w);
+                sx0[nl][k] = (int16_t)(dd + r[0]); sx1[nl][k] = (int16_t)(dd + r[1]);
+                sp[nl][k] = lamp_bay[k][r[2]];
+                if (sx0[nl][k] < a) a = sx0[nl][k];
+                if (sx1[nl][k] > b) b = sx1[nl][k];
+            }
+            if (a >= b) continue;
+            la[nl] = a >> 3; lb[nl] = (b + 7) >> 3;
+            nl++;
         }
     }
     const uint16_t *grow = p->grid + cy * p->gw;
@@ -788,16 +837,22 @@ __attribute__((noinline)) static void lamp_lrow(const shared_t *p, volatile uint
         const uint32_t *s = tile_ptr(p, e & 0x7FFF);
         int32_t st = 2;
         if (e & 0x8000) { s += 14; st = -2; }
-        int j = nl > 0 && tx >= la[0] && tx < lb[0] ? 0 : nl > 1 && tx >= la[1] && tx < lb[1] ? 1 : -1;
-        if (j < 0) {
+        int in0 = nl > 0 && tx >= la[0] && tx < lb[0], in1 = nl > 1 && tx >= la[1] && tx < lb[1];
+        if (!(in0 | in1)) {
             for (int k = 0; k < 8; k++, q += CV_P / 4, s += st) { q[0] = s[0]; q[1] = s[1]; }
             continue;
         }
-        int32_t iy = ly[j];
-        const uint8_t *mr = img + (tx * 8 - lx[j]) / 8;
-        for (int k = 0; k < 8; k++, q += CV_P / 4, s += st, iy++) {
+        int32_t px = tx * 8;
+        for (int k = 0; k < 8; k++, q += CV_P / 4, s += st) {
             uint32_t w0 = s[0], w1 = s[1];
-            uint32_t m = iy >= 0 && iy < h ? mr[iy * 22] : 0;   /* (the lit pixels: bit 7 = the leftmost) */
+            uint32_t m = 0;                       /* (the lit pixels: bit 7 = the leftmost) */
+            for (int j = 0; j < 2; j++) {
+                if (!(j ? in1 : in0)) continue;
+                int32_t a = sx0[j][k] - px, b = sx1[j][k] - px;
+                if (a < 0) a = 0;
+                if (b > 8) b = 8;
+                if (a < b) m |= (0xFFu >> a) & ~(0xFFu >> b) & sp[j][k];
+            }
             if (m) {                              /* (cmap: a BG colour's lit CRAM index, or itself) */
                 uint32_t a0 = (uint32_t)cmap[(w0 >> 24) & 127] << 24 | (uint32_t)cmap[(w0 >> 16) & 127] << 16 |
                               (uint32_t)cmap[(w0 >> 8) & 127] << 8 | cmap[w0 & 127];
@@ -808,6 +863,91 @@ __attribute__((noinline)) static void lamp_lrow(const shared_t *p, volatile uint
                 w1 = (a1 & k1) | (w1 & ~k1);
             }
             q[0] = w0; q[1] = w1;
+        }
+    }
+}
+/* (I21p) cv_band: the cone pixels whose state the swing changed since this buffer's last picture (swing
+   p->lwo -> p->lw), lines of tile rows ra..rb of what the buffer keeps (cvI), before anything is drawn
+   with the new swing: per image line only the pixels between the
+   old and the new edges (a word read-modify-write each: a byte write of 0 is not stored).  Lit: the
+   pixel's colour through cmap; unlit: the BG1 pixel from its tile.  (Redrawing the edges' tiles cost
+   ~50 % of a frame on each CPU in Loopy - every tile row has a line that moved.) */
+static const uint32_t lamp_zero[2];
+static const uint8_t lamp_bit[8] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
+static inline uint32_t lamp_bg1_bk(const shared_t *p, int32_t gx, int32_t gy)
+{
+    /* BG1's tile at grid pixel (gx, gy): its bake index | vflip 0x8000 (0xFFFFFFFF: none) */
+    int32_t cy = gy >> 5, cx = gx >> 5;
+    if (gy < 0 || cy >= p->gh || gx < 0 || cx >= p->gw) return 0xFFFFFFFFu;
+    return VCH(p)[p->grid[cy * p->gw + cx] * 16 + ((gy >> 3) & 3) * 4 + ((gx >> 3) & 3)];
+}
+#ifdef LAMPDBG
+volatile uint32_t lsp_calls, lsp_lines, lsp_words, lsp_iter, lsp_lamps;   /* (test: the swing pass's work, GAMEPROF HUD) */
+#endif
+__attribute__((noinline)) static void lamp_swing_pass(const shared_t *p, int32_t tx0, int32_t tx1, int32_t ra, int32_t rb)
+{
+#ifdef LAMPDBG
+    *UNCACHED(&lsp_calls) += 1;
+#endif
+    const int32_t wn = p->lw, wo = p->lwo, h = p->lh;
+    if (wn == wo) return;
+    int32_t ly0 = ra * 8, ly1 = rb * 8, lx0 = tx0 * 8, lx1 = tx1 * 8;
+    const uint16_t *pos = p->lpos;
+    const uint8_t *rows = p->limg, *cmap = p->lcmap;
+    for (int32_t i = 0; i < p->ln; i++) {
+        int32_t gx0 = (int32_t)pos[2 * i] - 91 - p->ox0;
+        if (gx0 + 176 + LAMP_MARGIN <= lx0 || gx0 - LAMP_MARGIN >= lx1) continue;
+        int32_t gy0 = 481 - (int32_t)pos[2 * i + 1] - p->oy0;      /* (grid y of image row 0) */
+        int32_t tkey[2] = { -1, -1 };     /* (each edge's last BG1 tile: the lines below reuse it) */
+        uint32_t tbk[2] = { 0xFFFFFFFFu, 0xFFFFFFFFu };
+#ifdef LAMPDBG
+        *UNCACHED(&lsp_lamps) += 1;
+#endif
+        int32_t ya = gy0 > ly0 ? gy0 : ly0, yb = gy0 + h < ly1 ? gy0 + h : ly1;
+        /* (the shifts by accumulators: lamp_dx = acc >> 8, acc += -W a line) */
+        int32_t an = (ya - gy0 - LAMP_PIV) * -wn - ((wn >> 4) << 8), aw = (ya - gy0 - LAMP_PIV) * -wo - ((wo >> 4) << 8);
+        const uint8_t *r = rows + (ya - gy0) * 4;
+        for (int32_t gy = ya; gy < yb; gy++, an -= wn, aw -= wo, r += 4) {
+#ifdef LAMPDBG
+            *UNCACHED(&lsp_iter) += 1;
+#endif
+            if (!r[2] || (uint32_t)(an + 0x40000000) >> 8 == (uint32_t)(aw + 0x40000000) >> 8) continue;
+            int32_t dn = LAMP_SHR8(an), dw = LAMP_SHR8(aw);
+            uint32_t pat = lamp_bay[gy & 7][r[2]];
+            int32_t n0 = gx0 + r[0] + dn, n1 = gx0 + r[1] + dn;     /* (the new span) */
+#ifdef LAMPDBG
+            *UNCACHED(&lsp_lines) += 1;
+#endif
+            int32_t lo = dn < dw ? dn : dw, hi = dn < dw ? dw : dn;
+            int32_t ea = gx0 + r[0] + lo, eb = gx0 + r[0] + hi;      /* (the left edge's pixels) */
+            int32_t fa = gx0 + r[1] + lo, fb = gx0 + r[1] + hi;      /* (the right edge's) */
+            if (eb >= fa) { eb = fb; fa = fb; }                     /* (overlapping: one run) */
+            uint32_t base = FB_BASE + (uint32_t)(gy & (CV_H - 1)) * CV_P + CV_XOFF;   /* (CV_H = 256) */
+            for (int run = 0; run < 2; run++) {
+                int32_t xa = run ? fa : ea, xb = run ? fb : eb;
+                if (xa < lx0) xa = lx0;
+                if (xb > lx1) xb = lx1;
+                /* (whole frame-buffer words, both pixels from BG1 + their new state: no reads) */
+                volatile uint16_t *q = FB16 + ((base + (uint32_t)(xa & ~1)) >> 1);
+#ifdef LAMPDBG
+                if (xa < xb) *UNCACHED(&lsp_words) += (uint32_t)((xb - (xa & ~1) + 1) >> 1);
+#endif
+                const uint8_t *tb = (const uint8_t *)lamp_zero;
+                int32_t tx = -0x7FFF;
+                for (int32_t x = xa & ~1; x < xb; x += 2, q++) {
+                    if ((x >> 3) != tx) {         /* (this tile's line: 8 bytes, pixel 0 first) */
+                        tx = x >> 3;
+                        int32_t key = tx | gy >> 3 << 16;
+                        if (key != tkey[run]) { tkey[run] = key; tbk[run] = lamp_bg1_bk(p, x, gy); }
+                        tb = tbk[run] == 0xFFFFFFFFu ? (const uint8_t *)lamp_zero :
+                             (const uint8_t *)tile_ptr(p, tbk[run] & 0x7FFF) + (((gy & 7) ^ (tbk[run] & 0x8000 ? 7 : 0)) << 3);
+                    }
+                    uint32_t c = x & 7, c0 = tb[c], c1 = tb[c + 1];
+                    if ((pat & lamp_bit[c]) && x >= n0 && x < n1) c0 = cmap[c0 & 127];
+                    if ((pat & lamp_bit[c + 1]) && x + 1 >= n0 && x + 1 < n1) c1 = cmap[c1 & 127];
+                    *q = (uint16_t)(c0 << 8 | c1);
+                }
+            }
         }
     }
 }
@@ -1752,6 +1892,9 @@ __attribute__((noinline)) static void cv_band(const shared_t *p, int32_t ra, int
     if (p->cvfull) {
         cv_rect_rows(p, N[0], N[1], N[2], N[3], ra, rb);
     } else {
+        /* (I21p) first the swung cones' edges, in what this buffer kept (the old window, as the old swing
+           drew it); everything drawn below is drawn with the new swing */
+        if (p->ln) lamp_swing_pass(p, I[0], I[1], I[2] > ra ? I[2] : ra, I[3] < rb ? I[3] : rb);
         cv_rect_rows(p, N[0], I[0], N[2], N[3], ra, rb);                  /* new columns */
         cv_rect_rows(p, I[1], N[1], N[2], N[3], ra, rb);
         cv_rect_rows(p, I[0], I[1], N[2], I[2], ra, rb);                  /* new rows */
@@ -2016,7 +2159,7 @@ static uint32_t pm_req;                   /* (I12) the button the menu sends the
 static int start_block;                   /* (I12) Start still held from our level menu: not the game's */
 static int pm_shown, pm_frz;              /* (I12) pictures with the menu as it is (pm_key); no new pictures */
 static uint32_t pm_key;
-#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8 | (uint32_t)pm_stats << 9)
+#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8 | (uint32_t)pm_stats << 9 | (uint32_t)lamp_swing_on << 10)
 /* 60 FPS mode (menu option, off by default: it adds a frame of input lag): the slave draws the whole
    picture of game frame N (BG strips, sprites, line table, HUD: job 5 with every row) while the master
    runs the logic of frame N + 1; the picture is shown once that logic is done.  Simple canvas levels
@@ -2041,7 +2184,13 @@ static uint32_t pm_exit_addr;             /* exit to map: the level's "cleared" 
 static uint8_t pm_exit_orig;
 static int32_t pm_exit_wait;
 /* (I21) the menu's items (drawn in the small font, 10 lines apart) */
-enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_OBJ, PM_STATS, PM_EXIT, PM_LEVELS, PM_N };
+enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_LAMP, PM_OBJ, PM_STATS, PM_EXIT, PM_LEVELS, PM_N };
+/* (I21p) LAMP SWING: the light-switch levels' cones swing (on: the swing costs ~1/3 of a frame there on
+   ares - per picture the cone edges move in both frame buffers) */
+#ifndef LAMP_SWING_DEFAULT
+#define LAMP_SWING_DEFAULT 1
+#endif
+static int lamp_swing_on = LAMP_SWING_DEFAULT;
 static int pm_stats;                      /* (I21c) STATS: frame rate, SH-2 master / slave %, 68000 % (main's show_hud) */
 /* (I21) OBJECT RANGE: WIDE (default) = the game's sprite spawn / keep-alive windows follow the 32X's
    wider view (+32 px past each side, as the SNES's own windows reach past its 256 px view): objects no
@@ -2732,8 +2881,10 @@ static void ws_frame(shared_t *sh, int32_t camx)
     }
     if (lamp_ln)                          /* (I21n) the cones' dot colours (present) */
         for (int k = 1; k < 14; k++)
-            lamp_litc[k] = (uint16_t)(0x8000 | ws_lerp(lamp_lit[ws_from * 16 + k], lamp_lit[ws_to * 16 + k], ws_k, ws_shift));
-    if (!sh->bm_lvl) COMM(10) = 0x4000 | ws_from << 11 | ws_to << 8 | ws_k;   /* (beam: the apex, main loop) */
+            lamp_litc[k] = (uint16_t)((lamp_lit[ws_to * 16 + k] & 0x8000) | ws_lerp(lamp_lit[ws_from * 16 + k], lamp_lit[ws_to * 16 + k], ws_k, ws_shift));
+            /* (I21p: bit 15 from the table - slot 13 (CRAM 240) = BG2's black lit, no priority: it shows only
+               where the Genesis shows its backdrop, BG2's black there) */
+    if (!sh->bm_lvl) COMM(10) = 0x4000 | (lamp_ln && !lamp_swing_on ? 0x2000 : 0) | ws_from << 11 | ws_to << 8 | ws_k;   /* (beam: the apex, main loop; I21p 0x2000: LAMP SWING OFF) */
 }
 /* 32X quirk (also in the MiSTer core, VDP.sv): a BYTE write of 0 to the framebuffer is ignored -
    only word writes store zero bytes.  So the rain saves and restores whole words.
@@ -4116,7 +4267,24 @@ static void load_level(int idx, shared_t *sh)
             sh->lpos = t + 2;
             lamp_lit = sh->lpos + 2 * t[0];
             sh->lcmap = (const uint8_t *)(lamp_lit + 32);
-            sh->limg = (const uint8_t *)(lamp_lit + 32) + 128;
+            sh->limg = (const uint8_t *)(lamp_lit + 32) + 128;   /* (I21p: rows [h][4] xl, xr, light, 0) */
+            lamp_swtab = sh->limg + 4 * t[1];              /* (then the swing table, 64 bytes) */
+            {   /* (I21p) the cones' map, positions and rows in SDRAM (map_mem + 20480: the upper half is free in
+                   these levels - Torchlight's / the temple's / rain's tables): read per line and pixel by
+                   both CPUs, and cartridge reads cost ~30 % of a frame there (the swing's edges in Loopy) */
+                uint8_t *m = (uint8_t *)map_mem + 20480;
+                uint32_t np = 4 * (uint32_t)t[0], nr = 4 * (uint32_t)t[1];
+                if (128 + np + nr <= 2048) {
+                    for (uint32_t k = 0; k < 128; k++) m[k] = sh->lcmap[k];
+                    for (uint32_t k = 0; k < np; k++) m[128 + k] = ((const uint8_t *)sh->lpos)[k];
+                    for (uint32_t k = 0; k < nr; k++) m[128 + np + k] = sh->limg[k];
+                    sh->lcmap = m;
+                    sh->lpos = (const uint16_t *)(m + 128);
+                    sh->limg = m + 128 + np;
+                }
+            }
+            sh->lw = sh->lwo = 0;
+            cvb[0].lw = cvb[1].lw = 0;
             for (int k = 0; k < 16; k++) lamp_litc[k] = lamp_lit[k];
             sh->ln = t[0];
             lamp_ln = t[0];
@@ -4958,6 +5126,11 @@ void m_main(void)
                     fsteps = owed > 3 ? 3 : owed;   /* PAL: keep 60 logic frames a second */
                 if (map_mode == 1 && (game_wram16(0xE89) | game_wram16(0xEF1)))
                     fsteps = MAP_FAST;            /* (G12) the map Kong walking (MapDK X/Y speed): faster */
+                if (map_mode == 2 && map_cab >= 0 && owed >= 2 && owed <= 8)
+                    fsteps = owed > 4 ? 4 : owed; /* (I21p) cabins: keep the game's pace (the Kongs' jump into
+                                                     Funky's / Candy's barrel - big sprites, 2-3 vblanks a
+                                                     picture - ran in slow motion: the late-picture catch-up
+                                                     above only works in the level loop) */
                 {   /* front-end screens (fescr.c): keep the game's pace (light logic; a picture under big
                        sprites can take 4-6 frames).  (I21) What one picture cannot catch up (12 logic frames)
                        is carried to the next pictures: a screen's set-up and first picture (the Nintendo
@@ -4996,6 +5169,14 @@ void m_main(void)
                     ;
                 sh->pw[0] = cvb[bi].w.x0; sh->pw[1] = cvb[bi].w.x1; sh->pw[2] = cvb[bi].w.y0; sh->pw[3] = cvb[bi].w.y1;
                 sh->pbi = bi;
+                if (lamp_ln) {                    /* (I21p) the slave moves this buffer's cone edges to the swing the
+                                                     picture will have ($28 after this picture's logic frames,
+                                                     as the 68000's C_FRAME) - render checks it (a pause...) */
+                    int32_t w = game_on && lamp_swing_on ? lamp_swing_w((uint32_t)game_wram16(0x28) + (uint32_t)fsteps - 1) : 0;
+                    sh->lwo = cvb[bi].lw;
+                    sh->lw = w;
+                    cvb[bi].lw = w;
+                }
                 /* ... and under its last HUD text (cv_band then has none to restore) */
                 if (hud_early) {
                     sh->ph[0] = cvb[bi].hud.x0; sh->ph[1] = cvb[bi].hud.x1; sh->ph[2] = cvb[bi].hud.y0; sh->ph[3] = cvb[bi].hud.y1;
@@ -5060,6 +5241,7 @@ void m_main(void)
                         case PM_PIPE: pipe_mode ^= 1; break;
                         case PM_FG: fg_on ^= 1; pm_fg_reload = 1; break;
                         case PM_OBJ: obj_wide ^= 1; break;
+                        case PM_LAMP: lamp_swing_on ^= 1; break;
                         case PM_STATS: pm_stats ^= 1; show_hud = pm_stats; break;
                         case PM_EXIT: {                                      /* exit to the map */
                             uint32_t lv = game_wram16(0x563) & 0xFF;
@@ -6104,6 +6286,12 @@ void m_main(void)
             sh->cvH[0] = cb->hud.x0; sh->cvH[1] = cb->hud.x1; sh->cvH[2] = cb->hud.y0; sh->cvH[3] = cb->hud.y1;
             sh->cvfull = full;
             sh->cvbi = bi;
+            if (lamp_ln) {                /* (I21p) the cones' swing: this picture's, and the one this buffer shows */
+                int32_t w = game_on && lamp_swing_on ? lamp_swing_w((uint32_t)game_wram16(0x28) - 1) : 0;
+                sh->lwo = full || !cb->valid ? w : cb->lw;
+                sh->lw = w;
+                cb->lw = w;
+            }
             if (sh->bm_game) {            /* (I12) the beam's changed pixels per line (BMS), before the jobs */
                 sh->camx = camx; sh->camy = camy;
                 bm_spans_make(sh);
@@ -6557,6 +6745,14 @@ void m_main(void)
                     dg = ag * 100 / an / FRAME_TICKS; db_ = ab * 100 / an / FRAME_TICKS; dl = al * 100 / an / FRAME_TICKS;
                     ds = as * 100 / an / FRAME_TICKS; dt = at * 100 / an / FRAME_TICKS;
                 }
+#ifdef LAMPDBG
+                {   extern volatile uint32_t lsp_calls, lsp_lines, lsp_words, lsp_iter, lsp_lamps;   /* per picture */
+                    static uint32_t pics; pics++;
+                    if (game_stats.frames == 360 || (pics & 63) == 0) {
+                        dg = *UNCACHED(&lsp_calls) / pics; db_ = *UNCACHED(&lsp_lines) / pics; dl = *UNCACHED(&lsp_lamps) * 10 / pics; ds = *UNCACHED(&lsp_iter) / pics / 10; dt = *UNCACHED(&lsp_words) / pics;
+                    }
+                }
+#endif
                 fmt_num(line, dg > 99 ? 99 : dg, 2); line[2] = ' ';
                 fmt_num(line + 3, db_, 2); line[5] = ' ';
                 fmt_num(line + 6, dl, 2); line[8] = ' ';
@@ -6596,7 +6792,7 @@ void m_main(void)
             if (pm_key != PM_KEY()) { pm_key = PM_KEY(); pm_shown = 0; }
             pm_shown++;
             static const char *const it[PM_N] = { "RESUME", "FRAME SKIP", "60FPS MODE", "FOREGROUND", "RIPPLE",
-                                                  "OBJECT RANGE", "STATS", "EXIT TO MAP", "LEVEL SELECT" };
+                                                  "LAMP SWING", "OBJECT RANGE", "STATS", "EXIT TO MAP", "LEVEL SELECT" };
             int32_t gx = CV_GX(sh, camx), gy = CV_GY(sh, camy);
             /* (I21) small font: 6 px characters, 10 px lines */
             const int bx = 92, by = 64, bw = 136, bh = 22 + PM_N * 10;
@@ -6611,6 +6807,7 @@ void m_main(void)
                 if (i == PM_PIPE) v = pipe_mode ? "ON" : "OFF";
                 if (i == PM_FG) v = fg_on ? "ON" : "OFF";
                 if (i == PM_RIPPLE) v = rip_on ? "ON" : "OFF";
+                if (i == PM_LAMP) v = lamp_swing_on ? "ON" : "OFF";
                 if (i == PM_OBJ) v = obj_wide ? "WIDE" : "SNES";
                 if (i == PM_STATS) v = pm_stats ? "ON" : "OFF";
                 if (v) text57_cv(bx + 100, yy, v, 112, 96);
@@ -6826,6 +7023,10 @@ void s_main(void)
             while ((REG16(VDP_FBCTL) & 1) == local.pbi)     /* (I17: until the swap - FLIP_ASYNC) */
                 ;
             uint16_t j0 = frt_read();
+            if (local.ln && local.lw != local.lwo) {   /* (I21p) the cones' swing, while the master runs the logic */
+                lamp_swing_pass(&local, local.pw[0], local.pw[1], local.pw[2], local.pw[3]);
+                local.lwo = local.lw;
+            }
             {   /* under the old HUD, inside the valid window */
                 const int32_t *W = local.pw, *H = local.ph;
                 int32_t r[4] = { H[0] > W[0] ? H[0] : W[0], H[1] < W[1] ? H[1] : W[1],

@@ -1429,3 +1429,49 @@ effect); asked for another way to fake additive light, or the old dither / flick
   draw_tile_row there: one frame-buffer write per word).  Cost, Loopy's first 300 frames: ares 0.96 ->
   1.06 vblanks a picture, MiSTer model 1.54 -> 1.72 (I21n lines: 1.82).  Still no swing.
 
+
+### I21p (2026-11-03): cabins at full speed, the light-switch cones swing and light the black
+User (ares, after I21o): in Loopy Lights the cone is "basically invisible over the background layer" -
+the S/H highlight brightens BG2's colours but black stays black ("lighten the black 1 step up?");
+make the S&G / Loopy cones move "without too much slowdown or artifacts"; in Candy's save points and
+Funky's Flights the jump into the barrel / plane "moves in slow motion"; when saving, the side bars
+outside the SNES picture "flash solid colors quickly".
+- Cabins in slow motion (B-CABINSLOW): a cabin picture (map_frame: the static picture, the sprites'
+  tiles restored and drawn again, the dialogue) takes 2-3 vblanks on MiSTer with Candy / the barrel /
+  the plane on screen, and the cabins ran one logic frame per picture: the late-picture catch-up only
+  works in the level loop (game_in_main_loop).  Cabins now run a logic frame per vblank that passed
+  (up to 4, like the front-end screens' debt).  Also translated (sim_xcp XC_PROF, Candy's and Funky's
+  cabins, 44 keys in the first 256 KB - lowrom.txt, the resident region is full): the cabins' NMI
+  CODE_80F142 and its chain (F164 F18D F19C F1B2 F1B8 F1C2 F20B F22F F258 F26B F274 F33F), the save
+  screen's percentage bit counter B89918 / B89923 / B89937 / B8993C / B89947 (~2.8k instructions = 4-5
+  frames on MiSTer each time), B89359 / B8948D / B89606, E935 / E942 / E96B / E982 / E985 / E99A / E9B2
+  / EE83 / EE94 / CFBE / CFD3 / CFDC / CFE3 / CFE7 / D028 / D02E / D02F / D03D / FE1C / FB42 / EDCD /
+  F0BC / BC:CF6B.  Left interpreted: CODE_80FB59 (the cabin's frame logic, ~63 instructions a frame:
+  4.4 KB translated, no room), FE3C (BADJUMP 80FE48: game error 2080FE48 in the sim), B8994E (BADJUMP
+  B89962) and once-per-visit keys dropped for room (FCF2 EFDC FCC7 EE3E E8F9 FDA1 FE49).  ares MiSTer
+  model: the cabin pictures take 2-3 vblanks, the logic now keeps 60 frames a second.
+- Side bars flashing when saving: not reproduced - ares (default and MiSTer model) every-frame dumps
+  of four save cycles in Candy's cabin (jump, save screen, battery save, map) show the bars black in
+  every frame, and the cartridge save is written.  Open: needs the user's exact steps / emulator.
+- Black under the cone (B-LAMPBLACK): BG2 colours that are black in both lights states are see-through
+  on Genesis plane B now (Loopy: 88 extra tiles; the Genesis backdrop is black - the same picture);
+  BG1's see-through pixels inside the cone take CRAM 240 = the light on black (the SNES's additive
+  result, Loopy (3, 2, 2)) WITHOUT the priority bit: the 32X shows it only where the Genesis shows its
+  backdrop - BG2's black - while BG2's other colours stay in front, lit by the highlight sprites.  The
+  BG1 colour clusters went from 13 to 12 (240 is the black's).
+- Swing (B-LAMPSWING): the SNES swing (CODE_80B891, period 128 frames: image row iy moves by
+  ((iy - 24) * -W - (W >> 4 << 8)) >> 8, W from DATA_808BA8 and $28 - 1, as md lh_write).  Genesis: the
+  highlight sprites per 32-line row (the walkway's code; the table had been zeroed for these levels).
+  32X: the cone is a span [xl, xr) per image row now (block tail rows [h][4]: xl, xr, light, 0), lit
+  where the 8 x 8 Bayer threshold is below the row's light - the Bayer anchored to the level, so a
+  swing changes only the edges.  Each frame buffer remembers the swing it shows (cvbuf lw); the slave
+  moves that buffer's edges to the coming picture's swing while the master runs the logic (job 3:
+  lamp_swing_pass, per line only the pixels between the old and new edges, whole words from BG1 + the
+  new state, no frame-buffer reads; cv_band corrects what the prediction missed).  First tries: the
+  edges' tiles redrawn (~50 % of a frame on each CPU: every tile row has a line that moved), then per
+  pixel on the master (+20 %).  The cones' map / rows / positions are copied to SDRAM (map_mem + 20480).
+  Cost (ares, GAMEDEMO NO_FSKIP, Loopy frames 60-359): 1.18 -> ~1.55 vblanks a picture with the swing
+  (MiSTer model 2.07 -> ~2.6): the pass's work is small (~35 lines, ~260 words a picture) but its
+  elapsed time is not - not fully understood (no cost found in the instructions, the tile fetches or
+  the frame-buffer writes alone).  Hence a pause-menu option LAMP SWING (ON by default; OFF = the
+  I21o still cones, the 68000's sprites too: C_HUD keyframe message bit 0x2000).
