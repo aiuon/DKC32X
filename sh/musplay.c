@@ -35,6 +35,7 @@ void mp_start(musplay_t *m, const uint8_t *blob, int song, int8_t *echo, uint32_
     m->spc.dspw = dsp_cb;
     m->spc.user = &m->dsp;
     spc_exec(&m->spc, SPC_CODE_1071);
+    m->dsp.sfxflags = m->spc.ram + 0x1A0;   /* (I23: spcdsp_write's KON - which voices effects key on) */
     m->spc.ram[0x24] = 1;
     m->until = 0;
     m->playing = 1;
@@ -50,6 +51,16 @@ void mp_cmd(musplay_t *m, int cmd, int param)
     m->spc.a = (uint8_t)cmd;
     m->spc.x = (uint8_t)param;
     spc_exec(&m->spc, SPC_CODE_1173);
+}
+
+/* (I23) SOUND SFX ONLY: only the voices sound effects play on (the engine's $01A0 + voice flags, and the voices an
+   effect keyed on last - spcdsp sfxv).  ROM: SDRAM is full */
+static __attribute__((noinline)) void mp_vmask(musplay_t *m)
+{
+    const uint8_t *f = m->spc.ram + 0x1A0;
+    uint32_t on = 0;
+    for (int i = 0; i < 8; i++) if (f[i]) on |= 1u << i;
+    m->dsp.vmask = m->dsp.sfxv | on;
 }
 
 /* (I12: SDRAM - the slave runs it for the music, ~5 cycles per instruction from the cartridge) */
@@ -77,6 +88,8 @@ __attribute__((section(".sdtext"), aligned(16))) void mp_render(musplay_t *m, vo
         }
         int k = (((m->until + 0xFFFF) >> 16) + 1) & ~1;   /* even: the mixer works on frame pairs */
         if (k > n) k = n;
+        if (m->sfx_only) mp_vmask(m);
+        else m->dsp.vmask = 0xFF;
         spcdsp_mix(&m->dsp, out, k);
 #ifdef __sh__
         out = (uint32_t *)out + k;

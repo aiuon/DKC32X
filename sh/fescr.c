@@ -1382,14 +1382,17 @@ static uint16_t rfx_mix(uint32_t c, uint32_t w, uint32_t k)   /* c -> white (w =
 }
 /* the zoom away (mode 7, after our effect): the logo's box only, every line, every picture (fescr's
    renderer budgets its lines: the zoom moved in steps of 3-4 frames) */
-#ifdef PERFREC   /* (test builds: perf_rec lives here - the front end never runs in a PERFREC level run) */
-uint16_t rfx_span[2][SCREEN_H][2] __attribute__((aligned(16)));
-__asm__(".global _perf_rec\n.set _perf_rec, _rfx_span\n.global _perf_acc\n.set _perf_acc, _rfx_span + 256\n"
-        ".global _perf_cnt\n.set _perf_cnt, _rfx_span + 352\n.global _perf_ln\n.set _perf_ln, _rfx_span + 416");
+#ifdef PERFREC   /* (test builds jump straight into a level - no Rare logo: its buffers in tiles_ram, SDRAM is full) */
+#define rfx_span (*(uint16_t (*)[2][SCREEN_H][2])((uint8_t *)tiles_ram))
 #else
 static uint16_t rfx_span[2][SCREEN_H][2];  /* per picture parity and line: the SNES x span drawn */
 #endif
+#ifdef PERFREC
+#define rfx_pal  ((uint16_t *)((uint8_t *)tiles_ram + 2048))
+#define rfx_cram ((uint16_t *)((uint8_t *)tiles_ram + 2560))
+#else
 static uint16_t rfx_pal[256], rfx_cram[256];   /* this picture's colours; the ones in CRAM */
+#endif
 static uint32_t rfx_cram_ok, rfx_par;
 /* the picture: an asynchronous swap (the synchronous one waits for the vblank after the next: 30
    pictures a second), then the colours that changed - in the vblank of that swap */

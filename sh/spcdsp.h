@@ -46,6 +46,13 @@ typedef struct {
     int32_t lpk;                        /* (unused) */
     int32_t lpl, lpr;                   /* output one-pole lowpass state (k = 7/8), amp16 << 13 */
     uint32_t lfsr, ncnt;                /* noise generator (NON voices): 15-bit LFSR, rate counter */
+    /* (I23) SFX ONLY: the voices mixed (vmask) = the voices a sound effect keyed on last (sfxv: a key-on
+       while the engine's $01A0 + voice flag is set; cleared by a key-on without it - the music's next
+       note); 0xFF = every voice.  sfxflags = the engine's $01A0 (0: none) */
+    uint32_t vmask, sfxv;
+    const uint8_t *sfxflags;
+    int32_t kpwm;                       /* (I23) output stage: pulse offset = x * kpwm >> 32 (8192 = the 22.05 kHz cycle) */
+    uint32_t quiet, qz, qscan;          /* (I23) output frames with no voice playing; echo line silent (1 zeroed, 2 to zero); last scan */
 } spcdsp_t;
 
 void spcdsp_init(spcdsp_t *d, uint32_t rate, const dsp_sample_t *const *dir, uint32_t nsrc,

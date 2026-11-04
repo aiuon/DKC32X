@@ -80,7 +80,7 @@ M68K_CODE:
 
 ! Master Vector Base Table at 0x06000000
 		.long   mstart      /* Cold Start PC */
-		.long   0x0603F7F0  /* Cold Start SP (master stack 0603E800-F7F0, canaries at E800 and F7F0) */
+		.long   0x0603F7F0  /* Cold Start SP (master stack 0603E900-F7F0, canaries at E900 and F7F0) */
 		.long   mstart      /* Manual Reset PC */
 		.long   0x0603F7F0  /* Manual Reset SP */
 		.long   main_err    /* Illegal instruction */

@@ -31,6 +31,7 @@ typedef struct {
     int32_t until;          /* output frames until the next engine tick, 16.16 */
     uint32_t fpt;           /* output frames per 32 kHz sample, 16.16 */
     int playing;
+    int sfx_only;           /* (I23) SOUND SFX ONLY: the music's voices are not mixed (spcdsp vmask) */
 } musplay_t;
 
 /* start song 'song' of the pack at 'blob' (0xFF = silence); echo: (echo_cap + 8) * 2 bytes */

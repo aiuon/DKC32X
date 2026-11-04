@@ -22,16 +22,16 @@ const volatile uint32_t perf_cfg[4] __attribute__((used)) = { 0x50434647, 0, 0, 
 /* [0] 'DONE' when the window is over, [1] pictures, [2] vblanks, [3] game frames, [4..11] pictures that
    took 1..8+ vblanks, [12] longest picture (vblanks), [13] pictures in 60 FPS mode, [14] slave idle FRT
    ticks, [15] master logic FRT ticks, [16] FRAME_TICKS, [17] first game frame, [18] window frames */
-extern volatile uint32_t perf_rec[64];   /* (SDRAM full: fescr.c overlays it on rfx_span - front-end only, never run here) */
+volatile uint32_t perf_rec[64] __attribute__((used, aligned(16)));   /* (SDRAM full: fescr.c's Rare logo buffers go to tiles_ram in PERFREC builds) */
 uint32_t perf_lost[4];
 uint32_t perf_padb, perf_padx;           /* (B presses the logic frames got / the 68000 sent: PADTEST) */
 volatile uint32_t perf_sidle;            /* (the slave's wait-for-a-job time, FRT ticks) */
-extern uint32_t perf_acc[24];                    /* (master FRT ticks: 0 logic, 1 60 FPS help, 2 wait for the slave, 3 present, 4 setup+jobs) */
+uint32_t perf_acc[24];                    /* (master FRT ticks: 0 logic, 1 60 FPS help, 2 wait for the slave, 3 present, 4 setup+jobs) */
 #define PERF_ADD(i, t) (perf_acc[i] += (t))
 static uint16_t perf_mt; static uint32_t perf_mv;
-extern uint32_t perf_cnt[16];   /* (perf_acc / perf_cnt / perf_ln: rfx_span too) */
+uint32_t perf_cnt[16];
 static int perf_seen; static uint32_t perf_pv;
-extern uint32_t perf_ln[16];                     /* (60 FPS mode lines: 0 n, 1 sum logic-end, 2 sum slave-done, 3 done before the logic end, 4 done after 222, 5 sum kick, 6 n kick) */
+uint32_t perf_ln[16];                     /* (60 FPS mode lines: 0 n, 1 sum logic-end, 2 sum slave-done, 3 done before the logic end, 4 done after 222, 5 sum kick, 6 n kick) */
 #define PERF_MARK(i) do { extern uint32_t frt_since_(uint16_t, uint32_t); if ((i) >= 0) { perf_acc[(i) < 0 ? 0 : (i)] += frt_since_(perf_mt, perf_mv); perf_cnt[(i) < 0 ? 0 : (i)]++; } do { perf_mv = vcount_(); perf_mt = frt_read_(); } while (perf_mv != vcount_()); } while (0)
 #define AUTOLEVEL ((int)perf_cfg[1])
 #ifndef GAMEDEMO
@@ -2187,7 +2187,7 @@ static uint32_t pm_req;                   /* (I12) the button the menu sends the
 static int start_block;                   /* (I12) Start still held from our level menu: not the game's */
 static int pm_shown, pm_frz;              /* (I12) pictures with the menu as it is (pm_key); no new pictures */
 static uint32_t pm_key;
-#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8 | (uint32_t)pm_stats << 9 | (uint32_t)lamp_swing_on << 10)
+#define PM_KEY() ((uint32_t)pm_sel | (uint32_t)fskip << 4 | (uint32_t)pipe_mode << 5 | (uint32_t)fg_on << 6 | (uint32_t)rip_on << 7 | (uint32_t)obj_wide << 8 | (uint32_t)pm_stats << 9 | (uint32_t)lamp_swing_on << 10 | (uint32_t)music_mode << 11)
 /* 60 FPS mode (menu option, off by default: it adds a frame of input lag): the slave draws the whole
    picture of game frame N (BG strips, sprites, line table, HUD: job 5 with every row) while the master
    runs the logic of frame N + 1; the picture is shown once that logic is done.  Simple canvas levels
@@ -2212,7 +2212,7 @@ static uint32_t pm_exit_addr;             /* exit to map: the level's "cleared" 
 static uint8_t pm_exit_orig;
 static int32_t pm_exit_wait;
 /* (I21) the menu's items (drawn in the small font, 10 lines apart) */
-enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_LAMP, PM_OBJ, PM_STATS, PM_EXIT, PM_LEVELS, PM_N };
+enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_LAMP, PM_OBJ, PM_SOUND, PM_STATS, PM_EXIT, PM_LEVELS, PM_N };
 /* (I21p) LAMP SWING: the light-switch levels' cones swing (on: the swing costs ~1/3 of a frame there on
    ares - per picture the cone edges move in both frame buffers) */
 #ifndef LAMP_SWING_DEFAULT
@@ -2492,19 +2492,21 @@ static void hexs(char *d, uint32_t v, int n)
     for (int i = n - 1; i >= 0; i--, v >>= 4) d[i] = hx[v & 15];
     d[n] = 0;
 }
-/* (I1) stack guards: 16 bytes at the bottom of the master stack (0603E800 since I13, was 0603F000, above the RAM the linker
-   fills: mars.ld) and between the two stacks (0603F7F0, the slave's below 06040000).  A broken one stops
-   the game with the STUCK page (STK) instead of corrupting memory quietly. */
+/* (I1) stack guards: 16 bytes at the bottom of the master stack (STK_LO; 0603E800 since I13, 0603E900 since I23 - its
+   peak is ~2 KB of 3.8 KB; was 0603F000, above the RAM the linker fills: mars.ld) and between the two stacks
+   (0603F7F0, the slave's below 06040000).  A broken one stops the game with the STUCK page (STK) instead of
+   corrupting memory quietly. */
 #define CANARY 0xC0FFEE11u
+#define STK_LO 0x0603E900u                /* (= mars.ld's ram end) */
 static void canary_set(void)
 {
-    for (int i = 0; i < 4; i++) { ((volatile uint32_t *)0x2603E800)[i] = CANARY; ((volatile uint32_t *)0x2603F7F0)[i] = CANARY; }
+    for (int i = 0; i < 4; i++) { ((volatile uint32_t *)(STK_LO | 0x20000000))[i] = CANARY; ((volatile uint32_t *)0x2603F7F0)[i] = CANARY; }
 }
 static uint32_t canary_bad(void)
 {
     uint32_t b = 0;
     for (int i = 0; i < 4; i++) {
-        if (((volatile uint32_t *)0x2603E800)[i] != CANARY) b |= 1;
+        if (((volatile uint32_t *)(STK_LO | 0x20000000))[i] != CANARY) b |= 1;
         if (((volatile uint32_t *)0x2603F7F0)[i] != CANARY) b |= 2;
     }
     return b;
@@ -3519,13 +3521,20 @@ static int stack_free(uint32_t lo)
 
 /* ask the slave for a song (0xFF = silence); wait until it switched (it no longer uses the old one) */
 static uint32_t music_seq;
-/* B + A cycles: 0 auto (full quality, half-rate voices if the level drops frames), 1 light, 2 off */
+/* 0 FULL (auto: full quality, half-rate voices if the level drops frames), 1 LIGHT, 2 OFF, 3 (I23) SFX ONLY
+   (the song is loaded for its samples, only the voices sound effects play on are mixed) - pause menu
+   SOUND; the viewer's B + A cycles 0-2 */
+#ifndef MUSIC_MODE_DEFAULT
+#define MUSIC_MODE_DEFAULT 0                  /* (test builds: 1 LIGHT, 3 SFX ONLY) */
+#endif
 #ifdef NOMUSIC
 static int music_mode = 2;
 #else
-static int music_mode = 0;
+static int music_mode = MUSIC_MODE_DEFAULT;
 #endif
 #define music_on (music_mode != 2)
+/* the slave's music_light: bit 0 voices at half rate, bit 1 SFX ONLY, bit 2 16 kHz output (LIGHT: from the next song) */
+#define MUSIC_LIGHT_VAL() ((music_mode == 1 ? 5u : 0u) | (music_mode == 3 ? 2u : 0u))
 static int music_msg;                     /* frames to show the music mode on the HUD */
 static int level_seconds;
 /* light: voices mixed at half rate (levels whose rendering needs both CPUs) */
@@ -3552,7 +3561,10 @@ static void music_play(int song, int light)
 #endif
 }
 #ifdef MUSWAITLOG
-__asm__(".global _muswait_log\n.set _muswait_log, _rfx_span + 512");   /* (test: SDRAM full - fescr.c's rfx_span, PERFREC only) */
+volatile uint32_t muswait_log[32] __attribute__((used));
+#endif
+#ifdef MIXSTAT
+volatile uint32_t mixstat[8] __attribute__((used));
 #endif
 
 static int level_song(const level_t *lv)
@@ -3839,7 +3851,7 @@ static void game_level(const level_t *lv)
                 extern char _end[];
                 uint32_t sp;
                 __asm__ volatile ("mov r15,%0" : "=r"(sp));
-                for (volatile uint32_t *p = (volatile uint32_t *)0x2603E810; (uint32_t)p < ((sp - 256) | 0x20000000); p++)
+                for (volatile uint32_t *p = (volatile uint32_t *)((STK_LO + 16) | 0x20000000); (uint32_t)p < ((sp - 256) | 0x20000000); p++)
                     *p = 0xA5A5A5A5;
             }
 #endif
@@ -4044,7 +4056,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
         LDST(8);
         if (game_on) disp_pending = 2;    /* (I13: with the Genesis planes, as below) */
         else REG16(VDP_DISPMODE) = 0x0001;
-        *UNCACHED(&music_light) = music_mode == 1;
+        *UNCACHED(&music_light) = MUSIC_LIGHT_VAL();
         game_song = -2;                       /* (the game's song: music_follow) */
         level_seconds = 0;
         return;
@@ -4459,7 +4471,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     if (game_on) disp_pending = 2;          /* (on at the second flip of the new level: with the
                                                Genesis planes, md/main.c disp_hold) */
     else REG16(VDP_DISPMODE) = 0x0001;
-    *UNCACHED(&music_light) = music_mode == 1;
+    *UNCACHED(&music_light) = MUSIC_LIGHT_VAL();
     if (game_on) game_song = -2;            /* (the game's song: music_follow) */
     else music_play(music_on ? level_song(lv) : 0xFF, comp);
     level_seconds = 0;
@@ -4885,7 +4897,7 @@ void m_main(void)
     FRT_TCR = 0;
     canary_set();
 #ifdef MUSDEBUG
-    stack_fill(0x0603E810);
+    stack_fill((STK_LO + 16));
 #endif
     {
         uint16_t a = frt_read();
@@ -4991,7 +5003,7 @@ void m_main(void)
             extern char _end[];
             uint32_t sp;
             __asm__ volatile ("mov r15,%0" : "=r"(sp));
-            for (volatile uint32_t *p = (volatile uint32_t *)0x2603E810; (uint32_t)p < ((sp - 256) | 0x20000000); p++)
+            for (volatile uint32_t *p = (volatile uint32_t *)((STK_LO + 16) | 0x20000000); (uint32_t)p < ((sp - 256) | 0x20000000); p++)
                 *p = 0xA5A5A5A5;
         }
 #endif
@@ -5133,7 +5145,7 @@ void m_main(void)
                 text(36, 172, b, 255);
                 {
                     static char c[20];
-                    fmt_num(c, stack_free(0x0603E810), 4); c[4] = ' ';
+                    fmt_num(c, stack_free((STK_LO + 16)), 4); c[4] = ' ';
                     fmt_num(c + 5, stack_free(0x0603F800), 4); c[9] = ' ';
                     extern volatile uint32_t music_bench;
                     fmt_num(c + 10, (int)*UNCACHED(&music_bench), 5); c[15] = 0;
@@ -5324,6 +5336,11 @@ void m_main(void)
                         case PM_FG: fg_on ^= 1; pm_fg_reload = 1; break;
                         case PM_OBJ: obj_wide ^= 1; break;
                         case PM_LAMP: lamp_swing_on ^= 1; break;
+                        case PM_SOUND:                                       /* (I23) FULL -> LIGHT -> SFX ONLY -> OFF */
+                            music_mode = music_mode == 0 ? 1 : music_mode == 1 ? 3 : music_mode == 3 ? 2 : 0;
+                            *UNCACHED(&music_light) = MUSIC_LIGHT_VAL();
+                            game_song = -2;                                  /* (music_follow: the song again - LIGHT's rate) */
+                            break;
                         case PM_STATS: pm_stats ^= 1; show_hud = pm_stats; break;
                         case PM_EXIT: {                                      /* exit to the map */
                             uint32_t lv = game_wram16(0x563) & 0xFF;
@@ -6052,9 +6069,8 @@ void m_main(void)
         if ((press & PAD_A) && !game_on) {
             if (pad & PAD_B) {                /* B + A: music on/off */
                 music_mode = (music_mode + 1) % 3;
-                *UNCACHED(&music_light) = music_mode == 1;
-                if (music_mode != 1)               /* auto <-> light switch on the fly */
-                    music_play(music_on ? level_song(cur_lv) : 0xFF, comp);
+                *UNCACHED(&music_light) = MUSIC_LIGHT_VAL();
+                music_play(music_on ? level_song(cur_lv) : 0xFF, comp);   /* (I23: LIGHT's rate needs a new start) */
                 music_msg = 120;
             } else {
                 show_hud ^= 1;
@@ -6743,7 +6759,7 @@ void m_main(void)
                 line[9] = ' ';
                 fmt_num(line + 10, stack_free(0x0603F800), 4);
                 line[14] = ' ';
-                fmt_num(line + 15, stack_free(0x0603E810), 4);
+                fmt_num(line + 15, stack_free((STK_LO + 16)), 4);
                 line[19] = 0;
             }
             if (0) {
@@ -6855,7 +6871,7 @@ void m_main(void)
             line[7] = ' '; fmt_num(line + 8, cv2_frames > 9999 ? 9999 : cv2_frames, 4); line[12] = 0;
 #endif
             if (music_msg) {
-                static const char *const names[3] = { "MUSIC AUTO", "MUSIC LIGHT", "MUSIC OFF" };
+                static const char *const names[4] = { "MUSIC AUTO", "MUSIC LIGHT", "MUSIC OFF", "SFX ONLY" };
                 const char *q = names[music_mode];
                 int i = 0;
                 for (; q[i]; i++) line[i] = q[i];
@@ -6874,12 +6890,12 @@ void m_main(void)
             if (pm_key != PM_KEY()) { pm_key = PM_KEY(); pm_shown = 0; }
             pm_shown++;
             static const char *const it[PM_N] = { "RESUME", "FRAME SKIP", "60FPS MODE", "FOREGROUND", "RIPPLE",
-                                                  "LAMP SWING", "OBJECT RANGE", "STATS", "EXIT TO MAP", "LEVEL SELECT" };
+                                                  "LAMP SWING", "OBJECT RANGE", "SOUND", "STATS", "EXIT TO MAP", "LEVEL SELECT" };
             int32_t gx = CV_GX(sh, camx), gy = CV_GY(sh, camy);
             /* (I21) small font: 6 px characters, 10 px lines */
-            const int bx = 92, by = 64, bw = 136, bh = 22 + PM_N * 10;
+            const int bx = 86, by = 58, bw = 148, bh = 22 + PM_N * 10;    /* (I23: wider for SFX ONLY) */
             box_cv(bx, by, bw, bh, 96);
-            text57_cv(bx + 47, by + 5, "OPTIONS", 112, 96);
+            text57_cv(bx + 53, by + 5, "OPTIONS", 112, 96);
             for (int i = 0; i < PM_N; i++) {
                 int yy = by + 18 + i * 10;
                 const char *v = 0;
@@ -6891,6 +6907,7 @@ void m_main(void)
                 if (i == PM_RIPPLE) v = rip_on ? "ON" : "OFF";
                 if (i == PM_LAMP) v = lamp_swing_on ? "ON" : "OFF";
                 if (i == PM_OBJ) v = obj_wide ? "WIDE" : "SNES";
+                if (i == PM_SOUND) { static const char *const sn[4] = { "FULL", "LIGHT", "OFF", "SFX ONLY" }; v = sn[music_mode & 3]; }
                 if (i == PM_STATS) v = pm_stats ? "ON" : "OFF";
                 if (v) text57_cv(bx + 100, yy, v, 112, 96);
             }
@@ -7010,8 +7027,8 @@ void m_main(void)
             swaps = 0;
             fps_mark += pal ? 50 : 60;
             /* adaptive music: if this level can't hold 60 (PAL 50) fps, mix the voices at half rate */
-            if (++level_seconds > 2 && fps < (pal ? 48u : 57u) && music_mode == 0)
-                *UNCACHED(&music_light) = 1;
+            if (++level_seconds > 2 && fps < (pal ? 48u : 57u) && (music_mode == 0 || music_mode == 3))
+                *UNCACHED(&music_light) = MUSIC_LIGHT_VAL() | 1;
         }
     }
 }

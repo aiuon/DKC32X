@@ -1,7 +1,7 @@
 OUTPUT_ARCH(sh)
 MEMORY {
 	rom (rx) : ORIGIN = 0x02000000, LENGTH = 0x00400000
-	ram (wx) : ORIGIN = 0x06000000, LENGTH = 0x0003E800   /* then the master stack (4 KB - 16, I13: the front-end screens with sprites used 1.9 of 2 KB), the slave's (2 KB) */
+	ram (wx) : ORIGIN = 0x06000000, LENGTH = 0x0003E900   /* then the master stack (3.8 KB - 16, I23; I13: 4 KB - the front-end screens with sprites used 1.9 of 2 KB; peak ~2 KB), the slave's (2 KB) - main.c STK_LO */
 }
 SECTIONS {
 	.text 0x02000000 : AT(0x00000000) {

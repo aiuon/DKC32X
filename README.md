@@ -116,7 +116,7 @@ Play the `.32x` in an emulator with 32X support (**ares**, **PicoDrive**), on **
 or on a **real 32X** with a flash cart. The ROM is about 11.5 MB and uses the Sega "SSF" bank
 mapper (its header says `SEGA SSF`), so it needs a flash cart that supports that mapper for 32X
 games (Mega EverDrive PRO / X series). Carts limited to plain 4 MB 32X games can't run it. Real
-hardware is still untested; reports are welcome in the issues. A 6-button pad is recommended.
+hardware: it boots on the EverDrive PRO; reports are welcome in the issues. A 6-button pad is recommended.
 
 | Mega Drive pad | Does |
 |---|---|
@@ -129,6 +129,10 @@ hardware is still untested; reports are welcome in the issues. A 6-button pad is
   menu instead (pick any level directly).
 - The pause menu also has *exit to the map* and options (for example frame skip, 60FPS MODE,
   ripple effects and level select).
+- The pause menu's **SOUND** option: **FULL** (default, the sound as on the SNES), **LIGHT** (music at a
+  lower output rate - a little less treble, faster on a real 32X), **SFX ONLY** (sound effects with
+  their echo, no music - faster again) and **OFF**. On a real 32X the music engine costs a lot of
+  speed; LIGHT or SFX ONLY help most in the busy jungle levels.
 - Saves (Cranky's / Candy's barrels, the file select) are kept in the cartridge's battery memory.
   In an emulator that is the `.srm` / `.sav` file next to the ROM; on MiSTer, mount a save file
   when you load the ROM.

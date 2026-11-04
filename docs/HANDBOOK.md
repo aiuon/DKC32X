@@ -130,8 +130,8 @@ them. Keep this file current when something structural changes.
   levels, ending, credits. Hold START at power-on = level-viewer menu. -DFULLGAME / -DVIEWERMENU.
 - Music follows the song the GAME uploads (hle_apu_upload). The viewer menu's LEVEL_MUSIC table only
   covers menu levels (builder prints one note for rooms without a menu song - harmless).
-- Pause menu (game paused, $0579 bit 6): RESUME / FRAME SKIP / 60FPS MODE / FOREGROUND / EXIT TO MAP
-  / RIPPLE / LEVEL SELECT. Start opening the pause must be released before Start closes it (pm_hold).
+- Pause menu (game paused, $0579 bit 6): RESUME / FRAME SKIP / 60FPS MODE / FOREGROUND / RIPPLE / LAMP SWING
+  / OBJECT RANGE / SOUND (I23: FULL / LIGHT 16 kHz / SFX ONLY / OFF) / STATS / EXIT TO MAP / LEVEL SELECT. Start opening the pause must be released before Start closes it (pm_hold).
   A + Start = viewer shortcut only in viewer builds.
 
 ---------------------------------------------------------------------------------------------------
@@ -140,7 +140,8 @@ them. Keep this file current when something structural changes.
 ### 4.1 SDRAM (256 KB, 0x06000000)
 - .data, then .sdgame (copied by m_main uncached, read back + compared, up to 4 rounds,
   sdgame_fixes), then .bss up to 0x0603E800 (__end ~0x0603BD60, check the link map).
-- Master stack 0x0603E800-0x0603F7F0 (4 KB, canaries 16 B at each end, measured peak 1916 B).
+- Master stack 0x0603E900-0x0603F7F0 (3.8 KB since I23 - STK_LO / mars.ld; canaries 16 B at each end,
+  measured peak ~2 KB).  SDRAM is FULL (~240 bytes free after I23): new code goes to ROM.
 - Slave stack 0x0603F800-0x06040000 (2 KB, measured peak 1140 B).
 - STACKCHK builds paint both stacks (0xA5A5A5A5 master / 0x5A5A5A5A slave); read with PicoDrive
   pd_dbg PD_SDDUMP (SDRAM byte-swapped per 16-bit word).
@@ -443,6 +444,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
 - I21m: the steady lamp wall (no flicker: ares repeats / drops pictures, every 60 Hz trick flashes
   there), still cone lines.
+- I23: pause menu SOUND (FULL / LIGHT 16 kHz / SFX ONLY / OFF), the mixer's silence fast path, PWM output
+  scaled by its cycle, master stack from 0603E900.
 - I22: first real-hardware report -> shared-bus model in ares; pauses in every polling loop, music_play
   wait bounded, the slave's sky interrupt stops after the last changing line, the 68000 image packed.
 - I21r: plane-block LZ flag moved to bit 2048 (bit 1024 = the intro's front plane: garbage tiles in the

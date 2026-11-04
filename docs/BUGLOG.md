@@ -1575,3 +1575,34 @@ The emulators (and the MiSTer model, HANDBOOK 2) gave ~40 / ~49 there.
   buffers on chip) is much worse (JH 12 fps: the renderer loses half its cache).
 - Checks: host front-end renders (intro + title, 211 pictures) identical; PicoDrive GAMEBOT 12000 +
   STACKCHK 1984 / 1488; audio from power-on (PicoDrive, 40 s RMS) as I21r; boot / intro in PicoDrive.
+
+### I23 (2026-11-04): pause menu SOUND (FULL / LIGHT / SFX ONLY / OFF), a lighter music engine
+User: a combination - the sound engine lighter on the bus, an option to keep today's sound, and OFF; an
+SFX-only option (the Z80 route dropped: mono / no echo for much work - the 68000 cannot run the echo
+filter either: 7.6 MHz, ~70 cycles a multiply, and the YM2612 DAC is mono).
+- SOUND (pause menu, after OBJECT RANGE): FULL = as before (auto: half-rate voices below 57 fps), LIGHT =
+  16 kHz output + half-rate voices (from the next song start: the menu restarts the song; the PWM cycle
+  and both output buffers switch at that start), SFX ONLY = the song is loaded for its samples but only
+  the voices sound effects play on are mixed (the engine's $01A0 + voice flags = an effect owns the voice;
+  spcdsp sfxv keeps an effect's voice after the flag clears until the music keys a new note on it -
+  release tails and echo kept), OFF = silence (no effects either, as before).  music_light bits: 0 half
+  rate, 1 SFX ONLY, 2 16 kHz.  The viewer's B + A still cycles FULL / LIGHT / OFF.
+- Silence fast path (all modes, spcdsp mix_quiet): no voice playing and the echo line within +-1
+  (scanned once per trip round it; 24 trips at the latest) -> the output stage and mix buffers are skipped,
+  the PWM buffer gets pwm_center (exactly what x = 0 converts to); the echo line is zeroed once.
+- B-LIGHTVOL: the first 16 kHz build was 28 % quieter - the output stage added fixed pulse offsets, and a
+  longer PWM cycle makes the same offset a smaller share of it.  mixout .Lpwm now scales by kpwm
+  (x * kpwm >> 32; 8192 at 22.05 kHz = the old x >> 19 exactly).  A first try loaded kpwm with
+  mov.l @(64,r7) - beyond the 60-byte reach of @(disp,Rn): silence.  Now mov #64 + @(r0,r7).
+- SDRAM was full (16 bytes left): the new mixer code lives in ROM helpers (mix_quiet, mp_vmask) called
+  from the SDRAM mixer; the master stack starts at 0603E900 (STK_LO; was E800 - measured peak ~2 KB of
+  3.8 KB): 240 bytes free.  Test builds (PERFREC) put the Rare logo's buffers in tiles_ram (the logo never
+  runs there); STACKCHK's paint started at the old E810 and broke the new canary (test builds only).
+- Real-hardware model (ROMW 8, fps / game speed): JH FULL 21.4 / 52.3, LIGHT 23.7 / 55.9, SFX ONLY 25.0 /
+  58.2, OFF 31.4 / 59.9; Ropey 14.2 / 15.7 / 16.7 / 19.7; Reptile Rumble 24.3 / 27.8 / 31.4 / 42.2;
+  Barrel Cannon Canyon 24.7 / 26.0 / 30.6 / 36.2 (FULL = I22 within layout noise; MiSTer model unchanged).
+- Checks: PicoDrive audio from power-on, FULL vs I22: identical but 1588 samples in one 30 ms stretch
+  (max 55 / 32768 - the echo residue the fast path cleared); LIGHT at the same loudness; SFX ONLY: the
+  unpause sound + echo after resuming, four jump sounds with their echo tails in Jungle Hijinxs, silence
+  between; the pause menu (wider box) cycles FULL -> LIGHT -> SFX ONLY -> OFF -> FULL and the game goes on;
+  GAMEBOT 12000 + STACKCHK 2012 / 1500.

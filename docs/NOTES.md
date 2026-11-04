@@ -2055,3 +2055,15 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   image (30 KB in the first 256 KB, copied by the BIOS - needs a split boot image).
 - Checks: plain md5 1be198c6...; tools/prebuilt/md.bin = the packed 68000 binary (prebuilt build
   identical).
+
+## 2026-11-04: I23 - pause menu SOUND, silence fast path, 16 kHz LIGHT (BUGLOG "I23")
+- SPC engine (Yoshifanatic disassembly SPC700_Engine_DKC1.asm, CODE_064F): 8 music tracks (X 0-7, tempo
+  $26/$27); an effect track X + 8 runs on voice X while $01A0 + X != 0 (tempo $29/$2A).
+- Slave profile, SFX ONLY before the fast path (ROMW 8): mixout 11.6 %, spc_exec 6.4 %, spcdsp_mix 5.3 %,
+  expand2 4.4 %, mixjobs 3 % - ~37 % audio with no voice mixed.  MIXSTAT (-DMIXSTAT, test): mixer calls /
+  fast / with voices / waiting for the echo (JH, effects in ~30 % of the calls).
+- Test switches: -DMUSIC_MODE_DEFAULT=1 / 3 (LIGHT / SFX ONLY from power-on), -DSFXONLY_TEST, -DMUS_RATE=n.
+- Still open for FULL: mixout keeps 4 temporaries per frame pair on the stack (SDRAM write-through: ~3 k
+  bus words a frame), the mixer's accumulators are read-modify-write in SDRAM (pairs of voices per pass
+  would halve them), spc_exec runs from ROM (12.7 KB, no SDRAM room).
+- Checks: plain md5 4d5e5782... (Linux convert.py = Wine .bat = dev build); tools/prebuilt/md.bin unchanged since I22.

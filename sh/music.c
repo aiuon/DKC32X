@@ -73,14 +73,28 @@ static int8_t *echo_mem;
 static const uint8_t *blob;
 
 /* overload guard: a refill must finish well within the buffer's playing time (HALF samples) */
-#define BUF_TICKS ((uint32_t)HALF * (SH2_HZ / 8) / MUS_RATE)  /* FRT ticks (SH-2 clock / 8) */
+/* (I23) SOUND LIGHT: 16 kHz output (music_light bit 2, taken at a song's start) - ~27 % less work per second
+   for the mixer, the echo, the output stage and the PWM DMA (real-hardware model: JH +7 %, Reptile +12 % fps) */
+#define MUS_RATE_LIGHT 16000
+static uint32_t mus_rate = MUS_RATE;
+#define BUF_TICKS ((uint32_t)HALF * (SH2_HZ / 8) / mus_rate)  /* FRT ticks (SH-2 clock / 8) */
 static uint32_t force_half, skip_next;
 static void refill(uint32_t *dst)
 {
     uint32_t req = *UNCACHED(&music_req);
     if ((req >> 9) != cur_seq) {
         cur_seq = req >> 9;
-        mp_start(&mp, blob, req & 0xFF, echo_mem, ECHO_FRAMES, MUS_RATE);
+        {
+            uint32_t rate = (*UNCACHED(&music_light) & 4) ? MUS_RATE_LIGHT : MUS_RATE;
+            if (rate != mus_rate) {             /* new PWM cycle; both buffers to the new silence level */
+                mus_rate = rate;
+                cycle_v = (SH2_HZ + rate / 2) / rate;
+                REG16(PWM_CYC) = CYCLE + 1;
+                for (int h = 0; h < 2; h++)
+                    for (int i = 0; i < HALF; i++) pwm_buf[h][i] = (CYCLE / 2) * 0x10001u;
+            }
+        }
+        mp_start(&mp, blob, req & 0xFF, echo_mem, ECHO_FRAMES, mus_rate);
         mp.dsp.half = (req >> 8) & 1;
         /* light mode = comp levels: two-way cache + on-chip RAM.  Mix buffers in the free top of the
            slave's on-chip RAM (the comp renderer uses the first 1.5 KB) */
@@ -88,9 +102,18 @@ static void refill(uint32_t *dst)
            then could not keep up and the slave never left the music interrupt) */
         mp.dsp.smp_or = 0;
         mp.dsp.pwm_center = CYCLE / 2;
+        {   /* (I23) the same loudness at any PWM cycle (pulse width / cycle) */
+            uint32_t c22 = (SH2_HZ + MUS_RATE / 2) / MUS_RATE;
+            mp.dsp.kpwm = (int32_t)((8192u * CYCLE + c22 / 2) / c22);
+        }
         *UNCACHED(&music_ack) = cur_seq;
     }
-    mp.dsp.half = ((req >> 8) & 1) | *UNCACHED(&music_light) | (force_half != 0);
+    mp.dsp.half = ((req >> 8) & 1) | (*UNCACHED(&music_light) & 1) | (force_half != 0);
+#ifdef SFXONLY_TEST
+    mp.sfx_only = 1;                        /* (test: SOUND SFX ONLY forced) */
+#else
+    mp.sfx_only = (*UNCACHED(&music_light) >> 1) & 1;   /* (I23: music_light bit 1 = SOUND SFX ONLY) */
+#endif
     if (force_half) force_half--;
     {
         uint32_t h = *UNCACHED(&sfx_head);

@@ -7,7 +7,7 @@
 ! mixout_t (offsets):
 !   0 n        4 kinL      8 kinR      12 evl<<18  16 evr<<18  20 efb<<18
 !  24 c0       28 c1       32 ebase    36 epos     40 eend     44 flags (1 echo, 2 write)
-!  48 pmax     52 lpl      56 lpr      60 center-4096
+!  48 pmax     52 lpl      56 lpr      60 center    64 kpwm (I23)
 !   kin = 2^25 / mvol: (ein[a] + ein[b]) * kin >> 32 = mean echo input without master volume, 16-bit
 ! The echo line holds 8-bit {L, R} pairs; its length includes the FIR delay, so the two taps are the
 ! two oldest entries: tap0 = epos (overwritten this step), tap1 = the next one.
@@ -195,17 +195,15 @@ _mixout:
 	sub	r0,r2
 	add	r2,r3
 	mov.l	r3,@(56,r7)		! lpr
-	! pulse = ((x ^ 0x80000000) >> 19) + center - 4096, then clamped to 1..pmax
-	mov.l	.Lbias,r0
-	mov	r11,r1
-	xor	r0,r1
-	xor	r0,r3
-	shlr16	r1
-	shlr16	r3
-	shlr2	r1
-	shlr2	r3
-	shlr	r1
-	shlr	r3
+	! pulse = (x * kpwm >> 32) + center, then clamped to 1..pmax.  (I23) kpwm = 8192 at 22.05 kHz (= x >> 19,
+	! exactly the old ((x ^ 0x80000000) >> 19) - 4096); scaled with the PWM cycle at other rates (SOUND LIGHT's
+	! 16 kHz: the same loudness)
+	mov	#64,r0
+	mov.l	@(r0,r7),r0		! kpwm (@(disp,Rn) reaches 60 at most)
+	dmuls.l	r11,r0
+	sts	mach,r1
+	dmuls.l	r3,r0
+	sts	mach,r3
 	mov.l	@(60,r7),r0
 	add	r0,r1
 	add	r0,r3

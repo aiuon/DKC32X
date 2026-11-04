@@ -43,6 +43,8 @@ void spcdsp_init(spcdsp_t *d, uint32_t rate, const dsp_sample_t *const *dir, uin
     d->k32 = (uint32_t)(((uint64_t)32000 << 16) / rate);
     d->pitchmul = (uint32_t)(((uint64_t)32000 << 16) / rate);   /* step16 = pitch * pitchmul >> 12 */
     d->echo = echo_buf;
+    d->vmask = 0xFF;                         /* (I23: every voice mixed) */
+    d->kpwm = 8192;                          /* (I23: PWM scale, music.c sets it per rate) */
     d->echo_cap = echo_cap_frames;
     d->fir_delay = (7 * rate / 2 + 16000) / 32000;
     d->regs[0x6C] = 0xE0;
@@ -83,7 +85,11 @@ void spcdsp_write(spcdsp_t *d, int reg, int val)
     d->regs[reg] = (uint8_t)val;
     if (reg == 0x4C) {                       /* KON */
         for (int i = 0; i < 8; i++)
-            if (val & (1 << i)) key_on(d, i);
+            if (val & (1 << i)) {
+                key_on(d, i);
+                if (d->sfxflags && d->sfxflags[i]) d->sfxv |= 1u << i;
+                else d->sfxv &= ~(1u << i);
+            }
     } else if (reg == 0x5C) {                /* KOF */
         for (int i = 0; i < 8; i++)
             if (val & (1 << i)) d->v[i].mode = ENV_RELEASE;
@@ -283,7 +289,7 @@ typedef struct {
     int32_t kinl, kinr, evl, evr, efb, c0, c1;
     int8_t *ebase, *epos, *eend;
     uint32_t flags;
-    int32_t pmax, lpl, lpr, center;
+    int32_t pmax, lpl, lpr, center, kpwm;
 } mixout_t;
 
 #ifdef __sh__
@@ -359,6 +365,48 @@ static void noise_voices(spcdsp_t *d, unsigned non, unsigned eon, int32_t *acc, 
     }
 }
 
+/* (I23) silence fast path (ROM: runs only while no voice plays; SDRAM is full): no voice playing and the
+   echo over - the output stage and the mix buffers are skipped (on a real 32X they were ~1/3 of the slave's
+   music time, most of it bus traffic).  With echo: once per trip round the line (all input has gone through
+   it), is every entry within +-1 (8-bit, ~-42 dB)?  Then the tail is over (24 trips at the latest).  The line
+   is cleared once, so nothing stale comes back with the next sound; x = 0 through the lowpass and the PWM
+   conversion is exactly pwm_center (mixout .Lpwm).  Returns 1 when it wrote the n frames. */
+static __attribute__((noinline)) int mix_quiet(spcdsp_t *d, void *outp, int n, int echo_on)
+{
+    uint32_t rt = d->echo_len * 2, ready = d->quiet >= 256;
+    if (echo_on) {
+        if (!d->qz && d->quiet >= rt + 256 && d->quiet >= d->qscan + rt) {
+            const int8_t *e = d->echo;
+            uint32_t k = 0, ne = d->echo_len * 2;
+            d->qscan = d->quiet;
+            while (k < ne && (uint8_t)(e[k] + 1) <= 2) k++;
+            if (k == ne) d->qz = 2;
+        }
+        ready = d->qz || d->quiet >= rt * 24 + 1024;
+    }
+#ifdef MIXSTAT
+    { extern volatile uint32_t mixstat[8]; mixstat[0]++; if (ready) mixstat[1]++; else mixstat[7]++; mixstat[4] = d->echo_len; }
+#endif
+    if (!ready) {
+        d->quiet += (uint32_t)n;
+        return 0;
+    }
+    if (d->qz != 1) {
+        if (d->echo)
+            for (uint32_t i = 0; i < (d->echo_cap + 8) * 2; i++) d->echo[i] = 0;
+        d->qz = 1;
+    }
+    d->lpl = d->lpr = 0;
+#ifdef __sh__
+    uint32_t c = (uint32_t)d->pwm_center * 0x10001u, *o = (uint32_t *)outp;
+    for (int i = 0; i < n; i++) o[i] = c;
+#else
+    int16_t *o = (int16_t *)outp;
+    for (int i = 0; i < n * 2; i++) o[i] = 0;
+#endif
+    return 1;
+}
+
 /* (I12: SDRAM - the slave runs it for the music, ~5 cycles per instruction from the cartridge) */
 __attribute__((section(".sdtext"), aligned(16))) void spcdsp_mix(spcdsp_t *d, void *outp, int n)
 {
@@ -385,14 +433,16 @@ __attribute__((section(".sdtext"), aligned(16))) void spcdsp_mix(spcdsp_t *d, vo
     st.epos = d->echo + d->echo_pos * 2;
     st.lpl = d->lpl;
     st.lpr = d->lpr;
-    st.center = d->pwm_center - 4096;
+    st.center = d->pwm_center;
+    st.kpwm = d->kpwm;
     st.pmax = d->pwm_center * 2 - 1;
     /* envelopes and job parameters once per call (C in ROM), then the chunks (asm in SDRAM);
        echo-enabled voices first: their sum is the echo input */
     PROF_T(pt0);
     static vjob_t jobs[8];                /* (static: the slave's small stack, one interrupt at a time) */
     uint8_t who[8];
-    unsigned non = d->regs[0x3D];
+    unsigned non = d->regs[0x3D] & d->vmask;   /* (I23: SFX ONLY - the music's voices are not mixed) */
+    eon &= d->vmask;
     int32_t ticks = (int32_t)((d->k32 * (uint32_t)n) >> 8);
     int vframes = half ? n >> 1 : n;
     uint32_t nj = 0, ne;
@@ -403,7 +453,7 @@ __attribute__((section(".sdtext"), aligned(16))) void spcdsp_mix(spcdsp_t *d, vo
     ne = nj;
     bit = 1;
     for (int i = 0; i < 8; i++, bit += bit)
-        if (!(eon & bit) && !(non & bit) && (d->v[i].on || d->v[i].gl || d->v[i].gr) && voice_job(d, i, &jobs[nj], vframes, ticks, half))
+        if (!(eon & bit) && !(non & bit) && (d->vmask & bit) && (d->v[i].on || d->v[i].gl || d->v[i].gr) && voice_job(d, i, &jobs[nj], vframes, ticks, half))
             who[nj++] = i;
     if (non) {
         bit = 1;
@@ -417,6 +467,11 @@ __attribute__((section(".sdtext"), aligned(16))) void spcdsp_mix(spcdsp_t *d, vo
         }
     }
     PROF_ADD(2, pt0);
+    /* (I23) silence fast path: mix_quiet */
+    if (nj == 0 && !non) {
+        if (mix_quiet(d, outp, n, echo_on)) return;
+    } else
+        d->quiet = d->qz = d->qscan = 0;
     while (n > 0) {
         int m = n < CHUNK ? n : CHUNK;
         /* (the work buffers are in the cache RAM; before the cache switch - the first frame - silence:
