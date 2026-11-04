@@ -465,8 +465,10 @@ R65_HOT static void spr_build_list(void)
         int32_t x = o[0] | (h & 1) << 8;
         if (x >= 320) x -= 512;     /* 9-bit x: 256..319 = the 32X's extra columns (widescreen patch) */
         /* (the view left of the game's camera at a level's right end); (I21c) the Galleon boss's distant
-           island at a fixed offset (its shadow band on the Genesis plane: md update_scroll) */
-        x += (spr_fixed_x != 0x7FFF && (o[2] & 0xF0) == 0x40 && (o[3] & 0x3F) == 0x2D) ? spr_fixed_x : spr_xoff;
+           island at a fixed offset (its shadow band on the Genesis plane: md update_scroll).  (I21r) only
+           the island's own tiles 140-148 (16 x 16 at 140 / 142, 8 x 8 at 144-148): I21c took 140-14F, and
+           a falling cannon ball in a free slot there (same palette 6, priority 2) lost a quarter */
+        x += (spr_fixed_x != 0x7FFF && o[2] >= 0x40 && o[2] <= 0x48 && (o[3] & 0x3F) == 0x2D) ? spr_fixed_x : spr_xoff;
         if (x <= -size || x >= SCREEN_W) continue;
         d->x = (int16_t)x; d->y = (int16_t)y; d->tile = (uint16_t)(o[2] | (o[3] & 1) << 8);
         d->attr = o[3]; d->size = (uint8_t)size;

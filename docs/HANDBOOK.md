@@ -438,6 +438,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
 - I21m: the steady lamp wall (no flicker: ares repeats / drops pictures, every 60 Hz trick flashes
   there), still cone lines.
+- I21r: plane-block LZ flag moved to bit 2048 (bit 1024 = the intro's front plane: garbage tiles in the
+  cross-fade, B-LZFLAG); Galleon island sprite match narrowed to tiles 140-148 (cannon ball, B-GALLEONBALL).
 - I21q: "SEGA SSF" header (flash carts' bank mapper), EverDrive save RAM, ROM 14 -> 11.5 MB (tiled
   pictures, LZSS Genesis plane data, shared front-end VRAM pages), LAMP SWING off by default.
 - I21p: cabins catch up logic frames + their NMI translated (Candy / Funky barrel no longer slow), the

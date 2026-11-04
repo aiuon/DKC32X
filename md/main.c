@@ -587,7 +587,7 @@ static void do_command(uint16_t cmd)
 
 /* a plane block (build_viewer md_block): tiles, plane maps, CRAM, scroll / effect parameters; the level's
    extras after them (animated tiles, snow, blizzard, lamp cones, glimmer, beam) */
-/* (I21q) LZSS (tools/lzss.py): the tiles and plane maps of a level's block (flags bit 1024), streamed to
+/* (I21q) LZSS (tools/lzss.py): the tiles and plane maps of a level's block (flags bit 2048 - 1024 is the intro's front plane), streamed to
    VRAM at the load - a flag byte per 8 items (bit 7 first, 1 = literal), a match = (distance - 1) << 4 |
    (length - 3) in 2 bytes; the last 4 KB of output in lz_ring */
 static uint8_t lz_ring[4096];
@@ -647,7 +647,7 @@ static void load_md(const uint16_t *md)
         for (int i = 0; i < 224; i++)
             bg3buf[0][i] = bg3buf[1][i] = bg3day[i] = col[i];
         cur_bg3col = 0xFFFF;
-        uint16_t lz = (planes & 1024) != 0;    /* (I21q) compressed tiles + maps */
+        uint16_t lz = (planes & 2048) != 0;    /* (I21q) compressed tiles + maps */
         const uint16_t *m = tiles + (uint32_t)ntiles * 16;
         if (lz) {
             uint32_t zl = (uint32_t)tiles[0] << 16 | tiles[1];

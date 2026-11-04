@@ -3190,12 +3190,16 @@ def _md_block(b, pf=None):
                     hdr += be16(g['map'][(ty % g['h']) * 64 + tx])
     if MD_LZ:
         # (I21q) the tiles and the plane maps (load-time only: uploaded to VRAM) LZSS-compressed (tools/lzss.py):
-        # flags bit 1024, then u32 compressed length, the stream (padded to even); the 68000 streams it to VRAM
+        # flags bit 2048 (1024 is the intro's front plane - I21q's first 1024 made the 68000 'decompress' Cranky's
+        # platform: garbage tiles in the intro's cross-fade), then u32 compressed length, the stream (padded to even); the 68000 streams it to VRAM
         # (md/main.c lz_*).  ~1968 KB of Genesis plane data in all levels -> about half
         import lzss
         z = lzss.compress(bytes(hdr[608:]))
         assert lzss.decompress(z, len(hdr) - 608) == bytes(hdr[608:])
-        flags |= 1024
+        if os.environ.get('MD_LZDUMP'):   # (test: md/lztest.c runs the 68000 decoder over every block)
+            with open(os.environ['MD_LZDUMP'], 'ab') as f:
+                f.write(struct.pack('>IIII', len(hdr) - 608, len(z), flags | 2048, (len(hdr) - 608)) + bytes(hdr[0:2]) + bytes(hdr[608:]) + z)
+        flags |= 2048
         hdr[2:4] = be16(flags)
         hdr = hdr[:608] + be32(len(z)) + z + (b'\0' if len(z) & 1 else b'')
     # animated tiles: u16 genesis tile (| 0x8000: second group), 8 frames x 32 bytes
@@ -3379,7 +3383,22 @@ def pic_tiles(img):
                     idxr[key] = len(traw)
                     traw.append(key)
                 mp.append(0x8000 | idxr[key])
-    return be16(len(t4)) + be16(len(traw)) + b''.join(be16(v) for v in mp) + b''.join(t4) + b''.join(traw)
+    out = be16(len(t4)) + be16(len(traw)) + b''.join(be16(v) for v in mp) + b''.join(t4) + b''.join(traw)
+    # (I21r) decode it the way sh/main.c pic_row8 does (the line on the non-zero nibbles) and compare
+    n4 = len(t4)
+    for ty in range(28):
+        for tx in range(32):
+            e = mp[ty * 32 + tx]
+            for y in range(8):
+                if e & 0x8000:
+                    o = 4 + 1792 + n4 * 32 + (e & 0x7FFF) * 64 + y * 8
+                    row = out[o:o + 8]
+                else:
+                    o = 4 + 1792 + (e & 0x7FF) * 32 + y * 4
+                    ln = ((e >> 11) & 15) << 4
+                    row = bytes((n | ln) if n else 0 for b in out[o:o + 4] for n in (b >> 4, b & 15))
+                assert row == bytes(img[(ty * 8 + y) * 256 + tx * 8:(ty * 8 + y) * 256 + tx * 8 + 8]), 'pic_tiles'
+    return out
 
 
 def write_pack(built, tilesets, L, out):
@@ -3575,6 +3594,8 @@ def write_pack(built, tilesets, L, out):
                                                              bk.add(rfx, 4) if rfx else 0))
             if o_rfx:
                 off_rfx = o_rfx
+            if os.environ.get('FE_BANKLOG'):
+                print('FEBANK %-24s nmi %04X mode %02X bank %d vram %06X md %06X' % (e['name'], e['nmi'], e['mode'], bank, o_v, o_md), file=sys.stderr)
             # (an entrance-keyed screen - the credits: mode 0x80 | its world bank, patched in below)
             frec += be16(e['nmi']) + bytes([e['mode'] if e['mode'] < 0x80 else 0x80, 7 + bank]) + be32(o_v)
             fmd += be32(o_md)

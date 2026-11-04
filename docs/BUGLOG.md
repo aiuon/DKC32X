@@ -1515,3 +1515,26 @@ losing anything (compression), or later a "small flash cart" build option.
   (~4.8 MB) would not fit even compressed.  The remaining big redundancy is the 7 world banks
   (SNES pages shared by several worlds are copied into each: ~2 MB) - the 3 MB resident area is full.
 - LAMP SWING: off by default (LAMP_SWING_DEFAULT 0).
+
+### I21r (2026-11-04): intro cross-fade tiles, K. Rool's cannon balls
+User (ares): random red tiles over the intro when Cranky's platform fades out, marks left on the jungle
+afterwards; a falling cannon ball in the final boss fight misses a tile.  Level select fine in ares.
+- B-LZFLAG: I21q's "LZSS-compressed" flag for the 68000's plane blocks was bit 1024 - which the intro's
+  front-plane block (build_viewer fe_bg2_plane, NMI CCB6: Cranky's platform on plane B, dissolved by
+  the 68000) already uses for "front plane".  The 68000 then "decompressed" the plain platform tiles:
+  garbage tiles in VRAM through the cross-fade, some left behind.  The flag is bit 2048 now (free in
+  both block kinds); the front plane flag is unchanged.  Found by elimination: the I21p ROM was clean,
+  an MD_LZ=0 build still broken (the FE block is never compressed - only the flag test changed), the
+  32X side's page table / bank / ROM bytes all correct (PicoDrive SDRAM dumps).  Missed before because
+  the I21q front-end check pressed START through the intro.
+- B-GALLEONBALL: the Galleon boss's island sprite (I21c, spr_fixed_x: drawn 32 px right of the SNES x,
+  fixed with its shadow on the Genesis plane) was matched as OBJ tiles 140-14F, palette 6, priority 2.
+  The island is 140-148 (16 x 16 at 140 / 142, 8 x 8 at 144-148); a cannon ball (grey palette 6) placed
+  in a free slot 149-14F had that quarter drawn 32 px away.  Now only 140-148.  (The falling-ball phase
+  was not reached in a test - no K. Rool bot; fixed from the screenshot + the boss-start OAM.)
+- Re-checked the I21q size work: the 68000 lz_vram (code taken from md/main.c, compiled on the host
+  with the VDP port captured) decodes all 117 compressed plane blocks of a build word-exact with
+  load_md's call sequence (MD_LZDUMP=file dumps them); every map / cabin picture decoded the pic_row8
+  way equals its source (assert in build_viewer pic_tiles); host front-end renders of the whole intro
+  + title (frames 300-2400, 211 pictures, no input) identical to I21p's; PicoDrive tour of 40 levels
+  (AUTOCYCLE) looked right; intro cross-fade clean in PicoDrive and ares.

@@ -2012,7 +2012,7 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   src-md/everdrive.c InitEverDrive; Makefile MAPPER = SEGA SSF with ENABLE_SSF_MAPPER), SegaXtreme FMV
   thread (32X SSF entries "run fine on my Mega EverDrive Pro"), plutiedev beyond-4mb.
 - Pack formats: pictures (map / cabin / menu) = pic_tiles (u16 n4, nraw, map[28][32], tiles); level md
-  block flags bit 1024 = LZSS tiles + maps (u32 length, stream, pad) - MD_LZ=0 builds the old layout;
+  block flags bit 1024 = LZSS tiles + maps (I21r: bit 2048 - 1024 was taken) (u32 length, stream, pad) - MD_LZ=0 builds the old layout;
   front-end screen record off_vram = a 64 x u32 page table (pack offsets) of 1 KB pages, shared in
   their bank through BankPack.ts keys ('FEPG', page).
 - md: lz_vram(nwords) streams to VDP_DATA; med_detect / med_sram (RV = 1, interrupts off).
@@ -2022,3 +2022,15 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   equal but for the sprite table; ares: maps, cabins, save screen, Kongo Jungle map; Candy save in
   ares writes DK32 + checksum; verify2 6 entrances x pad / tp OK; GAMEBOT 12000 + STACKCHK 2000 / 1372.
 - Low ROM after I21q: sh.bin 260256 (~1.9 KB free; GAMEBOT +0.8 KB).
+
+## 2026-11-04: I21r - intro cross-fade tiles, Galleon cannon ball (BUGLOG "I21r")
+- md block flags (68000): 1 / 2 planes A / B, 4 tall, 8 snow, 16 H, 32 L, 64 cones, 128 glimmer,
+  256 CRAM flicker, 512 highlight cone, 1024 FRONT plane (front-end blocks only), 2048 LZSS (I21r).
+  Pick a new bit from both block kinds (level md_block AND fe_bg2_plane) before adding one.
+- Test knobs added: FE_BANKLOG=1 (build_viewer: each front-end screen's bank / VRAM / md offsets),
+  MD_LZDUMP=file (every compressed plane block + its plain bytes, for a host run of md lz_vram -
+  /tmp/claude-0/fpl/lzt/lzt.c extracts lz_vram from md/main.c).  Intro without input: ares
+  /tmp/claude-0/fpl/aintro.sh ROM DIR SECS (1 shot / s), PicoDrive pdseq.sh ROM OUT.png START STEP N
+  (the cross-fade ~frames 1600-1660); host sim JUMP0=0080BA2C without SCRIPT runs the intro.
+- Intro screens: NMI CCB6 (bank 9 -> mapper 16 here), its front plane block at pack 350100.
+- Checks: plain md5 10c05794...; tools/prebuilt/md.bin refreshed (the 68000 flag test).
