@@ -96,6 +96,7 @@ def main():
         run(['m68k-linux-gnu-ld', '-T', 'md/md.ld', 'build/md_boot.o', 'build/md_main.o', '-o', 'build/md.elf'],
             stderr=subprocess.DEVNULL)
         run(['m68k-linux-gnu-objcopy', '-O', 'binary', 'build/md.elf', 'build/md.bin'])
+        run([PY, 'tools/mdpack.py', 'build/md.elf', 'build/md.bin'])
     else:
         shutil.copy(a.md_bin, 'build/md.bin')
 

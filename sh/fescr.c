@@ -22,6 +22,9 @@ typedef struct { uint16_t nmi; uint8_t mode, bank; uint32_t off_vram; } fescr_t;
    cream behind the credits); colour sums use 129-254 */
 #define FE_BORDER 128
 #define FE_BORDER4 0x80808080u
+#ifndef bus_pause                   /* (I22: main.c's polling pause; host builds have none) */
+#define bus_pause() do { } while (0)
+#endif
 #ifndef FE_U32                            /* (the pack is big-endian: the host test build swaps) */
 #define FE_U32(x) (x)
 #define FE_U16(x) (x)
@@ -226,7 +229,7 @@ static void fe_lend_early(void)
     FE_DBGL(1);
     uint32_t v0 = vcount;
     while (*UNCACHED(&s_job_now) && vcount - v0 < 3)
-        ;
+        bus_pause();
     if (*UNCACHED(&s_job_now)) { FE_DBGL(2); return; }
     FE_DBGL(3);
     fe_lend();
@@ -370,7 +373,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
         COMM(C_CMD) = md ? 0x9E00 | (uint16_t)i : 0x8000 | 0x7FFF;
     }
     while (COMM(C_CMD) & 0x8000)
-        ;
+        bus_pause();
     pending_pal = 0;
     spr_pal_dirty = 0;
     cv_x0par = 0;                         /* (I11: no 1-pixel shift - present's camx is the plane's scroll) */
@@ -540,7 +543,7 @@ static uint32_t fe_ent_bank6(uint32_t ent)
 }
 
 #ifndef FE_WAIT_VBL                      /* (the next vblank, no flip; the host test: nothing) */
-#define FE_WAIT_VBL() do { while (REG16(VDP_FBCTL) & VDP_VBLK) ; while (!(REG16(VDP_FBCTL) & VDP_VBLK)) ; } while (0)
+#define FE_WAIT_VBL() do { while (REG16(VDP_FBCTL) & VDP_VBLK) bus_pause(); while (!(REG16(VDP_FBCTL) & VDP_VBLK)) bus_pause(); } while (0)
 #endif
 #ifndef FE_W
 #define FE_W(x) (x)                       /* (big-endian: lane 0 = the first byte; the host test swaps) */
@@ -1379,7 +1382,13 @@ static uint16_t rfx_mix(uint32_t c, uint32_t w, uint32_t k)   /* c -> white (w =
 }
 /* the zoom away (mode 7, after our effect): the logo's box only, every line, every picture (fescr's
    renderer budgets its lines: the zoom moved in steps of 3-4 frames) */
+#ifdef PERFREC   /* (test builds: perf_rec lives here - the front end never runs in a PERFREC level run) */
+uint16_t rfx_span[2][SCREEN_H][2] __attribute__((aligned(16)));
+__asm__(".global _perf_rec\n.set _perf_rec, _rfx_span\n.global _perf_acc\n.set _perf_acc, _rfx_span + 256\n"
+        ".global _perf_cnt\n.set _perf_cnt, _rfx_span + 352\n.global _perf_ln\n.set _perf_ln, _rfx_span + 416");
+#else
 static uint16_t rfx_span[2][SCREEN_H][2];  /* per picture parity and line: the SNES x span drawn */
+#endif
 static uint16_t rfx_pal[256], rfx_cram[256];   /* this picture's colours; the ones in CRAM */
 static uint32_t rfx_cram_ok, rfx_par;
 /* the picture: an asynchronous swap (the synchronous one waits for the vblank after the next: 30
@@ -1396,7 +1405,7 @@ static void rfx_show(uint16_t *frame_no)
     for (int i = 0; i < 256 && !any; i++) any = rfx_pal[i] != rfx_cram[i];
     if (!any) return;
     while (!(REG16(VDP_FBCTL) & VDP_VBLK))
-        ;
+        bus_pause();
     for (int i = 0; i < 256; i++)
         if (rfx_pal[i] != rfx_cram[i]) CRAM[i] = rfx_cram[i] = rfx_pal[i];
 }
@@ -1848,7 +1857,7 @@ static void fe_frame(uint16_t *frame_no)
                 FE->gplane = 0;
                 COMM(C_CMD) = 0x8000 | 0x7FFF;
                 while (COMM(C_CMD) & 0x8000)
-                    ;
+                    bus_pause();
                 for (int y = 0; y < SCREEN_H; y++) {
                     FE_LSIG[0][y] = FE_LSIG[1][y] = 0xFFFFFFFF;
                     FE_LSIG2[0][y] = FE_LSIG2[1][y] = 0;
@@ -2248,7 +2257,7 @@ roll_done:
             spr_draw_band(0, split, bi, 32, 0);
             if (split < SCREEN_H) {
                 while (COMM(C_DONE) != tk)
-                    ;
+                    bus_pause();
                 shs->job = 0;
             }
         }

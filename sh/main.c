@@ -22,16 +22,16 @@ const volatile uint32_t perf_cfg[4] __attribute__((used)) = { 0x50434647, 0, 0, 
 /* [0] 'DONE' when the window is over, [1] pictures, [2] vblanks, [3] game frames, [4..11] pictures that
    took 1..8+ vblanks, [12] longest picture (vblanks), [13] pictures in 60 FPS mode, [14] slave idle FRT
    ticks, [15] master logic FRT ticks, [16] FRAME_TICKS, [17] first game frame, [18] window frames */
-volatile uint32_t perf_rec[64] __attribute__((used, aligned(16)));
+extern volatile uint32_t perf_rec[64];   /* (SDRAM full: fescr.c overlays it on rfx_span - front-end only, never run here) */
 uint32_t perf_lost[4];
 uint32_t perf_padb, perf_padx;           /* (B presses the logic frames got / the 68000 sent: PADTEST) */
 volatile uint32_t perf_sidle;            /* (the slave's wait-for-a-job time, FRT ticks) */
-uint32_t perf_acc[24];                    /* (master FRT ticks: 0 logic, 1 60 FPS help, 2 wait for the slave, 3 present, 4 setup+jobs) */
+extern uint32_t perf_acc[24];                    /* (master FRT ticks: 0 logic, 1 60 FPS help, 2 wait for the slave, 3 present, 4 setup+jobs) */
 #define PERF_ADD(i, t) (perf_acc[i] += (t))
 static uint16_t perf_mt; static uint32_t perf_mv;
-uint32_t perf_cnt[16];
+extern uint32_t perf_cnt[16];   /* (perf_acc / perf_cnt / perf_ln: rfx_span too) */
 static int perf_seen; static uint32_t perf_pv;
-uint32_t perf_ln[16];                     /* (60 FPS mode lines: 0 n, 1 sum logic-end, 2 sum slave-done, 3 done before the logic end, 4 done after 222, 5 sum kick, 6 n kick) */
+extern uint32_t perf_ln[16];                     /* (60 FPS mode lines: 0 n, 1 sum logic-end, 2 sum slave-done, 3 done before the logic end, 4 done after 222, 5 sum kick, 6 n kick) */
 #define PERF_MARK(i) do { extern uint32_t frt_since_(uint16_t, uint32_t); if ((i) >= 0) { perf_acc[(i) < 0 ? 0 : (i)] += frt_since_(perf_mt, perf_mv); perf_cnt[(i) < 0 ? 0 : (i)]++; } do { perf_mv = vcount_(); perf_mt = frt_read_(); } while (perf_mv != vcount_()); } while (0)
 #define AUTOLEVEL ((int)perf_cfg[1])
 #ifndef GAMEDEMO
@@ -103,6 +103,19 @@ static uint32_t frame_ticks = 47937;
 #endif
 
 #define UNCACHED(p) ((__typeof__(p))((uint32_t)(p) | 0x20000000))
+/* (I22) polling waits: a pause between two reads of a register / uncached word.  On a real 32X both SH-2s share
+   one external bus (ROM, SDRAM, frame buffer, registers): a CPU spinning on COMM / FBCTL took a large part of
+   it from the other one (ares bus model, devkit ARES_BUS: Jungle Hijinxs' master logic 68 % -> 245 % of a
+   frame with the bus shared, a third of it the slave's polls).  ~40 cycles in registers (no bus access; also
+   keeps PicoDrive's poll sleep - reads < 20 cycles apart - off, see the slave's job loop) */
+#ifndef BUS_PAUSE_N
+#define BUS_PAUSE_N 10
+#endif
+#if BUS_PAUSE_N
+#define bus_pause() do { uint32_t bp_n_ = BUS_PAUSE_N; __asm__ volatile("1: dt %0\n\tbf 1b" : "+r"(bp_n_) : : "t"); } while (0)
+#else
+#define bus_pause() do { } while (0)
+#endif
 #define SDRAM_CODE __attribute__((section(".sdtext"), aligned(16)))   /* "ax": alignment pads are NOPs, not 0x0000 */
 #ifdef TCACHE                            /* (I12) code game builds never run (non-canvas viewer path, the comp
                                             compositor - their fog levels use the performance variant): ROM */
@@ -182,6 +195,16 @@ static uint32_t map_mem[2][64 * 64];
 #endif
 #define ovmap_ram ((uint16_t (*)[64 * 64])map_mem)
 static uint16_t sky_ram[SCREEN_H];
+/* (I22) the first line from which sky_ram no longer changes (the slave's H interrupt masks itself there until
+   the next V interrupt: Jungle Hijinxs' sunset changes on lines 1-111 only - half the interrupts saved on the
+   slave and on the shared bus).  Never too small: SCREEN_H while sky_ram is being rewritten. */
+static volatile int32_t sky_hend = SCREEN_H;
+static void sky_hend_set(void)
+{
+    int32_t e = 1;
+    for (int i = 1; i < SCREEN_H; i++) if (sky_ram[i] != sky_ram[i - 1]) e = i + 1;
+    *UNCACHED(&sky_hend) = e;
+}
 /* (I17) the next picture's sky, written while the render prepares that picture (JH sunset table, rain /
    snow fades: those pictures always swap synchronously, wx_dirty) - present() copies it to sky_ram
    after the swap.  Written straight into sky_ram, the lines of the picture still on screen below the
@@ -499,10 +522,13 @@ __attribute__((interrupt_handler)) SDRAM_CODE void master_vint(void)
    the slave's V interrupt; the music DMA interrupt (level 9) does not block them. */
 static volatile int32_t s_hline;
 static volatile uint32_t slave_hmask;     /* the slave's 32X interrupt enables (bit 0 kept): 0 / 0x0C */
+static int32_t s_hend;                    /* (I22) this frame's sky_hend (the slave's copy) */
 __attribute__((interrupt_handler)) SDRAM_CODE void slave_vint(void)
 {
     REG16(SYS_VINT_CLR) = 0;
     s_hline = 1;
+    s_hend = *UNCACHED(&sky_hend);
+    if (*UNCACHED(&slave_hmask) & 0x04) REG8(SYS_INTMASK) = REG8(SYS_INTMASK) | 0x04;   /* (I22: H back on) */
     CRAM[0] = *UNCACHED(&sky_ram[0]);
     {
         const uint8_t *st = *UNCACHED(&sft_show);
@@ -519,6 +545,8 @@ __attribute__((interrupt_handler)) SDRAM_CODE void slave_hint(void)
         CRAM[0] = *UNCACHED(&sky_ram[l]);
         const uint8_t *st = *UNCACHED(&sft_show);
         if (st) REG16(VDP_SHIFT) = *UNCACHED(st + l);
+        else if (l + 1 >= s_hend && l + 1 >= (s_hend = *UNCACHED(&sky_hend)))
+            REG8(SYS_INTMASK) = REG8(SYS_INTMASK) & ~0x04;     /* (I22) no change below: off until the V interrupt */
     }
     (void)REG16(SYS_HINT_CLR);
 }
@@ -2387,7 +2415,7 @@ static void bench(void)
             *UNCACHED(&bench_slave) = T[i].slave;
             uint32_t v = vcount, calls = 0;
             while (vcount == v)
-                ;
+                bus_pause();
             v = vcount;
             /* calls of BN accesses in 20 frames (383523 cycles each) */
             while (vcount - v < 20) {
@@ -2433,7 +2461,7 @@ static void fb_sync(void)
 {
     if (!af_pend) return;
     while ((REG16(VDP_FBCTL) & 1) != cur_fb)
-        ;
+        bus_pause();
     af_pend = 0;
 }
 
@@ -2445,7 +2473,7 @@ static void wait_flip(void)
     (void)*(volatile uint16_t *)0x24000000;
     REG16(VDP_FBCTL) = cur_fb ^ 1;
     while ((REG16(VDP_FBCTL) & 1) == cur_fb)
-        ;
+        bus_pause();
     cur_fb ^= 1;
 }
 
@@ -2528,20 +2556,20 @@ static void hang_show(void)
         hang_page();
         REG16(VDP_FBCTL) = cur_fb ^ 1;          /* show it (at the next vblank) */
         while ((REG16(VDP_FBCTL) & 1) == cur_fb)
-            ;
+            bus_pause();
         cur_fb ^= 1;
     }
     for (;;) {                                  /* (I18b) keep the 68000's values live */
         for (int v = 0; v < 30; v++) {
             while (REG16(VDP_FBCTL) & VDP_VBLK)
-                ;
+                bus_pause();
             while (!(REG16(VDP_FBCTL) & VDP_VBLK))
-                ;
+                bus_pause();
         }
         hang_page();
         REG16(VDP_FBCTL) = cur_fb ^ 1;
         while ((REG16(VDP_FBCTL) & 1) == cur_fb)
-            ;
+            bus_pause();
         cur_fb ^= 1;
     }
 }
@@ -3228,7 +3256,7 @@ static void pillar_draw(void)
     }
 }
 #ifdef PERFREC
-static void perf_pic(void)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void perf_pic(void)   /* (test builds: room in the first 256 KB) */
 {
     /* window: game frames 120 .. 720 (10 s of game time); only the intervals between two pictures that
        both show gameplay (screen on, the game's main loop) count */
@@ -3335,9 +3363,9 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
            swap cannot happen in this vblank (the 68000 has already taken the camera for its planes),
            so: wait for the display to start and ask for the swap at the next vblank, as below */
         while (!(REG16(VDP_FBCTL) & VDP_VBLK))
-            ;
+            bus_pause();
         while (REG16(VDP_FBCTL) & VDP_VBLK)
-            ;
+            bus_pause();
     }
     if (af_ok && !(REG16(VDP_FBCTL) & VDP_VBLK) && current_line() < 208) {
         /* (I17) nothing for the swap's vblank but the shift register: ask for the swap now (it happens
@@ -3364,12 +3392,12 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
         return;
     }
     while (REG16(VDP_FBCTL) & VDP_VBLK)
-        ;
+        bus_pause();
     if (current_line() >= 222) {          /* too late to post the camera before vblank: skip */
         while (!(REG16(VDP_FBCTL) & VDP_VBLK))
-            ;
+            bus_pause();
         while (REG16(VDP_FBCTL) & VDP_VBLK)
-            ;
+            bus_pause();
     }
     COMM(C_CAMX) = camx;
     COMM(C_CAMY) = snes_y;
@@ -3380,12 +3408,14 @@ static void present2(int32_t camx, int32_t snes_y, uint16_t *frame_no, int async
     }
     COMM(C_FRAME) = cframe(*frame_no);
     while (!(REG16(VDP_FBCTL) & VDP_VBLK))
-        ;
+        bus_pause();
     wait_flip();
     if (sky_next_on) {                    /* (I17) this picture's sky (the V interrupt set line 0 already) */
+        *UNCACHED(&sky_hend) = SCREEN_H;
         for (int i = 0; i < SCREEN_H; i++) sky_ram[i] = sky_next[i];
         CRAM[0] = sky_ram[0];
         sky_next_on = 0;
+        sky_hend_set();
     }
     if (disp_pending && --disp_pending == 0) REG16(VDP_DISPMODE) = 0x0001;   /* (I13: 2nd picture, as md_vint) */
     if (ripple && !comp) {
@@ -3504,9 +3534,26 @@ static void music_play(int song, int light)
     if (!hdr->off_music) return;
     music_seq++;
     *UNCACHED(&music_req) = music_seq << 9 | (light ? 0x100 : 0) | (song & 0xFF);
-    for (volatile int i = 0; i < 2000000 && *UNCACHED(&music_ack) != (music_seq & 0x7FFFFF); i++)
-        ;
+#ifdef MUSWAITLOG
+    uint32_t mw_v0 = vcount;
+#endif
+    /* (I22) the slave answers from its next buffer refill (5.8 ms) + the song's start: wait at most 12
+       vblanks (the old 2 M-iteration loop - a volatile counter in SDRAM - ran ~3 s per call wherever no
+       answer came, ~6 s on a real 32X's shared bus; the iteration cap only matters with interrupts off).
+       Silence (0xFF) frees the echo buffer the caller reuses (slotmap): up to 60 vblanks for that answer. */
+    {
+        uint32_t v0 = vcount, vmax = (song & 0xFF) == 0xFF ? 60 : 12;
+        for (uint32_t i = 0; i < 2000000 && *UNCACHED(&music_ack) != (music_seq & 0x7FFFFF) && vcount - v0 < vmax; i++)
+            bus_pause();
+    }
+#ifdef MUSWAITLOG
+    {   extern volatile uint32_t muswait_log[32]; uint32_t k = muswait_log[0]++ & 15;
+        muswait_log[2 + k * 2] = game_stats.frames << 8 | (song & 0xFF); muswait_log[3 + k * 2] = vcount - mw_v0; }
+#endif
 }
+#ifdef MUSWAITLOG
+__asm__(".global _muswait_log\n.set _muswait_log, _rfx_span + 512");   /* (test: SDRAM full - fescr.c's rfx_span, PERFREC only) */
+#endif
 
 static int level_song(const level_t *lv)
 {
@@ -3681,7 +3728,7 @@ static void prof_show(void)
     REG8(SYS_INTMASK) = 0x08;
     COMM(C_CMD) = 0x8000 | 0x7FFF;        /* 68000: clear Genesis planes */
     while (COMM(C_CMD) & 0x8000)
-        ;
+        bus_pause();
     for (int i = 0; i < SCREEN_H; i++) sky_ram[i] = 0;
     static uint16_t h[1024];
     for (int i = 0; i < 1024; i++) h[i] = prof_hist[i];
@@ -3728,11 +3775,11 @@ static void set_bank(uint32_t b)
            (its last band / pipe frame); bounded (~2 frames) so a stuck slave cannot hang us */
         uint32_t v0 = vcount;
         while (*UNCACHED(&s_job_now) && vcount - v0 < 3)
-            ;
+            bus_pause();
     }
     COMM(C_CMD) = (uint16_t)(0xA000 | b);
     while (COMM(C_CMD) & 0x8000)
-        ;
+        bus_pause();
     cur_bank = b;
     CCR = 0x10;                            /* cache purge (CP) + back on */
     CCR = *UNCACHED(&comp) ? 0x19 : 0x11;
@@ -3748,11 +3795,11 @@ static void set_bank6(uint32_t b)
     if (!b || b == cur_bank6) return;
     {   uint32_t v0 = vcount;
         while (*UNCACHED(&s_job_now) && vcount - v0 < 3)
-            ;
+            bus_pause();
     }
     COMM(C_CMD) = (uint16_t)(0xA100 | b);
     while (COMM(C_CMD) & 0x8000)
-        ;
+        bus_pause();
     cur_bank6 = b;
     CCR = 0x10;
     CCR = *UNCACHED(&comp) ? 0x19 : 0x11;
@@ -3868,11 +3915,11 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     {
         uint32_t v0 = vcount;
         while ((COMM(C_CMD) & 0x8000) && vcount - v0 < 10)
-            ;
+            bus_pause();
         COMM(C_CMD) = 0x9D00;
         v0 = vcount;
         while ((COMM(C_CMD) & 0x8000) && vcount - v0 < 10)
-            ;
+            bus_pause();
     }
     REG16(VDP_DISPMODE) = 0;
     cur_idx = idx;
@@ -3993,7 +4040,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
         anim_frame = 0;
         LDST(7);
         while (COMM(C_CMD) & 0x8000)
-            ;
+            bus_pause();
         LDST(8);
         if (game_on) disp_pending = 2;    /* (I13: with the Genesis planes, as below) */
         else REG16(VDP_DISPMODE) = 0x0001;
@@ -4159,7 +4206,9 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     if (game_on) { CRAM[96] = 0x8000; CRAM[112] = 0xFFFF; hud_on_c = 0x7070; hud_off_c = 0x6060; }
     else { hud_on_c = 0xFFFF; hud_off_c = 0xFEFE; }
     const uint16_t *sky = PK(uint16_t, lv->off_sky);
+    *UNCACHED(&sky_hend) = SCREEN_H;
     for (int i = 0; i < SCREEN_H; i++) sky_ram[i] = sky[i];
+    sky_hend_set();
 
     ripple = (lv->flags & 2) != 0;
     if (game_on && !rip_on) ripple = 0;   /* (menu option; the sprites are drawn against the
@@ -4406,7 +4455,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     sh->menu = 0;
 
     while (COMM(C_CMD) & 0x8000)          /* wait for the 68000 */
-        ;
+        bus_pause();
     if (game_on) disp_pending = 2;          /* (on at the second flip of the new level: with the
                                                Genesis planes, md/main.c disp_hold) */
     else REG16(VDP_DISPMODE) = 0x0001;
@@ -4539,7 +4588,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     map_img = PACK + off_img;
     COMM(C_CMD) = 0x8000 | 0x7FFF;           /* 68000: clear the Genesis planes */
     while (COMM(C_CMD) & 0x8000)
-        ;
+        bus_pause();
     /* (I13) black (opaque: CRAM 0x8000, the sky lines too) until the new picture is on screen: the
        sky colour of a map is transparent (the Genesis backdrop), so setting it first showed the last
        screen's picture as backdrop-coloured silhouettes while this one was drawn (a few frames on
@@ -4692,8 +4741,10 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
            (the level / front-end banks) while it is on: a slave job reading them then drew
            garbage tiles (that stayed in the tile caches) */
         uint32_t v0 = vcount;
-        while ((COMM(C_CMD) & 0x8000) || *UNCACHED(&s_job_now) || COMM(C_DONE) != COMM(C_TOKEN))
+        while ((COMM(C_CMD) & 0x8000) || *UNCACHED(&s_job_now) || COMM(C_DONE) != COMM(C_TOKEN)) {
             if (vcount - v0 > 120) return;
+            bus_pause();
+        }
     }
     uint32_t sum = 0;
     for (int i = 0; i < 2048; i++) sum += d[i];
@@ -4843,7 +4894,7 @@ void m_main(void)
         frt_ok = frt_read() != a;
     }
     while (!(REG16(SYS_ADAPTER) & 0x8000))
-        ;
+        bus_pause();
     pal = !(REG16(VDP_DISPMODE) & 0x8000);     /* 32X VDP: bit 15 = 1 NTSC, 0 PAL */
 #ifdef FORCEPAL
     pal = 1;
@@ -4873,7 +4924,7 @@ void m_main(void)
 
     COMM(C_CMD) = 0x8000 | 0x7FFF;        /* 68000: clear Genesis planes */
     while (COMM(C_CMD) & 0x8000)
-        ;
+        bus_pause();
     STAGE(0x7C00);
 
     int world = 0, sel = 0, dirty = 2, in_level = 0;
@@ -4928,7 +4979,7 @@ void m_main(void)
         COMM(C_CMD) = 0x8000 | 0x7FFF;     /* (H2: and not its Mega Drive planes - the jungle at night
                                               flashed at power-on while the 32X layer was off) */
         while (COMM(C_CMD) & 0x8000)
-            ;
+            bus_pause();
         disp_pending = 0;                  /* (32X layer off until the first front-end picture: fescr.c) */
         REG16(VDP_DISPMODE) = 0;
         for (int i = 0; i < 256; i++) CRAM[i] = 0x8000;
@@ -5197,7 +5248,7 @@ void m_main(void)
                 /* the slave restores the canvas under this buffer's old sprites meanwhile */
                 int bi = cur_fb ^ 1;
                 LDST2(1); while (COMM(C_DONE) != token)
-                    ;
+                    bus_pause();
                 sh->pw[0] = cvb[bi].w.x0; sh->pw[1] = cvb[bi].w.x1; sh->pw[2] = cvb[bi].w.y0; sh->pw[3] = cvb[bi].w.y1;
                 sh->pbi = bi;
                 if (lamp_ln) {                    /* (I21p) the slave moves this buffer's cone edges to the swing the
@@ -5534,7 +5585,7 @@ void m_main(void)
                     perf_seen = COMM(C_DONE) == token;
 #endif
                     while (COMM(C_DONE) != token && *UNCACHED(&pb_go) != (int32_t)token)
-                        ;
+                        bus_pause();
                     while (COMM(C_DONE) != token) {
                         int32_t ln = current_line();
                         if (ln < 222 - (band_est >> 4) - 4 || ln >= 222) {
@@ -5551,13 +5602,13 @@ void m_main(void)
                 }
 #ifdef PERFREC
                 while (COMM(C_DONE) != token)
-                    ;
+                    bus_pause();
                 if (!perf_seen) { int32_t l1 = current_line(); perf_ln[2] += l1 < 0 ? 0 : l1; if (vcount != perf_pv || l1 >= 222) perf_ln[4]++; }
 #endif
                 PERF_ADD(1, frt_since(p0, pv0));
                 uint16_t pw0 = frt_read(); uint32_t pwv0 = vcount; (void)pw0; (void)pwv0;
                 LDST2(2); while (COMM(C_DONE) != token)
-                    ;
+                    bus_pause();
                 PERF_ADD(2, frt_since(pw0, pwv0));
 #ifdef PIPE_SPLIT
                 {   /* (I17 test) a BG split: the slave late -> the master takes more rows; the master's
@@ -5748,9 +5799,9 @@ void m_main(void)
 #endif
             if (pm_frz && pm_open && pm_key == PM_KEY() && !go_menu) {   /* (I13: LEVEL SELECT must get through) */
                 while (REG16(VDP_FBCTL) & VDP_VBLK)
-                    ;
+                    bus_pause();
                 while (!(REG16(VDP_FBCTL) & VDP_VBLK))
-                    ;
+                    bus_pause();
                 continue;
             }
             dbg_stage = 3;
@@ -5763,7 +5814,7 @@ void m_main(void)
             j3_logic = early ? (int32_t)game_ticks : -1;
             if (early)                    /* (the slave has copied job 3's fields: sh may change now) */
                 while (COMM(C_DONE) != token && *UNCACHED(&s_job_now) != 0x103)
-                    ;
+                    bus_pause();
             PERF_MARK(16);
             PT(3);
 #ifdef PROFH
@@ -5783,7 +5834,7 @@ void m_main(void)
 #endif
             if (pm_fg_reload && !game_fblank) {     /* foreground on / off: rebuild the level's renderer */
                 pm_fg_reload = 0;
-                if (early) { LDST2(5); while (COMM(C_DONE) != token) ; sh->job = 0; early = 0; }
+                if (early) { LDST2(5); while (COMM(C_DONE) != token) bus_pause(); sh->job = 0; early = 0; }
                 game_reload = 1;
                 load_level(cur_idx, sh);
                 game_reload = 0;
@@ -5794,7 +5845,7 @@ void m_main(void)
             PERF_MARK(17);
             if (game_fblank && early) {
                 LDST2(6); while (COMM(C_DONE) != token)
-                    ;
+                    bus_pause();
                 sh->job = 0;
                 early = 0;
             }
@@ -5864,9 +5915,9 @@ void m_main(void)
                            smeared - "flashing graphics between maps / stages"): black, as while the
                            screen is off */
                         while (REG16(VDP_FBCTL) & VDP_VBLK)
-                            ;
+                            bus_pause();
                         while (!(REG16(VDP_FBCTL) & VDP_VBLK))
-                            ;
+                            bus_pause();
                         if (!blanked) {
                             PATHLOG(3, map_mode | fe_idx << 8);
                             blanked = 1;
@@ -5903,9 +5954,9 @@ void m_main(void)
                 }
                 if (game_dark() || !game_in_main_loop()) {
                     while (REG16(VDP_FBCTL) & VDP_VBLK)
-                        ;
+                        bus_pause();
                     while (!(REG16(VDP_FBCTL) & VDP_VBLK))
-                        ;
+                        bus_pause();
                     fe_lend();                    /* (the slave is idle: the next screen's maps can be mirrored) */
                     fe_palsum = 0xFFFFFFFF;
                     if (full_game) {
@@ -5976,7 +6027,7 @@ void m_main(void)
             render_state_reset();
             COMM(C_CMD) = 0x8000 | 0x7FFF;
             while (COMM(C_CMD) & 0x8000)
-                ;
+                bus_pause();
             for (int i = 0; i < SCREEN_H; i++) sky_ram[i] = 0;
             in_level = 0;
             *UNCACHED(&music_light) = 0;
@@ -6130,7 +6181,7 @@ void m_main(void)
             misty_frame(anim_frame, camx, camy - 1);
         if (early) {                      /* the slave's early restore must be finished */
             LDST2(7); while (COMM(C_DONE) != token)
-                ;
+                bus_pause();
             sh->job = 0;
             early = 0;
             if (j3_logic >= 0) {
@@ -6240,7 +6291,7 @@ void m_main(void)
                 /* one job per CPU after the logic: its band's BG work (cv_band), then its sprites; the
                    slave takes the top band (+ the line table and the HUD), split on a canvas tile row */
                 LDST2(8); while (COMM(C_DONE) != token)
-                    ;
+                    bus_pause();
                 int32_t split = ((gy + f_spl + 7) & ~7) - gy;
                 int32_t ts = (gy + split) >> 3;
                 if (ts < N.y0) ts = N.y0;
@@ -6284,7 +6335,7 @@ void m_main(void)
             if (fused) give = 0;
             if (give) {                   /* the slave must be idle before the job changes */
                 LDST2(9); while (COMM(C_DONE) != token)
-                    ;
+                    bus_pause();
             }
             if (sh->bm_game) {            /* (I10) this frame's beam edges, both CPUs read them */
                 /* (I14) while Squawks turns, the beam sweeps across the screen for ~16 frames: nearly
@@ -6398,7 +6449,7 @@ void m_main(void)
             spr_draw_band(local.ssplit, SCREEN_H, local.sbi, local.sgx, local.sgy);
             int32_t mt = (uint16_t)(frt_read() - f0);
             LDST2(10); while (COMM(C_DONE) != token)
-                ;
+                bus_pause();
             int32_t wt = (uint16_t)(frt_read() - f0) - mt;
             /* balance: the master has the bottom band - waiting means it needs more rows */
             if (wt > 300 && f_spl > 40) f_spl -= 8;
@@ -6432,7 +6483,7 @@ void m_main(void)
                 /* rain phase: both CPUs restore and draw their half (the slave must be done with its
                    canvas rows first) */
                 LDST2(11); while (COMM(C_DONE) != token)
-                    ;
+                    bus_pause();
                 rain_f += game_on ? fs_done : 1;   /* (frame skip: the rain keeps its speed) */
                 sh->rbuf = cur_fb ^ 1;
                 sh->rH = (uint32_t)(camx + 8 * rain_f) & 255;
@@ -6450,7 +6501,7 @@ void m_main(void)
                     rain_half(0, &lr, sh);
                 }
                 LDST2(12); while (COMM(C_DONE) != token)
-                    ;
+                    bus_pause();
                 sh->job = 0;
                 if (rain_state == 1 && (rain_cut += 8) >= SCREEN_H) {
                     rain_state = 2;
@@ -6472,7 +6523,7 @@ void m_main(void)
                                              every mode: the 60 FPS mode's master waited for the
                                              slave's whole picture, no pipeline at all) */
             LDST2(13); while (COMM(C_DONE) != token)
-                ;
+                bus_pause();
         }
         dbg_stage = 5;
         if (game_on && ((local.cv == 1 && !dither_ripple) || local.cv == 2) && !fused) {   /* (ripple levels: the sprites wobble with BG1 by 1 px; 2 = perf comp) */
@@ -6482,7 +6533,7 @@ void m_main(void)
             int32_t gx = CV_GX(sh, camx), gy = CV_GY(sh, camy);
             int bi = cur_fb ^ 1;
             LDST2(14); while (COMM(C_DONE) != token)
-                ;
+                bus_pause();
 #ifdef CVCHECK2
             {   /* (test) before the sprites: every other pixel of every line against the level data -
                    leftovers of earlier sprites the restore missed show up as errors */
@@ -6525,7 +6576,7 @@ void m_main(void)
             ov_front(&local, 0, split, bi, gx, gy);
             int32_t mt = (uint16_t)(frt_read() - sm0);
             LDST2(15); while (COMM(C_DONE) != token)
-                ;
+                bus_pause();
             int32_t wt = (uint16_t)(frt_read() - sm0) - mt;    /* the master's wait for the slave */
             PERF_ADD(11, mt); PERF_ADD(12, wt); PERF_ADD(13, sh->spr_sticks);
 #if defined(GAMEPROF) && defined(PHASE_SPR)
@@ -6547,7 +6598,7 @@ void m_main(void)
             int32_t *cv3_nd = CV3_ND;
             int bi = cur_fb ^ 1;
             LDST2(14); while (COMM(C_DONE) != token)
-                ;
+                bus_pause();
             if (cvb[bi].valid && cv3_nd[bi] > 0 && cv3_nd[bi] <= CV3_MAXR)
                 for (int k = 0; k < cv3_nd[bi]; k++) {
                     int32_t rr[4] = { cv3_dirty[bi][k][0], cv3_dirty[bi][k][1], cv3_dirty[bi][k][2], cv3_dirty[bi][k][3] };
@@ -7002,7 +7053,7 @@ void s_main(void)
 #ifdef PERFREC
         {   uint16_t w0 = frt_read();
             while (COMM(C_TOKEN) == last)
-                ;
+                bus_pause();
             *UNCACHED(&perf_sidle) += (uint16_t)(frt_read() - w0);   /* (waits > 1 FRT wrap undercount) */
         }
 #endif
@@ -7013,11 +7064,10 @@ void s_main(void)
                one address < 20 cycles apart), which only a COMM write would end - the request is an
                SDRAM write (the intro music started ~13 s late) */
             while (COMM(C_TOKEN) == last && !*UNCACHED(&music_req))
-                for (volatile int d = 0; d < 16; d++)
-                    ;
+                bus_pause();                  /* (I22: in registers - the old volatile counter went over the bus) */
         }
         while (COMM(C_TOKEN) == last && mus_started)
-            ;
+            bus_pause();
         if (!mus_started) {
             /* (I21f) the music (PWM timer, DMA) starts with the first song request or job, not at power-on.
                PicoDrive (recompiler, RetroArch's default): the slave's first run after its boot wait
@@ -7037,7 +7087,8 @@ void s_main(void)
         last = COMM(C_TOKEN);
         {
             uint32_t m = *UNCACHED(&slave_hmask);
-            if (m != hmask) { hmask = m; REG8(SYS_INTMASK) = (REG8(SYS_INTMASK) & 0x01) | m; }
+            /* (I22: H goes on only in the V interrupt, where the line count starts - see slave_hint) */
+            if (m != hmask) { hmask = m; REG8(SYS_INTMASK) = (REG8(SYS_INTMASK) & (0x01 | (m & 0x04))) | (m & ~0x04); }
         }
         static shared_t local;            /* (static: the slave's 2 KB stack; s_main is the slave's only) */
         local = *sh;
@@ -7052,7 +7103,7 @@ void s_main(void)
         }
         if (local.job == 3) {                 /* early restore under the old sprites (game frames) */
             while ((REG16(VDP_FBCTL) & 1) == local.pbi)     /* (I17: until the swap - FLIP_ASYNC) */
-                ;
+                bus_pause();
             uint16_t j0 = frt_read();
             if (local.ln && local.lw != local.lwo) {   /* (I21p) the cones' swing, while the master runs the logic */
                 lamp_swing_pass(&local, local.pw[0], local.pw[1], local.pw[2], local.pw[3]);
@@ -7081,7 +7132,7 @@ void s_main(void)
         }
         if (local.job == 5) {                 /* fused band (simple game levels): BG, line table, sprites, HUD */
             while ((REG16(VDP_FBCTL) & 1) == local.sbi)     /* (I17: until the swap - FLIP_ASYNC) */
-                ;
+                bus_pause();
             uint16_t r0 = frt_read();
             cv_band(&local, local.frows[0], local.frows[1], &cv_smask[0][0]);
             spr_clear_rows(local.sbi, local.frows[0], local.frows[1]);
@@ -7097,7 +7148,7 @@ void s_main(void)
                     if (b >= nb || b >= *UNCACHED(&pb_low)) break;
                     *UNCACHED(&pb_next) = b + 1;
                     while (*UNCACHED(&pipe_mbg) != (int32_t)last)     /* (the master's BG rows + sprite list) */
-                        ;
+                        bus_pause();
                     spr_draw_band(pb_edge(local.sgy, b), pb_edge(local.sgy, b + 1), local.sbi, local.sgx, local.sgy);
                 }
             } else

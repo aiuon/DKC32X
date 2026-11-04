@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """perf.py ROM ELF OUT.json CONFIG... : MiSTer-model ares runs of a -DPERFREC -DNOHUD build.
 CONFIG = level[:pipe[:flags]] (pack level index; pipe 1 = 60 FPS mode; flags 1 = no frame skip, 2 = 60 FPS mode forced, 4 = fused job in the normal mode, 8 = no async swap).
-Each run: perf_cfg patched into a ROM copy, ares (ForceInterpreter, ARES_SDFILL=30 ARES_UNCSD=11)
+Each run: perf_cfg patched into a ROM copy, ares (ForceInterpreter, ARES_SDFILL=30 ARES_UNCSD=11; PERF_SDFILL /
+PERF_UNCSD / PERF_ROMW / PERF_FBR override - real-hardware model: PERF_SDFILL=12 PERF_ROMW=12 PERF_FBR=8)
 until ARES_QUIT_AT, SDRAM dumped (ARES_SDDUMP), perf_rec decoded."""
 import json, os, struct, subprocess, sys, tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -23,7 +24,8 @@ def run(c):
     rp = '%s/r_%s.32x' % (work, c.replace(':', '_'))
     sd = rp + '.sd'
     open(rp, 'wb').write(d)
-    env = dict(os.environ, DISPLAY=':99', ARES_SDFILL='30', ARES_UNCSD='11', ARES_QUIT_AT=str(QUIT), ARES_SDDUMP=sd)
+    env = dict(os.environ, DISPLAY=':99', ARES_SDFILL=os.environ.get('PERF_SDFILL', '30'), ARES_UNCSD=os.environ.get('PERF_UNCSD', '11'),
+               ARES_ROMW=os.environ.get('PERF_ROMW', '6'), ARES_FBR=os.environ.get('PERF_FBR', '5'), ARES_QUIT_AT=str(QUIT), ARES_SDDUMP=sd)
     subprocess.run(['timeout', '3000', '/opt/ref/ares/build/rundir/bin/ares', '--system', 'Mega 32X', '--no-file-prompt',
                     '--setting', 'Video/Driver=OpenGL 3.2', '--setting', 'Video/Blocking=false', '--setting',
                     'Audio/Blocking=false', '--setting', 'Input/Defocus=Allow', '--setting', 'Developer/ForceInterpreter=true', rp],

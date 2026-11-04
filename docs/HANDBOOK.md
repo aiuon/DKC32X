@@ -31,6 +31,11 @@ them. Keep this file current when something structural changes.
   slow line fills (~60 cycles on ares-M / MiSTer): CODE SIZE and ROM data reads dominate. SDRAM is
   faster but 256 KB total. The 68000 (7.6 MHz) drives the Mega Drive VDP (planes A / B, sprites off).
 - MiSTer model in ares: `ARES_SDFILL=30 ARES_UNCSD=11` + `--setting Developer/ForceInterpreter=true`.
+- REAL HARDWARE (I22): both SH-2s share one external bus and a cart ROM word costs 8-17 clocks - the
+  emulators model neither.  Real-hardware model: `ARES_BUS=1 ARES_ROMW=8 ARES_SDFILL=12 ARES_UNCSD=10
+  ARES_FBR=8` (ROMW=12 = pessimistic) + interpreter; it reproduces the tester's EverDrive numbers
+  (~25 fps caves, ~14-22 jungle).  Every bus access by one CPU slows the other: no tight polling
+  (bus_pause), no needless SDRAM writes (write-through cache) or uncached reads.
   ares's recompiler hides instruction-fetch cost - always measure with the interpreter.
 - SH-2 16/32-bit accesses MUST be aligned. PicoDrive / MiSTer silently read the aligned word, ares
   raises an address error; the host sim tolerates it (hid the I14 rope bug). WLW / WLW_SET (gbr-relative
@@ -438,6 +443,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
 - I21m: the steady lamp wall (no flicker: ares repeats / drops pictures, every 60 Hz trick flashes
   there), still cone lines.
+- I22: first real-hardware report -> shared-bus model in ares; pauses in every polling loop, music_play
+  wait bounded, the slave's sky interrupt stops after the last changing line, the 68000 image packed.
 - I21r: plane-block LZ flag moved to bit 2048 (bit 1024 = the intro's front plane: garbage tiles in the
   cross-fade, B-LZFLAG); Galleon island sprite match narrowed to tiles 140-148 (cannon ball, B-GALLEONBALL).
 - I21q: "SEGA SSF" header (flash carts' bank mapper), EverDrive save RAM, ROM 14 -> 11.5 MB (tiled
@@ -454,7 +461,9 @@ Open:
 - LAMP SWING costs ~1/3 more time per picture in Loopy / S&G on ares although the pass's work is small
   (I21p): find where the time goes (job 3 elapsed vs instructions).
 - Side bars flashing "when saving" (user, I21p): not reproduced in ares dumps of Candy's cabin.
-- Real hardware (I21q): the "SEGA SSF" header and the EverDrive save path are untested on a cart;
+- Real hardware speed (I22, NOTES I22): music ~60 % of the slave + ~19 % of the bus (music off: JH 22 ->
+  31 fps in the model) - the next big lever; then SDRAM code placement by the bus model.
+- Real hardware (I21q): the "SEGA SSF" header boots on the EverDrive PRO (tester, I22); saves untested;
   MegaSD saves not handled.  ROM 11.5 MB: the world banks' duplicated SNES pages (~2 MB) are the next
   size lever (needs room in the 3 MB resident area).
 - Cabins: CODE_80FB59 (cabin frame logic, 4.4 KB translated) still interpreted - no ROM room.

@@ -1538,3 +1538,40 @@ afterwards; a falling cannon ball in the final boss fight misses a tile.  Level 
   way equals its source (assert in build_viewer pic_tiles); host front-end renders of the whole intro
   + title (frames 300-2400, 211 pictures, no input) identical to I21p's; PicoDrive tour of 40 levels
   (AUTOCYCLE) looked right; intro cross-fade clean in PicoDrive and ares.
+
+### I22 (2026-11-04): first real-hardware report - a shared-bus model and the first speed-ups
+Tester (Mega EverDrive PRO, real 32X): I21q boots; "during some points in the first couple of jungle
+levels the frames would drop below 10"; "in the caves a steady 30 frames per second at most times".
+The emulators (and the MiSTer model, HANDBOOK 2) gave ~40 / ~49 there.
+- B-SHAREDBUS (cause, measured in a model): both SH-2s share ONE external bus (hardware manual: the
+  slave gets it after the master; ROM, SDRAM, frame buffer and registers all go over it) and cart ROM
+  costs 2 + 6..15 clocks a word (a 16-byte line 64..136 clocks; ares charged 6 a word).  ares models
+  neither, so every emulator was optimistic.  devkit ares.patch now has ARES_ROMW (clocks a ROM word),
+  ARES_FBR (frame buffer read) and ARES_BUS=1 (an access waits until the bus is free, then holds it;
+  ARES_BUSSTAT=n prints wait / busy cycles per CPU and kind).  Real-hardware model = ARES_BUS=1
+  ARES_ROMW=8 (EverDrive: minimum waits) or 12, ARES_SDFILL=12 ARES_UNCSD=10 ARES_FBR=8 + interpreter.
+  JH (static start, no input) 51 fps without the shared bus -> 22 fps with it, Reptile Rumble 57 -> 25:
+  the logic per game frame 45 % -> 78 %, the master waiting for the slave's bus traffic.
+- Polling: 62 wait loops (COMM / FBCTL / uncached flags) read the bus as fast as they could - a third of
+  the bus in JH.  bus_pause() (~40 clocks of dt / bf in registers) between two reads; the slave's
+  music start wait used a volatile counter in SDRAM (bus writes) - bus_pause too.
+- music_play waited for the slave's answer up to 2 M iterations of a volatile SDRAM counter (~3 s;
+  ~6 s on the shared bus) - the perf builds hit it twice per level start.  Now <= 12 vblanks (60 for
+  silence, which frees the echo buffer the caller reuses) with bus_pause.
+- Sky: the slave's per-line H interrupt (CRAM 0) masks itself after the last line where the sky still
+  changes (sky_hend; JH's sunset: lines 1-111) and the V interrupt turns it back on - half the
+  interrupts in JH.  H is only ever switched on in the V interrupt (the line count starts there).
+  ares dumps: JH's sky identical line for line.
+- Room in the first 256 KB (was 704 bytes): the 68000's RAM image (code + data, 13.5 KB) is LZSS-packed
+  (tools/mdpack.py) and unpacked by md/boot.s at power-on / reset - 4.4 KB free -> ~4.8 KB.  PicoDrive
+  68000 RAM after boot = the image (one runtime variable apart).
+- Results, real-hardware model (ROMW 8, frame skip on, fps / game speed): JH 21.7 / 52.2 -> 22.1 / 52.8
+  (polls alone: 14.0 -> 17.5 at ROMW 12), Ropey 14.0 -> 14.6, Reptile Rumble 25.3 -> 25.1, BCC 24.9 ->
+  25.7; ROMW 12: JH 14.0 -> 17.5, Ropey 10.2 -> 11.9, Reptile 16.5 -> 19.2, BCC 14.9 -> 19.1.  MiSTer
+  model unchanged (41.7 / 22.1 / 47.4 / 46.0).
+- Measured, not done: music off = JH 31 fps at full game speed, Reptile 42 (music is ~60 % of the slave
+  and ~19 % of the bus on real hardware: sample reads, the mixer's accumulators in SDRAM - the cache is
+  write-through, the SPC engine in ROM, the PWM DMA); the slave in two-way cache mode (the mixer's
+  buffers on chip) is much worse (JH 12 fps: the renderer loses half its cache).
+- Checks: host front-end renders (intro + title, 211 pictures) identical; PicoDrive GAMEBOT 12000 +
+  STACKCHK 1984 / 1488; audio from power-on (PicoDrive, 40 s RMS) as I21r; boot / intro in PicoDrive.

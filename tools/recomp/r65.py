@@ -1073,9 +1073,11 @@ def main():
         an.run()
     sd = set()
     if a.sdram and os.path.exists(a.sdram):
-        for ln in open(a.sdram):
-            ln = ln.split('#')[0].strip()
-            if ln: k = int(ln.split()[0], 16); sd.add((k & 0xFFFFFF, k >> 24))
+        lns = [l.split('#')[0].strip() for l in open(a.sdram)]
+        lns = [l for l in lns if l]
+        trim = int(os.environ.get('SDRAM_TRIM', '0'))   # (test builds: room for PERFREC's tables)
+        for ln in lns[:len(lns) - trim]:
+            k = int(ln.split()[0], 16); sd.add((k & 0xFFFFFF, k >> 24))
     low = set()
     if a.lowrom and os.path.exists(a.lowrom):
         for ln in open(a.lowrom):

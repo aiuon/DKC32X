@@ -1,3 +1,20 @@
+diff --git a/ares/ares/scheduler/scheduler.cpp b/ares/ares/scheduler/scheduler.cpp
+index bf444ed..3bcbbc2 100644
+--- a/ares/ares/scheduler/scheduler.cpp
++++ b/ares/ares/scheduler/scheduler.cpp
+@@ -1,3 +1,4 @@
++extern "C" { extern unsigned long long ares_sched_reduced; }
+ inline auto Scheduler::reset() -> void {
+   _threads.clear();
+ }
+@@ -101,6 +102,7 @@ inline auto Scheduler::enter(Mode mode) -> Event {
+ inline auto Scheduler::exit(Event event) -> void {
+   //subtract the minimum time from all threads to prevent clock overflow.
+   auto reduce = minimum();
++  ares_sched_reduced += reduce;   // (bus model in md/m32x: its stored times follow the clocks)
+   for(auto& thread : _threads) {
+     thread->_clock -= reduce;
+   }
 diff --git a/ares/component/processor/sh2/sh2.hpp b/ares/component/processor/sh2/sh2.hpp
 index 6cb5d69..c3c7edb 100644
 --- a/ares/component/processor/sh2/sh2.hpp
@@ -189,25 +206,125 @@ index a12d44d..ab10a5f 100644
    if(!(up->value() & down->value())) {
      yHold = 0, upLatch = up->value(), downLatch = down->value();
 diff --git a/ares/md/m32x/bus-internal.cpp b/ares/md/m32x/bus-internal.cpp
-index 008a9c7..4387af0 100644
+index 008a9c7..4e9c3d0 100644
 --- a/ares/md/m32x/bus-internal.cpp
 +++ b/ares/md/m32x/bus-internal.cpp
-@@ -1,3 +1,4 @@
+@@ -1,3 +1,36 @@
 +extern "C" { int ares_in_fill = 0; }
++// ARES_BUS=1: the two SH-2s share one external bus (hardware manual: the slave gets the bus after the
++// master's access; ROM, SDRAM, frame buffer and registers all go over it).  An access waits until the bus is
++// free, then holds it for `cost` cycles.  charge = also add the access's own cost to the CPU (else the caller does).
++extern "C" { unsigned long long ares_sched_reduced = 0; }
++static int ares_bus_on = -1;
++static u64 ares_bus_free = 0;
++extern "C" { unsigned long long ares_bus_waitc[2], ares_bus_busy[2], ares_bus_cat[2][8]; }
++static int ares_bus_kind = 0;   // 0 ROM 1 SDRAM fill 2 SDRAM uncached read 3 SDRAM write 4 FB read 5 FB write 6 IO
++static inline auto aresBus(M32X::SH7604& c, int who, u32 cost, bool charge) -> void {
++  if(ares_bus_on < 0) { const char *e = getenv("ARES_BUS"); ares_bus_on = e && atoi(e) ? 1 : 0; }
++  if(!ares_bus_on) { if(charge) c.internalStep(cost); return; }
++  u64 now = c.clock(), sc = c.scalar();
++  static unsigned long long red0 = 0;
++  if(ares_sched_reduced != red0) {          // (the scheduler subtracted time from every clock: follow)
++    u64 d = ares_sched_reduced - red0; red0 = ares_sched_reduced;
++    ares_bus_free = ares_bus_free > d ? ares_bus_free - d : 0;
++  }
++  u64 start = ares_bus_free > now ? ares_bus_free : now;
++  u32 wait = (u32)((start - now) / sc);
++  ares_bus_free = start + (u64)cost * sc;
++  ares_bus_waitc[who] += wait; ares_bus_busy[who] += cost; ares_bus_cat[who][ares_bus_kind] += cost;
++  u32 n = wait + (charge ? cost : 0);
++  if(n) c.internalStep(n);
++}
++void aresBusIO(M32X& m, u32 cost) {
++  if(ares_bus_on < 0) { const char *e = getenv("ARES_BUS"); ares_bus_on = e && atoi(e) ? 1 : 0; }
++  ares_bus_kind = 6;
++  if(m.shm.active()) { if(ares_bus_on) aresBus(m.shm, 0, cost, false); m.shm.internalStep(1); }
++  if(m.shs.active()) { if(ares_bus_on) aresBus(m.shs, 1, cost, false); m.shs.internalStep(1); }
++}
++#define BUSK(k, cost, charge) do { ares_bus_kind = k; BUS(cost, charge); } while(0)
++#define BUS(cost, charge) do { if(shm.active()) aresBus(shm, 0, cost, charge); if(shs.active()) aresBus(shs, 1, cost, charge); } while(0)
  auto M32X::readInternal(n1 upper, n1 lower, n32 address, n16 data) -> n16 {
    if(address >= 0x0000'0000 && address <= 0x0000'3fff) {
      if(shm.active()) shm.internalStep(1); if(shs.active()) shs.internalStep(1);
-@@ -29,6 +30,10 @@ auto M32X::readInternal(n1 upper, n1 lower, n32 address, n16 data) -> n16 {
+@@ -17,18 +50,29 @@ auto M32X::readInternal(n1 upper, n1 lower, n32 address, n16 data) -> n16 {
+     }
+ 
+     //TODO: SH2 ROM accesses need to stall while the m68k is on the bus
+-    if(shm.active()) shm.internalStep(6); if(shs.active()) shs.internalStep(6);
++    // ARES_ROMW=n: cycles per cartridge ROM word (hardware manual: 2 + 6..15 waits = 8..17; ares 6)
++    static int romw = -1;
++    if(romw < 0) { const char *e = getenv("ARES_ROMW"); romw = e && atoi(e) > 0 ? atoi(e) : 6; }
++    BUSK(0, romw, true);
+     return cartridge.child->read(upper, lower, address, data);
+   }
+ 
+   if(address >= 0x0400'0000 && address <= 0x05ff'ffff) {
+     if(!vdp.framebufferAccess) return data;
+     if(vdp.framebufferEngaged()) { debug(unusual, "[32X FB] SH2 read while FEN==1"); return data; } // wait instead?
+-    if(shm.active()) shm.internalStep(5); if(shs.active()) shs.internalStep(5);
++    // ARES_FBR=n: cycles per frame buffer word read (manual: 5..12 waits; ares 5)
++    static int fbr = -1;
++    if(fbr < 0) { const char *e = getenv("ARES_FBR"); fbr = e && atoi(e) > 0 ? atoi(e) : 5; }
++    BUSK(4, fbr, true);
+     return vdp.bbram[address >> 1 & 0xffff];
    }
  
    if(address >= 0x0600'0000 && address <= 0x0603'ffff) {
 +    // ARES_UNCSD=n: extra cycles per uncached SDRAM word read (MiSTer: ~11 per word, 29-cycle long reads)
 +    static int unc = -1;
 +    if(unc < 0) { const char *e = getenv("ARES_UNCSD"); unc = e ? atoi(e) : 0; }
-+    if(unc && !ares_in_fill) { if(shm.active()) shm.internalStep(unc); if(shs.active()) shs.internalStep(unc); }
++    if(ares_in_fill) BUSK(1, (address & 2) ? 1 : 2, false);        // (a line fill: 12 cycles / 8 words, charged by the cache)
++    else if(unc) BUSK(2, unc, true);
      return sdram[address >> 1 & 0x1ffff];
    }
  
+@@ -47,7 +91,7 @@ auto M32X::writeInternal(n1 upper, n1 lower, n32 address, n16 data) -> void {
+       if(!vdp.framebufferAccess) return;
+       if(vdp.framebufferEngaged()) { debug(unusual, "[32X FB] SH2 write while FEN==1"); return; } // wait instead?
+       if(!data && (!upper || !lower)) return;  //8-bit 0x00 writes do not go through
+-      if(shm.active()) shm.internalStep(4); if(shs.active()) shs.internalStep(4);
++      BUSK(5, 4, true);
+       if(upper) vdp.bbram[address >> 1 & 0xffff].byte(1) = data.byte(1);
+       if(lower) vdp.bbram[address >> 1 & 0xffff].byte(0) = data.byte(0);
+       return;
+@@ -56,7 +100,7 @@ auto M32X::writeInternal(n1 upper, n1 lower, n32 address, n16 data) -> void {
+     if(address >= 0x0402'0000 && address <= 0x0403'ffff) {
+       if(!vdp.framebufferAccess) return;
+       if(vdp.framebufferEngaged()) { debug(unusual, "[32X FB] SH2 overwrite while FEN==1"); return; } // wait instead?
+-      if(shm.active()) shm.internalStep(4); if(shs.active()) shs.internalStep(4);
++      BUSK(5, 4, true);
+       if(upper && data.byte(1)) vdp.bbram[address >> 1 & 0xffff].byte(1) = data.byte(1);
+       if(lower && data.byte(0)) vdp.bbram[address >> 1 & 0xffff].byte(0) = data.byte(0);
+       return;
+@@ -64,6 +108,7 @@ auto M32X::writeInternal(n1 upper, n1 lower, n32 address, n16 data) -> void {
+   }
+ 
+   if(address >= 0x0600'0000 && address <= 0x0603'ffff) {
++    if(ares_bus_on > 0) BUSK(3, 2, true);                             // (SDRAM write: 2 cycles a word)
+     if(upper) sdram[address >> 1 & 0x1ffff].byte(1) = data.byte(1);
+     if(lower) sdram[address >> 1 & 0x1ffff].byte(0) = data.byte(0);
+     return;
+diff --git a/ares/md/m32x/io-internal.cpp b/ares/md/m32x/io-internal.cpp
+index e65c35a..921a50f 100644
+--- a/ares/md/m32x/io-internal.cpp
++++ b/ares/md/m32x/io-internal.cpp
+@@ -1,5 +1,6 @@
++extern void aresBusIO(M32X& m, u32 cost);
+ auto M32X::readInternalIO(n1 upper, n1 lower, n29 address, n16 data) -> n16 {
+-  if(shm.active()) shm.internalStep(1); if(shs.active()) shs.internalStep(1);
++  aresBusIO(*this, 3);
+ 
+   //interrupt mask
+   if(address == 0x4000) {
+@@ -168,7 +169,7 @@ auto M32X::readInternalIO(n1 upper, n1 lower, n29 address, n16 data) -> n16 {
+ }
+ 
+ auto M32X::writeInternalIO(n1 upper, n1 lower, n29 address, n16 data) -> void {
+-  if(shm.active()) shm.internalStep(1); if(shs.active()) shs.internalStep(1);
++  aresBusIO(*this, 3);
+ 
+   //interrupt mask
+   if(address == 0x4000) {
 diff --git a/ares/md/m32x/m32x.hpp b/ares/md/m32x/m32x.hpp
 index 8013cd3..f7f7809 100644
 --- a/ares/md/m32x/m32x.hpp
@@ -281,24 +398,40 @@ index 794af5e..b5adf86 100644
    if(synchronize) power(/* reset = */ false);
    serialize(s, synchronize);
 diff --git a/ares/md/vdp/vdp.cpp b/ares/md/vdp/vdp.cpp
-index b2a10cd..53ce540 100644
+index b2a10cd..81ccf54 100644
 --- a/ares/md/vdp/vdp.cpp
 +++ b/ares/md/vdp/vdp.cpp
-@@ -97,7 +97,9 @@ auto VDP::pixels() -> u32* {
+@@ -97,7 +97,25 @@ auto VDP::pixels() -> u32* {
    return output+megaLDExtraOverscanBorder;
  }
  
-+extern "C" { unsigned ares_frame_no; }
++extern "C" { unsigned ares_frame_no; extern unsigned long long ares_bus_waitc[2], ares_bus_busy[2], ares_bus_cat[2][8]; }
  auto VDP::frame() -> void {
 +  ares_frame_no++;
++  {   // ARES_BUSSTAT=n: every n frames, the SH-2 bus model's wait / busy cycles per frame (stderr)
++    static int bs = -1; if(bs < 0) { const char *e = getenv("ARES_BUSSTAT"); bs = e ? atoi(e) : 0; }
++    static unsigned long long w0[2], b0[2];
++    if(bs && ares_frame_no % bs == 0) {
++      fprintf(stderr, "BUS f %u  wait M %llu S %llu  busy M %llu S %llu (cycles / frame)\n", ares_frame_no,
++        (ares_bus_waitc[0] - w0[0]) / bs, (ares_bus_waitc[1] - w0[1]) / bs, (ares_bus_busy[0] - b0[0]) / bs, (ares_bus_busy[1] - b0[1]) / bs);
++      static unsigned long long c0[2][8];
++      for(int i = 0; i < 2; i++) {
++        fprintf(stderr, "  %c ROM %llu SDfill %llu SDunc %llu SDwr %llu FBrd %llu FBwr %llu IO %llu\n", i ? 'S' : 'M',
++          (ares_bus_cat[i][0] - c0[i][0]) / bs, (ares_bus_cat[i][1] - c0[i][1]) / bs, (ares_bus_cat[i][2] - c0[i][2]) / bs,
++          (ares_bus_cat[i][3] - c0[i][3]) / bs, (ares_bus_cat[i][4] - c0[i][4]) / bs, (ares_bus_cat[i][5] - c0[i][5]) / bs, (ares_bus_cat[i][6] - c0[i][6]) / bs);
++        for(int k = 0; k < 8; k++) c0[i][k] = ares_bus_cat[i][k];
++      }
++      for(int i = 0; i < 2; i++) { w0[i] = ares_bus_waitc[i]; b0[i] = ares_bus_busy[i]; }
++    }
++  }
    if(latch.interlace == 0) screen->setProgressive(0);
    if(latch.interlace == 1) screen->setInterlace(field());
    auto yScale = latch.interlace ? 2 : 1;
 diff --git a/desktop-ui/program/platform.cpp b/desktop-ui/program/platform.cpp
-index 4f49c5a..0b41111 100644
+index 4f49c5a..5cea111 100644
 --- a/desktop-ui/program/platform.cpp
 +++ b/desktop-ui/program/platform.cpp
-@@ -77,9 +77,33 @@ auto Program::status(string_view message) -> void {
+@@ -77,9 +77,64 @@ auto Program::status(string_view message) -> void {
    showMessage(message);
  }
  
@@ -326,6 +459,37 @@ index 4f49c5a..0b41111 100644
 +      }
 +    }
 +    static unsigned quitAt = getenv("ARES_QUIT_AT") ? atoi(getenv("ARES_QUIT_AT")) : 0;
++    { // (test hack) ARES_SDDUMP=file: the 32X SDRAM (SH-2 byte order) written at ARES_SDDUMP_AT (default: quit)
++      static const char* sd = getenv("ARES_SDDUMP");
++      static unsigned sdAt = getenv("ARES_SDDUMP_AT") ? atoi(getenv("ARES_SDDUMP_AT")) : quitAt;
++      static bool sdDone = false;
++      if(sd && !sdDone && sdAt && f >= sdAt) {
++        sdDone = true;
++        for(auto memory : ares::Node::enumerate<ares::Node::Debugger::Memory>(emulator->root)) {
++          if(memory->name() != "32X SDRAM") continue;
++          if(FILE* o = fopen(sd, "wb")) {
++            for(u32 a = 0; a < memory->size(); a++) { u8 b = memory->read(a); fwrite(&b, 1, 1, o); }
++            fclose(o);
++          }
++        }
++      }
++    }
++    { // (test hack) ARES_MEMDUMP=prefix: every debugger memory written to prefix.<name> at ARES_SDDUMP_AT / quit
++      static const char* md = getenv("ARES_MEMDUMP");
++      static unsigned mdAt = getenv("ARES_SDDUMP_AT") ? atoi(getenv("ARES_SDDUMP_AT")) : quitAt;
++      static bool mdDone = false;
++      if(md && !mdDone && mdAt && f >= mdAt) {
++        mdDone = true;
++        for(auto memory : ares::Node::enumerate<ares::Node::Debugger::Memory>(emulator->root)) {
++          std::string n = (const char*)memory->name(); for(auto& c: n) if(c == ' ') c = '_';
++          std::string fn = std::string(md) + "." + n;
++          if(FILE* o = fopen(fn.c_str(), "wb")) {
++            for(u32 a = 0; a < memory->size(); a++) { u8 b = memory->read(a); fwrite(&b, 1, 1, o); }
++            fclose(o);
++          }
++        }
++      }
++    }
 +    if(quitAt && f >= quitAt) _exit(0);
 +  }
 +

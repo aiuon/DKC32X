@@ -2034,3 +2034,24 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   (the cross-fade ~frames 1600-1660); host sim JUMP0=0080BA2C without SCRIPT runs the intro.
 - Intro screens: NMI CCB6 (bank 9 -> mapper 16 here), its front plane block at pack 350100.
 - Checks: plain md5 10c05794...; tools/prebuilt/md.bin refreshed (the 68000 flag test).
+
+## 2026-11-04: I22 - real-hardware speed: shared-bus model, polls, sky interrupt, packed 68000 image (BUGLOG "I22")
+- Model tools (devkit/perf): perf.py takes PERF_SDFILL / PERF_UNCSD / PERF_ROMW / PERF_FBR and passes
+  ARES_BUS from the environment; busrun.sh ROM ELF LEVEL QUIT EVERY (bus stats of a PERFREC level run),
+  bprof.sh ROM ELF LEVEL QUIT OUT [slave] (per-PC profile while game_on; EVERYC = dump interval) +
+  pdiff.py A B OUT (profile B minus A = a frame window), sdrun.sh (SDRAM dump at the end), polls.py
+  (lists empty-body wait loops).  Perf builds: -DPERFREC -DNOHUD; perf_rec / perf_acc / perf_cnt /
+  perf_ln live in fescr.c's rfx_span then (SDRAM full); SDRAM_TRIM=n (r65.py) drops the last n
+  sdram.txt functions (test only: the resident ROM overflows quickly).  Low ROM for test code: ~4.8 KB.
+- Bus picture, JH, ROMW 12 (cycles / frame; busy M 150 k + S 130 k of 384 k): M ROM 64-68 k, SDRAM
+  fills 40 k, uncached 18 k, writes 16 k; S ROM 40 k, fills 17 k, uncached 22 k (the PWM DMA), writes
+  35 k (the mixer), IO 10 k after the polls (was 41 k / 114 k in places).
+- Slave profile (gameplay window): mixv 16 %, mixout 12 %, slave_hint 9 %, voice_job 6 %, spcdsp_mix
+  6 %, spc_exec 6 % (ROM), expand2 4 %, mixjobs 3.5 %, __sdivsi3 2.3 % - ~60 % music; rendering ~13 %.
+  Master: game code 22 cycles / instruction (ROM fills behind the slave), m_main waits 25 %.
+- Next levers (by size): the music's bus traffic (pairs of voices per mixer pass, the SPC engine in
+  SDRAM, a pause-menu MUSIC FULL / LIGHT / OFF item); SDRAM placement re-picked with the bus model;
+  the master's front-end H interrupt (8 % at boot) gets the same cut-off; LZSS for the SH-2 .data
+  image (30 KB in the first 256 KB, copied by the BIOS - needs a split boot image).
+- Checks: plain md5 1be198c6...; tools/prebuilt/md.bin = the packed 68000 binary (prebuilt build
+  identical).

@@ -31,14 +31,38 @@ _start:
 1:		move.l	%d0,-(%a1)
 		dbf		%d1,1b
 
-		| copy initialised data (and RAM-resident code) to work RAM
+		| initialised data (and RAM-resident code) to work RAM.  (I22) LZSS-packed by tools/mdpack.py
+		| (tools/lzss.py: a flag byte per 8 items, bit 7 first, 1 = literal; a match = 2 bytes
+		| (distance - 1) << 4 | (length - 3)) - the matches copy from the output itself (all in RAM)
 		lea		__text_end,%a0
 		lea		0xFF0000,%a1
-		move.w	#__data_size,%d0
-		lsr.w	#1,%d0
-		subq.w	#1,%d0
-2:		move.w	(%a0)+,(%a1)+
-		dbf		%d0,2b
+		lea		0xFF0000+__data_size,%a2
+5:		cmpa.l	%a2,%a1
+		bcc.s	9f
+		move.b	(%a0)+,%d1				| 8 flags
+		moveq	#7,%d2
+6:		cmpa.l	%a2,%a1
+		bcc.s	9f
+		add.b	%d1,%d1
+		bcc.s	7f
+		move.b	(%a0)+,(%a1)+			| literal
+		bra.s	8f
+7:		moveq	#0,%d3					| match
+		move.b	(%a0)+,%d3
+		lsl.w	#8,%d3
+		move.b	(%a0)+,%d3
+		move.w	%d3,%d4
+		andi.w	#15,%d4
+		addq.w	#2,%d4					| length - 1 (dbf)
+		lsr.w	#4,%d3
+		addq.w	#1,%d3					| distance
+		movea.l	%a1,%a3
+		suba.w	%d3,%a3
+2:		move.b	(%a3)+,(%a1)+
+		dbf		%d4,2b
+8:		dbf		%d2,6b
+		bra.s	5b
+9:
 
 		| joypad ports: TH as output
 		move.b	#0x40,(0xA10009)
