@@ -22,7 +22,7 @@ void mp_start(musplay_t *m, const uint8_t *blob, int song, int8_t *echo, uint32_
     for (uint32_t i = 0; i < sizeof(*m); i++) p[i] = 0;
     for (uint32_t i = 0; i < (echo_cap + 8) * 2; i++) echo[i] = 0;
     spcdsp_init(&m->dsp, rate, m->dir, MUS_NSRC, blob, echo, echo_cap);
-    m->fpt = (uint32_t)(((uint64_t)rate << 16) / 32000);
+    m->fpt = (rate << 16) / 32000;   /* (I21q: 32-bit - rate < 65536; the 64-bit division pulled 1.2 KB of libgcc into the first 256 KB) */
     if (song >= h->nsongs) return;
     const mus_song_t *sg = (const mus_song_t *)(blob + h->off_songs) + song;
     const dsp_sample_t *smp = (const dsp_sample_t *)(blob + h->off_samples);

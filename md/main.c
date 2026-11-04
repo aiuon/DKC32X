@@ -269,6 +269,7 @@ static RAM_CODE __attribute__((noinline)) void mapper_w(uint32_t reg, uint8_t v)
     __asm__ volatile("move.w %0,%%sr" : : "d"(sr));
 }
 
+static RAM_CODE __attribute__((noinline)) void med_detect(void);
 volatile uint16_t dbg_stage;
 void md_setup(void)
 {
@@ -278,6 +279,7 @@ void md_setup(void)
     mapper_w(0xA130FF, 7);
     mapper_w(0xA130FD, 6);          /* (I16) window 6 = world bank 0, as the SH-2 assumes
                                                    (cur_bank6): a reset in another world kept its bank */
+    med_detect();                   /* (I21q) a Mega EverDrive's save RAM (SSF mode) */
     for (int i = 0; i < 19; i++)
         VDP_CTRL = 0x8000 | (i << 8) | vdp_regs[i];
     vram_w(0);
@@ -364,11 +366,46 @@ static RAM_CODE void sram_on(void)
     mapper_w(0xA130F1, 1);
     BANKREG = 2;
 }
+/* (I21q) Mega EverDrive (X series v2b/v3, PRO) in SSF mode - the ROM header says "SEGA SSF": its save RAM
+   is page 31, bytes on the odd addresses of its upper 256 KB, shown by mapping window 0 to it through
+   the extended register $A130F0 (bit 15 = the write's key, bit 13 = write enable, low bits = the page;
+   as Doom 32X Fusion / d32xr).  Detection: window 0 -> page 2 must show what window 2 shows; on the
+   ordinary SSF2 mapper (emulators, MiSTer) that word only writes 0x02 to $A130F1 (save RAM off).  RV = 1
+   throughout: the cartridge at $000000 for the 68000, the SH-2s' ROM reads held. */
+static uint16_t sram_med;
+#define DREQ_RV(on) (*(volatile uint8_t *)0xA15107 = (uint8_t)((*(volatile uint8_t *)0xA15107 & ~1) | (on)))
+static RAM_CODE __attribute__((noinline)) void med_detect(void)
+{
+    uint16_t sr;
+    __asm__ volatile("move.w %%sr,%0\n\tmove.w #0x2700,%%sr" : "=d"(sr));
+    DREQ_RV(1);
+    *(volatile uint16_t *)0xA130F0 = 0x8002;
+    const volatile uint8_t *a = (const volatile uint8_t *)0x000100, *b = (const volatile uint8_t *)0x100100;
+    uint16_t i;
+    for (i = 0; i < 256 && a[i] == b[i]; i++)
+        ;
+    *(volatile uint16_t *)0xA130F0 = 0x8000;
+    DREQ_RV(0);
+    __asm__ volatile("move.w %0,%%sr" : : "d"(sr));
+    sram_med = i == 256;
+}
+static RAM_CODE __attribute__((noinline)) void med_sram(uint16_t wr)
+{
+    /* (interrupts are off: sram_xfer) */
+    volatile uint8_t *m = (volatile uint8_t *)0x040001UL;
+    DREQ_RV(1);
+    *(volatile uint16_t *)0xA130F0 = wr ? 0xA01F : 0x801F;
+    if (wr) for (uint16_t n = 0; n < SRAM_WORDS * 2; n++) m[2UL * n] = sram_buf[n];
+    else for (uint16_t n = 0; n < SRAM_WORDS * 2; n++) sram_buf[n] = m[2UL * n];
+    *(volatile uint16_t *)0xA130F0 = 0x8000;
+    DREQ_RV(0);
+}
 static RAM_CODE void sram_xfer(uint16_t op)
 {
     uint16_t bank = BANKREG;
     COMM(4) = 0;
-    if (op != 1) {                          /* load: SRAM -> buffer first */
+    if (op != 1 && sram_med) med_sram(0);
+    else if (op != 1) {                     /* load: SRAM -> buffer first */
         sram_on();
         for (uint16_t n = 0; n < SRAM_WORDS * 2; n++) sram_buf[n] = SRAM8(n);
         BANKREG = bank;
@@ -393,7 +430,8 @@ static RAM_CODE void sram_xfer(uint16_t op)
             COMM(4) = s;
             last = s;
         }
-        if (last == SRAM_WORDS) {           /* (only a complete save) */
+        if (last == SRAM_WORDS && sram_med) med_sram(1);
+        else if (last == SRAM_WORDS) {      /* (only a complete save) */
             sram_on();
             for (uint16_t n = 0; n < SRAM_WORDS * 2; n++) SRAM8(n) = sram_buf[n];
             BANKREG = bank;
@@ -549,6 +587,48 @@ static void do_command(uint16_t cmd)
 
 /* a plane block (build_viewer md_block): tiles, plane maps, CRAM, scroll / effect parameters; the level's
    extras after them (animated tiles, snow, blizzard, lamp cones, glimmer, beam) */
+/* (I21q) LZSS (tools/lzss.py): the tiles and plane maps of a level's block (flags bit 1024), streamed to
+   VRAM at the load - a flag byte per 8 items (bit 7 first, 1 = literal), a match = (distance - 1) << 4 |
+   (length - 3) in 2 bytes; the last 4 KB of output in lz_ring */
+static uint8_t lz_ring[4096];
+static const uint8_t *lz_src;
+static uint16_t lz_pos, lz_flags, lz_nf, lz_mlen, lz_mdist;
+/* (the state in registers for a run of n words to the VDP data port: ~3x the byte-at-a-time version -
+   Jungle Hijinxs' load was 21 frames longer than with the plain data) */
+static RAM_CODE __attribute__((noinline)) void lz_vram(uint32_t nwords)
+{
+    const uint8_t *src = lz_src;
+    uint8_t *ring = lz_ring;
+    uint16_t pos = lz_pos, flags = lz_flags, nf = lz_nf, mlen = lz_mlen, mdist = lz_mdist;
+    volatile uint16_t *vdp = &VDP_DATA;
+    uint16_t hi = 0, half = 0;
+    for (uint32_t n = nwords * 2; n; n--) {
+        uint8_t c;
+        if (mlen) {
+            c = ring[(uint16_t)(pos - mdist) & 4095];
+            mlen--;
+        } else {
+            if (!nf) { flags = *src++; nf = 8; }
+            nf--;
+            if (flags & 0x80) c = *src++;
+            else {
+                uint16_t h = ((const volatile uint8_t *)src)[0], l = ((const volatile uint8_t *)src)[1];
+                uint16_t v = (uint16_t)(h << 8 | l);
+                src += 2;
+                mdist = (uint16_t)((v >> 4) + 1);
+                mlen = (uint16_t)((v & 15) + 2);
+                c = ring[(uint16_t)(pos - mdist) & 4095];
+            }
+            flags = (uint16_t)(flags << 1);
+        }
+        ring[pos & 4095] = c;
+        pos++;
+        if (half) { *vdp = (uint16_t)(hi << 8 | c); half = 0; }
+        else { hi = c; half = 1; }
+    }
+    lz_src = src; lz_pos = pos; lz_flags = flags; lz_nf = nf; lz_mlen = mlen; lz_mdist = mdist;
+}
+
 static void load_md(const uint16_t *md)
 {
     {
@@ -567,20 +647,29 @@ static void load_md(const uint16_t *md)
         for (int i = 0; i < 224; i++)
             bg3buf[0][i] = bg3buf[1][i] = bg3day[i] = col[i];
         cur_bg3col = 0xFFFF;
-        vram_w(0);
-        for (uint32_t i = 0; i < (uint32_t)ntiles * 16; i++)
-            VDP_DATA = tiles[i];
+        uint16_t lz = (planes & 1024) != 0;    /* (I21q) compressed tiles + maps */
         const uint16_t *m = tiles + (uint32_t)ntiles * 16;
+        if (lz) {
+            uint32_t zl = (uint32_t)tiles[0] << 16 | tiles[1];
+            lz_src = (const uint8_t *)(tiles + 2);
+            lz_pos = lz_nf = lz_mlen = 0;
+            m = tiles + 2 + ((zl + 1) >> 1);
+        }
+        vram_w(0);
+        if (lz) lz_vram((uint32_t)ntiles * 16);
+        else for (uint32_t i = 0; i < (uint32_t)ntiles * 16; i++) VDP_DATA = tiles[i];
         VDP_CTRL = 0x9000 | (h == 64 ? 0x11 : 0x01);
         vram_w(VRAM_PLANE_A);
-        for (uint32_t i = 0; i < (uint32_t)h * 64; i++)
-            VDP_DATA = (planes & 1) ? *m++ : 0;
+        if (lz && (planes & 1)) lz_vram((uint32_t)h * 64);
+        else for (uint32_t i = 0; i < (uint32_t)h * 64; i++)
+            VDP_DATA = !(planes & 1) ? 0 : *m++;
         if (h == 32)
             for (uint32_t i = 0; i < 64 * 32; i++)
                 VDP_DATA = 0;
         vram_w(VRAM_PLANE_B);
-        for (uint32_t i = 0; i < (uint32_t)h * 64; i++)
-            VDP_DATA = (planes & 2) ? *m++ : 0;
+        if (lz && (planes & 2)) lz_vram((uint32_t)h * 64);
+        else for (uint32_t i = 0; i < (uint32_t)h * 64; i++)
+            VDP_DATA = !(planes & 2) ? 0 : *m++;
         anim_data = m;
         altB = altB_on = 0;
         hv_frames = 0;

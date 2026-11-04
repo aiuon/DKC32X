@@ -193,7 +193,7 @@ static void lz_unpack(const uint8_t *z, uint32_t n)
 }
 int game_keep_sram;                      /* (I6) game_init: keep the save RAM (level starts) */
 
-void game_init(const uint8_t *snap, uint32_t entrance)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) void game_init(const uint8_t *snap, uint32_t entrance)
 {
     const uint32_t *h0 = (const uint32_t *)snap;
     uint32_t h[8];

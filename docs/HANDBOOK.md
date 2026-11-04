@@ -149,8 +149,10 @@ them. Keep this file current when something structural changes.
   dissolve's records (FE_WD, FE_MIXM / S, FE_DW, FE_DY, FE_DSUB, FE_SBLK - NOTES I21h).
 
 ### 4.3 ROM
-- First 256 KB: 68000 code, SH-2 boot + code, .data image, .sdgame image (finalize.py checks; ~0.8 KB
-  free).
+- First 256 KB: 68000 code, SH-2 boot + code, .data image, .sdgame image (finalize.py checks; ~1.9 KB
+  free after I21q; cold set-up code is -Os - add memset-free code there).
+- Over 4 MB the header says "SEGA SSF" (I21q): flash carts then use the Sega bank mapper; the EverDrive's
+  save RAM is page 31 (md med_sram).  A 4 MB, mapper-less build cannot hold the game (BUGLOG I21q).
 - Pack at 0x40000 (music, level data, front-end tables, palettes); game code at GAME_BASE; resident
   SNES pages. Resident end must stay <= 0x300000 (0x2FFD50 after I16 and I18 - FULL, 688 bytes left;
   SDRAM-placed code does not use resident ROM; a 1 KB page more made the I18 build fail).
@@ -436,6 +438,8 @@ Fixed in I14 (details in BUGLOG "I14 fixes"):
   B-FLICKSTALL); the lamp cone as alternating lines (B-CONEBARS); Mine Cart Madness tracks (B-MCMTRACKS).
 - I21m: the steady lamp wall (no flicker: ares repeats / drops pictures, every 60 Hz trick flashes
   there), still cone lines.
+- I21q: "SEGA SSF" header (flash carts' bank mapper), EverDrive save RAM, ROM 14 -> 11.5 MB (tiled
+  pictures, LZSS Genesis plane data, shared front-end VRAM pages), LAMP SWING off by default.
 - I21p: cabins catch up logic frames + their NMI translated (Candy / Funky barrel no longer slow), the
   light-switch cones swing (option LAMP SWING) and light BG2's black.
 - I21o: title squish translated (row cache kept for the whole screen), light-switch cones as lit
@@ -448,6 +452,9 @@ Open:
 - LAMP SWING costs ~1/3 more time per picture in Loopy / S&G on ares although the pass's work is small
   (I21p): find where the time goes (job 3 elapsed vs instructions).
 - Side bars flashing "when saving" (user, I21p): not reproduced in ares dumps of Candy's cabin.
+- Real hardware (I21q): the "SEGA SSF" header and the EverDrive save path are untested on a cart;
+  MegaSD saves not handled.  ROM 11.5 MB: the world banks' duplicated SNES pages (~2 MB) are the next
+  size lever (needs room in the 3 MB resident area).
 - Cabins: CODE_80FB59 (cabin frame logic, 4.4 KB translated) still interpreted - no ROM room.
 - OBJECT RANGE WIDE is a game-logic change (spawn + keep-alive windows moved together, rompatch
   WS_TUNE / r65_ws): waiting for the user's playthrough.  If a level breaks (I15: a barrel group in

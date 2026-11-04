@@ -43,6 +43,12 @@ size = (len(d) + 0x7FFFF) & ~0x7FFFF      # (whole 512 KB banks, no power-of-2 p
 assert size <= 0x400000 or banks, "ROM over 4MB"
 d += b'\xff' * (size - len(d))
 d[0x1A4:0x1A8] = (size - 1).to_bytes(4, 'big')
+if size > 0x400000:
+    # (I21q) over 4 MB: the system field says "SEGA SSF" - flash carts (Mega EverDrive X / PRO, MegaSD) then
+    # use the Sega (SSF) bank mapper; with "SEGA 32X" the EverDrive PRO picked its linear "10M" mapping,
+    # which "conflicts with 32X addon" (the 32X owns $800000-$9FFFFF).  Doom 32X Fusion (d32xr) does the
+    # same.  Emulators / MiSTer choose the mapper by size (PicoDrive, MiSTer) or by the 32X loader (ares).
+    d[0x100:0x110] = b'SEGA SSF        '
 cs = 0
 for i in range(0x200, len(d), 2):
     cs = (cs + (d[i] << 8 | d[i + 1])) & 0xFFFF

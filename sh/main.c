@@ -2188,7 +2188,7 @@ enum { PM_RESUME, PM_FSKIP, PM_PIPE, PM_FG, PM_RIPPLE, PM_LAMP, PM_OBJ, PM_STATS
 /* (I21p) LAMP SWING: the light-switch levels' cones swing (on: the swing costs ~1/3 of a frame there on
    ares - per picture the cone edges move in both frame buffers) */
 #ifndef LAMP_SWING_DEFAULT
-#define LAMP_SWING_DEFAULT 1
+#define LAMP_SWING_DEFAULT 0                  /* (I21q: off by default - the user: frame drops) */
 #endif
 static int lamp_swing_on = LAMP_SWING_DEFAULT;
 static int pm_stats;                      /* (I21c) STATS: frame rate, SH-2 master / slave %, 68000 % (main's show_hud) */
@@ -2481,7 +2481,15 @@ static uint32_t canary_bad(void)
     }
     return b;
 }
-static void hang_page(void)
+/* (I21q) -Os functions zero their small local arrays through memset */
+void *memset(void *d, int c, unsigned long n) __attribute__((used));
+void *memset(void *d, int c, unsigned long n)
+{
+    uint8_t *p = (uint8_t *)d;
+    while (n--) *p++ = (uint8_t)c;
+    return d;
+}
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void hang_page(void)   /* (I21q: cold - -Os for low ROM room) */
 {
     extern volatile uint32_t r65_dbg_key, r65_dbg_pc;
     extern uint32_t game_wai_pc(void);
@@ -2765,7 +2773,7 @@ static uint32_t lt_game;   /* Stop & Go / Loopy: the game's own lights state ($0
 static const uint8_t bm_slots[] = { 16, 32, 48, 64, 80, 128, 144, 160, 176, 192, 208, 224, 240 };
 #define BM_NS ((int)sizeof bm_slots)
 static int bm_cram;                   /* present(): CRAM 1-127 + the slots again */
-__attribute__((noinline)) static void bm_game_setup(const uint16_t *lit, const uint16_t *dark)
+__attribute__((noinline, optimize("Os", "no-tree-loop-distribute-patterns"))) static void bm_game_setup(const uint16_t *lit, const uint16_t *dark)
 {
     /* unique dark colours (count, sum r g b), then the closest pairs merged until they fit */
     int32_t *cn = BM_TMP, *cr = cn + 128, *cg = cr + 128, *cb = cg + 128;
@@ -3850,7 +3858,7 @@ static uint16_t pad_take(int left)
 
 static int game_reload;
 static void fe_take(void);
-static void load_level(int idx, shared_t *sh)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void load_level(int idx, shared_t *sh)   /* (I21q: -Os, cold) */
 {
     fb_sync();                            /* (I17: an asynchronous swap first) */
     /* the 32X layer off while loading: the level palette goes to CRAM long before the canvas is
@@ -4408,8 +4416,29 @@ static void load_level(int idx, shared_t *sh)
     level_seconds = 0;
 }
 
+/* (I21q) the map / cabin / menu pictures (pack: build_viewer pic_tiles): u16 n4, u16 nraw, u16 map[28][32]
+   (4-bit tile | palette line << 11, bit 15: an 8-bit tile), the 4-bit tiles (32 bytes, left pixel in the
+   high nibble: colour line * 16 + n, 0 stays 0), the 8-bit ones (64 bytes).  -> line y's 8 pixels of tile
+   column tx as two big-endian words. */
+static void pic_row8(const uint8_t *img, int32_t tx, int32_t y, uint32_t *w0, uint32_t *w1)
+{
+    uint32_t e = ((const uint16_t *)img)[2 + (y >> 3) * 32 + tx];
+    if (e & 0x8000) {
+        const uint32_t *t = (const uint32_t *)(img + 4 + 1792 + ((const uint16_t *)img)[0] * 32 + (e & 0x7FFF) * 64 + (y & 7) * 8);
+        *w0 = t[0]; *w1 = t[1];
+        return;
+    }
+    uint32_t v = *(const uint32_t *)(img + 4 + 1792 + (e & 0x7FF) * 32 + (y & 7) * 4);
+    uint32_t ln = ((e >> 11) & 15) << 4;
+    uint32_t a = (v >> 28) << 24 | ((v >> 24) & 15) << 16 | ((v >> 20) & 15) << 8 | ((v >> 16) & 15);
+    uint32_t b = ((v >> 12) & 15) << 24 | ((v >> 8) & 15) << 16 | ((v >> 4) & 15) << 8 | (v & 15);
+    /* (the line on the non-zero pixels: bit 0 of each byte = any of its 4 bits) */
+    *w0 = a | (((a | a >> 1 | a >> 2 | a >> 3) & 0x01010101u) * ln);
+    *w1 = b | (((b | b >> 1 | b >> 2 | b >> 3) & 0x01010101u) * ln);
+}
+
 /* ------------------------------------------------------------ menu */
-static void draw_menu(int w, int sel)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void draw_menu(int w, int sel)
 {
     const world_t *wd = PK(world_t, hdr->off_worlds) + w;
     set_bank(wd->bank);
@@ -4418,9 +4447,12 @@ static void draw_menu(int w, int sel)
     /* borders + map */
     for (int y = 0; y < SCREEN_H; y++) {
         volatile uint32_t *d = FB32 + (FB_BASE + y * STRIDE) / 4;
-        const uint32_t *s = (const uint32_t *)(img + y * 256);
         for (int i = 0; i < 8; i++) d[i] = 0;
-        for (int i = 0; i < 64; i++) d[8 + i] = s[i];
+        for (int i = 0; i < 32; i++) {
+            uint32_t a, b;
+            pic_row8(img, i, y, &a, &b);
+            d[8 + 2 * i] = a; d[9 + 2 * i] = b;
+        }
         for (int i = 72; i < 84; i++) d[i] = 0;
     }
     /* world name */
@@ -4459,11 +4491,10 @@ static void map_rows(int32_t y0, int32_t y1, int32_t c0, int32_t c1)
     /* canvas tile columns c0..c1-1 (screen x = 8c - 32 .. ), lines y0..y1-1 */
     for (int32_t y = y0; y < y1; y++) {
         volatile uint32_t *d = FB32 + (FB_BASE + y * CV_P + CV_XOFF) / 4;
-        const uint32_t *s = (const uint32_t *)(map_img + y * 256);
         for (int32_t c = c0; c < c1; c++) {
             int32_t ix = c * 8 - 32;                 /* image x of this column (screen x 32 = image 0) */
             if (map_black || ix < 0 || ix >= 256 || y >= SCREEN_H) { d[c * 2] = 0; d[c * 2 + 1] = 0; }
-            else { d[c * 2] = s[ix / 4]; d[c * 2 + 1] = s[ix / 4 + 1]; }
+            else { uint32_t a, b; pic_row8(map_img, ix >> 3, y, &a, &b); d[c * 2] = a; d[c * 2 + 1] = b; }
         }
     }
 }
@@ -4481,7 +4512,7 @@ static uint8_t cab_drawn[2][16][32];
 #define CAB_CH(r, c) 0x20
 #endif
 static void cab_colours(const uint16_t *pal);
-static void map_setup(int world)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void map_setup(int world)
 {
     const world_t *wd = PK(world_t, hdr->off_worlds) + (world >= 0 ? world : 0);
     uint32_t off_img = wd->off_img, off_pal = wd->off_pal, bank = wd->bank;
@@ -4651,7 +4682,7 @@ static int sram_wait(volatile uint16_t *r, uint16_t v)
         if (vcount - v0 > 120) return 0;  /* (no answer: an old 68000 program?) */
     return 1;
 }
-static void sram_save(void)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void sram_save(void)
 {
     const uint8_t *d = game_sram();
     uint32_t h = sram_hash(d);
@@ -4693,7 +4724,7 @@ static void sram_save(void)
     UNCACHED(&shared_state)->epoch++;
 }
 /* -> 1 if the cartridge held a valid save (copied into the game's SRAM) */
-static int sram_load(void)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static int sram_load(void)
 {
     static uint8_t buf[8];
     uint8_t *d = game_sram();

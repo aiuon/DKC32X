@@ -3114,7 +3114,19 @@ def fe_bg2_plane(vr, cg, rg, front=None, rom=None):
     return bytes(hdr)
 
 
+MD_LZ = int(os.environ.get('MD_LZ', '1'))   # (I21q) compressed Genesis tiles / plane maps (0: as before)
+
+
 def md_block(b, pf=None):
+    # (I21q: the bank packer emits a level once per bank it tries - compress it once)
+    c = b.setdefault('_mdc', {})
+    k = id(pf)
+    if k not in c:
+        c[k] = _md_block(b, pf)
+    return c[k]
+
+
+def _md_block(b, pf=None):
     t = b['type']
     gm = pf['gmaps'] if pf else b['gmaps']
     tall = any(g.get('h') == 64 for g in gm.values())
@@ -3176,6 +3188,16 @@ def md_block(b, pf=None):
             for ty in range(h):
                 for tx in range(64):
                     hdr += be16(g['map'][(ty % g['h']) * 64 + tx])
+    if MD_LZ:
+        # (I21q) the tiles and the plane maps (load-time only: uploaded to VRAM) LZSS-compressed (tools/lzss.py):
+        # flags bit 1024, then u32 compressed length, the stream (padded to even); the 68000 streams it to VRAM
+        # (md/main.c lz_*).  ~1968 KB of Genesis plane data in all levels -> about half
+        import lzss
+        z = lzss.compress(bytes(hdr[608:]))
+        assert lzss.decompress(z, len(hdr) - 608) == bytes(hdr[608:])
+        flags |= 1024
+        hdr[2:4] = be16(flags)
+        hdr = hdr[:608] + be32(len(z)) + z + (b'\0' if len(z) & 1 else b'')
     # animated tiles: u16 genesis tile (| 0x8000: second group), 8 frames x 32 bytes
     for tile, frames in (b.get('ganim') or [] if not pf else []):
         hdr += be16(tile) + b''.join(frames)
@@ -3330,6 +3352,36 @@ def emit_level(p, b, rom_base):
                 o_md2=o_md2, o_fog=o_fog, o_snap=o_snap)
 
 
+def pic_tiles(img):
+    """(I21q) a 256 x 224 picture (8-bit colour indices) as deduplicated 8 x 8 tiles: u16 n4, u16 nraw,
+    u16 map[28][32] (4-bit tile index | palette line << 11; bit 15: an 8-bit tile index), then n4 x 32 bytes
+    (4 bits a pixel, left pixel in the high nibble: colour = line * 16 + n, 0 = colour 0) and nraw x 64
+    bytes.  The pictures' tiles are SNES tiles (one 16-colour line each; 20 of 19712 use two: 8-bit) -
+    1232 KB of maps / cabins -> ~0.6 MB.  sh/main.c pic_row decodes a tile line."""
+    assert len(img) == 256 * 224
+    t4, traw, idx4, idxr, mp = [], [], {}, {}, []
+    for ty in range(28):
+        for tx in range(32):
+            px = [img[(ty * 8 + y) * 256 + tx * 8 + x] for y in range(8) for x in range(8)]
+            lines = set(c >> 4 for c in px if c & 15)
+            assert not any(c and not c & 15 for c in px), 'picture colour 16 k (k > 0)'
+            if len(lines) <= 1:
+                ln = lines.pop() if lines else 0
+                key = bytes(((px[i] & 15) << 4) | (px[i + 1] & 15) for i in range(0, 64, 2))
+                if key not in idx4:
+                    idx4[key] = len(t4)
+                    t4.append(key)
+                assert idx4[key] < 2048
+                mp.append(idx4[key] | ln << 11)
+            else:
+                key = bytes(px)
+                if key not in idxr:
+                    idxr[key] = len(traw)
+                    traw.append(key)
+                mp.append(0x8000 | idxr[key])
+    return be16(len(t4)) + be16(len(traw)) + b''.join(be16(v) for v in mp) + b''.join(t4) + b''.join(traw)
+
+
 def write_pack(built, tilesets, L, out):
     maps = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'maps.json')))
     p = Pack()
@@ -3421,7 +3473,8 @@ def write_pack(built, tilesets, L, out):
     for wi, m in enumerate(maps):
         if world_levels[wi] or shared_map is None:
             img, pal = map_image(L, m)
-            bank, (o_img, o_pal) = into_bank(lambda bk: (bk.add(img), bk.add(b''.join(be16(c) for c in pal))))
+            img = pic_tiles(img)
+            bank, (o_img, o_pal) = into_bank(lambda bk: (bk.add(img, 4), bk.add(b''.join(be16(c) for c in pal))))
             if shared_map is None: shared_map = (o_img, o_pal, bank)
         else:
             o_img, o_pal, bank = shared_map
@@ -3439,7 +3492,8 @@ def write_pack(built, tilesets, L, out):
     for mi in range(13):
         if mi in want:
             img, pal = map_screen_image(L, mi)
-            bank, (o_img, o_pal) = into_bank(lambda bk: (bk.add(img), bk.add(b''.join(be16(c) for c in pal))))
+            img = pic_tiles(img)
+            bank, (o_img, o_pal) = into_bank(lambda bk: (bk.add(img, 4), bk.add(b''.join(be16(c) for c in pal))))
             mrec += be32(o_img) + be32(o_pal) + bytes([7 + bank, 0, 0, 0])
         else:
             mrec += b'\0' * 12
@@ -3448,7 +3502,8 @@ def write_pack(built, tilesets, L, out):
     srec = b''
     for m in SCREENS:
         img, pal = screen_image(L, m)
-        bank, (o_img, o_pal) = into_bank(lambda bk: (bk.add(img), bk.add(b''.join(be16(c) for c in pal))))
+        img = pic_tiles(img)
+        bank, (o_img, o_pal) = into_bank(lambda bk: (bk.add(img, 4), bk.add(b''.join(be16(c) for c in pal))))
         srec += be32(o_img) + be32(o_pal) + bytes([7 + bank, m['txh'] & 0xFF, 0, 0])
     off_screens = p.add(srec)
     p.align(4)
@@ -3506,7 +3561,17 @@ def write_pack(built, tilesets, L, out):
                 except (OSError, IndexError):
                     rfx = None
             # (its Genesis plane block in the same bank: window 7 shows both while the screen is up)
-            bank, (o_v, o_md, o_rfx) = into_bank(lambda bk: (bk.add(vr, 16), bk.add(md, 4) if md else 0,
+            # (I21q) the VRAM as 1 KB pages, shared with the other screens in the bank (bk.ts keys ('FEPG', page)):
+            # u32 page offsets[64] (sh/fescr.c FE_PG) - 960 KB of front-end VRAM -> ~420 KB
+            def fe_vram(bk, vr=vr):
+                tab = []
+                for k in range(64):
+                    pg = bytes(vr[k * 1024:(k + 1) * 1024])
+                    if ('FEPG', pg) not in bk.ts:
+                        bk.ts[('FEPG', pg)] = bk.add(pg, 4)
+                    tab.append(bk.ts[('FEPG', pg)])
+                return bk.add(b''.join(be32(o) for o in tab), 4)
+            bank, (o_v, o_md, o_rfx) = into_bank(lambda bk: (fe_vram(bk), bk.add(md, 4) if md else 0,
                                                              bk.add(rfx, 4) if rfx else 0))
             if o_rfx:
                 off_rfx = o_rfx

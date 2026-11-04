@@ -155,6 +155,11 @@ static const uint8_t fe_bay4[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 1
 #define FE_ROLLV  ((uint32_t (*)[8])((uint8_t *)map_mem + 32384))              /* [2][8] (-> 32448) */
 #define FE_ROLLK  ((uint32_t *)((uint8_t *)map_mem + 32448))                   /* [2] */
 #define FE_ROLLON (*(uint32_t *)((uint8_t *)map_mem + 32456))                   /* (-> 32460) */
+/* (I21q) the screen's captured VRAM in 1 KB pages, shared between screens (build_viewer: 960 KB -> ~420 KB):
+   page k's address; FE_VP(byte offset) - a tile (16 / 32 / 64 bytes) or map entry never straddles pages */
+#define FE_PG     ((uint32_t *)((uint8_t *)map_mem + 1792))                       /* [64] pack offsets (-> 2048; after
+                                                                                       FE_LSIG - map_mem's upper half is spr_rwbuf's) */
+#define FE_VP(o)  ((const uint8_t *)PACK + FE_PG[((o) >> 10) & 63] + ((o) & 1023))
 static uint32_t fe_dh(int y, const uint32_t *sd)
 {
     const uint32_t *u = FE_DUSED[y];
@@ -239,7 +244,8 @@ static inline uint32_t fe_vword(uint32_t a)
         uint32_t w = UNCACHED(FE_VM)[a - 0x7000];
         if (w != FE_VM_UNSET) return w;
     }
-    return fe_vr[a * 2] | fe_vr[a * 2 + 1] << 8;
+    const uint8_t *p = FE_VP(a * 2);
+    return p[0] | p[1] << 8;
 }
 
 static uint32_t fe_lines_regs(void);
@@ -251,7 +257,7 @@ static uint32_t fe_bg2_sum(int cap)
     uint32_t sc = game_ppu(0x2108), base = (sc & 0xFC) << 8, nw = 0x400u << ((sc & 1) + ((sc >> 1) & 1)), s = 0;
     for (uint32_t k = 0; k < nw; k++) {
         uint32_t a = (base + k) & 0x7FFF;
-        uint32_t w = cap ? (uint32_t)(fe_vr[a * 2] | fe_vr[a * 2 + 1] << 8) : fe_vword(a);
+        uint32_t w = cap ? (uint32_t)(FE_VP(a * 2)[0] | FE_VP(a * 2)[1] << 8) : fe_vword(a);
         s = s * 31 + w;
     }
     return s;
@@ -278,7 +284,7 @@ void fe_xfade(uint32_t a)
     if ((a & 0x3F) >= 2) FE->fpwant = 1;  /* (fe_frame switches; a = 1 also came once, long before) */
     fe_fdsend();
 }
-static void fe_setup(int i)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void fe_setup(int i)   /* (I21q: -Os, cold) */
 {
 #ifdef FEDBG
     fedbg_setup++;
@@ -288,13 +294,15 @@ static void fe_setup(int i)
     render_state_reset();
     set_bank(e->bank);
     UNCACHED(&shared_state)->epoch++;
-    fe_vr = PACK + FE_U32(e->off_vram);
+    {   /* (I21q) the VRAM's page table */
+        const uint32_t *pt = (const uint32_t *)(PACK + FE_U32(e->off_vram));
+        for (int k = 0; k < 64; k++) FE_PG[k] = FE_U32(pt[k]);
+    }
     {   /* (the state lives in lent memory: start from zero) */
         uint32_t *z = (uint32_t *)FE;
         for (uint32_t k = 0; k < sizeof(fe_state_t) / 4; k++) z[k] = 0;
     }
     FE->xb = 256;
-    fe_vr = PACK + FE_U32(e->off_vram);
     fe_idx = i;
     {   /* bit planes -> one bit per byte lane (lane 0 = leftmost pixel, big-endian words) */
         uint32_t *x = FE_EXP;
@@ -313,13 +321,13 @@ static void fe_setup(int i)
         uint8_t *blank = FE_LB;                     /* (scratch: 256 flags) */
         for (int t = 0; t < 256; t++) {
             uint32_t any = 0;
-            for (int k = 0; k < 64 && !any; k++) any = fe_vr[(t * 64 + k) * 2 + 1];
+            for (int k = 0; k < 64 && !any; k++) any = *FE_VP((t * 64 + k) * 2 + 1);
             blank[t] = !any;
         }
         int32_t x0 = 1024, x1 = 0, y0 = 1024, y1 = 0;
         for (int ty = 0; ty < 128; ty++)
             for (int tx = 0; tx < 128; tx++)
-                if (!blank[fe_vr[(ty * 128 + tx) * 2]]) {
+                if (!blank[*FE_VP((ty * 128 + tx) * 2)]) {
                     if (tx * 8 < x0) x0 = tx * 8;
                     if (tx * 8 + 8 > x1) x1 = tx * 8 + 8;
                     if (ty * 8 < y0) y0 = ty * 8;
@@ -336,11 +344,11 @@ static void fe_setup(int i)
             int n = 0, ok = w * h <= 2048;
             for (int ty = 0; ty < h && ok; ty++)
                 for (int tx = 0; tx < w && ok; tx++) {
-                    uint32_t t = fe_vr[((y0 / 8 + ty) * 128 + x0 / 8 + tx) * 2];
+                    uint32_t t = *FE_VP(((y0 / 8 + ty) * 128 + x0 / 8 + tx) * 2);
                     if (!remap[t]) {
                         if (n >= 160) { ok = 0; break; }
                         remap[t] = (uint8_t)++n;
-                        for (int k = 0; k < 64; k++) FE_M7CHR[(n - 1) * 64 + k] = fe_vr[(t * 64 + k) * 2 + 1];
+                        for (int k = 0; k < 64; k++) FE_M7CHR[(n - 1) * 64 + k] = *FE_VP((t * 64 + k) * 2 + 1);
                     }
                     FE_M7MAP[ty * w + tx] = (uint8_t)(remap[t] - 1);
                 }
@@ -586,18 +594,17 @@ static uint32_t fe_rowflag(int li, uint32_t ty, int bpp)
     uint32_t chw = ((li & 1) ? nba >> 4 : nba & 15) << 12, tb = (bpp & 15) * 8;
     uint32_t mrow = mapw + (ty & 31) * 32;
     if ((msz & 2) && (ty & 32)) mrow += (msz & 1) ? 0x800 : 0x400;
-    const uint8_t *vr = fe_vr;
     uint32_t vm = fe_vmask, any = 0;
     const uint16_t *vmw = UNCACHED(FE_VM);
     for (uint32_t tx = 0; tx < ((msz & 1) ? 64u : 32u) && !any; tx++) {
         uint32_t a = (mrow + (tx & 31) + ((tx & 32) ? 0x400 : 0)) & 0x7FFF;
         uint32_t e = a >= 0x7000 && (vm & bit32[(a - 0x7000) >> 8]) ? vmw[a - 0x7000] : FE_VM_UNSET;
-        if (e == FE_VM_UNSET) e = FE_LE16(vr + a * 2);
+        if (e == FE_VM_UNSET) e = FE_LE16(FE_VP(a * 2));
         uint32_t c = e & 0x3FF, st = (cs[c >> 2] >> ((c & 3) * 2)) & 3;
         if (st != 2 && (bpp & 0x80)) {   /* (hi-res: a 16-pixel tile = chars c and c + 1) */
             uint32_t c2 = (c + 1) & 0x3FF, st2 = (cs[c2 >> 2] >> ((c2 & 3) * 2)) & 3;
             if (!st2) {
-                const uint32_t *t = (const uint32_t *)(vr + ((chw * 2 + c2 * tb) & 0xFFFF));
+                const uint32_t *t = (const uint32_t *)FE_VP((chw * 2 + c2 * tb) & 0xFFFF);
                 uint32_t o = 0;
                 for (uint32_t k = 0; k < tb / 4; k++) o |= t[k];
                 st2 = o ? 2 : 1;
@@ -606,7 +613,7 @@ static uint32_t fe_rowflag(int li, uint32_t ty, int bpp)
             if (st2 == 2) st = 2;
         }
         if (!st) {
-            const uint32_t *t = (const uint32_t *)(vr + ((chw * 2 + c * tb) & 0xFFFF));
+            const uint32_t *t = (const uint32_t *)FE_VP((chw * 2 + c * tb) & 0xFFFF);
             uint32_t o = 0;
             for (uint32_t k = 0; k < tb / 4; k++) o |= t[k];
             st = o ? 2 : 1;
@@ -637,7 +644,6 @@ static void fe_tiles(uint8_t *lb, uint8_t *src, int li, int bpp, int y, int pr, 
     int k0 = xa >> 3, k1 = (xb + (int)(h & 7) + 7) >> 3;   /* (the tiles over [xa, xb)) */
     if (k1 > 33) k1 = 33;
     x0 += 8 * k0;
-    const uint8_t *vr = fe_vr;            /* (FE is uncached: read once) */
     uint8_t *cs = fe_chst(li, bpp);       /* (I11) blank characters: skipped before their bytes are read */
     const uint32_t fpk = li == 1 && FE->fpok ? 0x1C00 : 0;   /* (I21n) BG2 palette 0: the Genesis front plane */
     if (!pr) {
@@ -646,7 +652,7 @@ static void fe_tiles(uint8_t *lb, uint8_t *src, int li, int bpp, int y, int pr, 
         for (int k = k0; k < k1; k++) {
             uint32_t tx = (tx0 + k) & 63, a = (mrow + (tx & 31) + ((msz & 1) && (tx & 32) ? 0x400 : 0)) & 0x7FFF;
             uint32_t e = a >= 0x7000 && (vm & bit32[(a - 0x7000) >> 8]) ? vmw[a - 0x7000] : FE_VM_UNSET;
-            ment[k] = (uint16_t)(e != FE_VM_UNSET ? e : FE_LE16(vr + a * 2));
+            ment[k] = (uint16_t)(e != FE_VM_UNSET ? e : FE_LE16(FE_VP(a * 2)));
         }
     }
     for (int k = k0; k < k1; k++, x0 += 8) {
@@ -656,7 +662,7 @@ static void fe_tiles(uint8_t *lb, uint8_t *src, int li, int bpp, int y, int pr, 
         {
             uint32_t c = e & 0x3FF, q = c & 3, cb = cs[c >> 2];
             if (!(cb & fe_cs_known[q])) {
-                const uint32_t *tt = (const uint32_t *)(vr + ((chw * 2 + c * tb) & 0xFFFF));
+                const uint32_t *tt = (const uint32_t *)FE_VP((chw * 2 + c * tb) & 0xFFFF);
                 uint32_t o = 0;
                 for (uint32_t i = 0; i < tb / 4; i++) o |= tt[i];
                 cb |= o ? (uint8_t)(fe_cs_known[q] ^ fe_cs_blank[q]) : fe_cs_blank[q];
@@ -665,7 +671,7 @@ static void fe_tiles(uint8_t *lb, uint8_t *src, int li, int bpp, int y, int pr, 
             if (cb & fe_cs_blank[q]) continue;
         }
         uint32_t r = (e & 0x8000) ? 7 - row : row;
-        const uint8_t *t = vr + ((chw * 2 + (e & 0x3FF) * tb + r * 2) & 0xFFFF);
+        const uint8_t *t = FE_VP((chw * 2 + (e & 0x3FF) * tb + r * 2) & 0xFFFF);
         uint32_t w01 = *(const uint16_t *)t;  /* (one 16-bit read per two bit planes: big-endian = t[0] t[1]) */
         if (bpp == 2 && !w01) continue;
         uint32_t w23 = bpp >= 4 ? *(const uint16_t *)(t + 16) : 0;
@@ -758,7 +764,6 @@ static void fe_tiles_hires(uint8_t *lb, uint8_t *src, int li, int bpp, int y, in
     h &= 0x3FF;
     uint32_t phase = h & 1, tx0 = h >> 4, tb = bpp * 8;
     int32_t x0 = 8 - (int32_t)((h & 15) >> 1);
-    const uint8_t *vr = fe_vr;
     uint8_t *cs = fe_chst(li, bpp);       /* (I12) blank characters skipped (as fe_tiles) */
     for (int k = 0; k < 34; k++, x0 += 8) {
         uint32_t tx = (tx0 + k) & 63;
@@ -768,7 +773,7 @@ static void fe_tiles_hires(uint8_t *lb, uint8_t *src, int li, int bpp, int y, in
         for (int i = 0; i < 2; i++) {     /* (bl bit i: char t + i is blank) */
             uint32_t c = (t + i) & 0x3FF, q = c & 3, cb = cs[c >> 2];
             if (!(cb & fe_cs_known[q])) {
-                const uint32_t *tt = (const uint32_t *)(vr + ((chw * 2 + c * tb) & 0xFFFF));
+                const uint32_t *tt = (const uint32_t *)FE_VP((chw * 2 + c * tb) & 0xFFFF);
                 uint32_t o = 0;
                 for (uint32_t j = 0; j < tb / 4; j++) o |= tt[j];
                 cb |= o ? (uint8_t)(fe_cs_known[q] ^ fe_cs_blank[q]) : fe_cs_blank[q];
@@ -779,9 +784,9 @@ static void fe_tiles_hires(uint8_t *lb, uint8_t *src, int li, int bpp, int y, in
         if (bl == 3) continue;
         uint8_t hp[16] __attribute__((aligned(4)));
         if (bl & 1) { *(uint32_t *)hp = 0; *(uint32_t *)(hp + 4) = 0; }
-        else fe_row8(vr + ((chw * 2 + t * tb + r * 2) & 0xFFFF), bpp, hp);
+        else fe_row8(FE_VP((chw * 2 + t * tb + r * 2) & 0xFFFF), bpp, hp);
         if (bl & 2) { *(uint32_t *)(hp + 8) = 0; *(uint32_t *)(hp + 12) = 0; }
-        else fe_row8(vr + ((chw * 2 + ((t + 1) & 0x3FF) * tb + r * 2) & 0xFFFF), bpp, hp + 8);
+        else fe_row8(FE_VP((chw * 2 + ((t + 1) & 0x3FF) * tb + r * 2) & 0xFFFF), bpp, hp + 8);
         uint32_t pal = ((e >> 10) & 7) << (bpp == 4 ? 4 : 2);
         for (int j = 0; j < 8; j++) {
             uint32_t q = phase + 2 * j, c = (e & 0x4000) ? hp[15 - q] : hp[q];
@@ -799,7 +804,6 @@ static void fe_m7(uint8_t *lb, int y)
     int32_t hs = (int16_t)(FE_L16[L_H1][y] << 3) >> 3, vs = (int16_t)(FE_L16[L_V1][y] << 3) >> 3;
     int32_t xx = hs - cx, yy = y + 1 + vs - cy;
     int32_t X = a * xx + b * yy + (cx << 8), Y = c * xx + d * yy + (cy << 8);
-    const uint8_t *v = fe_vr;
     /* the x range whose map point is inside the non-blank box (X, Y in 1/256 px, linear in x) */
     int32_t xa = 0, xb = 256;
     {
@@ -848,8 +852,8 @@ static void fe_m7(uint8_t *lb, int y)
     for (int x = xa; x < xb; x++, X += a, Y += c) {
         uint32_t px = (uint32_t)(X >> 8), py = (uint32_t)(Y >> 8);
         if ((px | py) & ~1023u) continue;
-        uint32_t t = v[((py >> 3) * 128 + (px >> 3)) * 2];
-        uint32_t col = v[(t * 64 + (py & 7) * 8 + (px & 7)) * 2 + 1];
+        uint32_t t = *FE_VP(((py >> 3) * 128 + (px >> 3)) * 2);
+        uint32_t col = *FE_VP((t * 64 + (py & 7) * 8 + (px & 7)) * 2 + 1);
         if (col) lb[8 + x] = (uint8_t)col;
     }
 }

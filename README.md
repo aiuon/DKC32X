@@ -113,8 +113,10 @@ compiles it with the bundled GCC; converts the levels, graphics and music; and w
 ## Playing
 
 Play the `.32x` in an emulator with 32X support (**ares**, **PicoDrive**), on **MiSTer** (S32X core),
-or on a **real 32X** with a flash cart. The ROM is 14 MB, so it fits flash carts with a 15 MB
-limit (Mega EverDrive Pro). A 6-button pad is recommended.
+or on a **real 32X** with a flash cart. The ROM is about 11.5 MB and uses the Sega "SSF" bank
+mapper (its header says `SEGA SSF`), so it needs a flash cart that supports that mapper for 32X
+games (Mega EverDrive PRO / X series). Carts limited to plain 4 MB 32X games can't run it. Real
+hardware is still untested; reports are welcome in the issues. A 6-button pad is recommended.
 
 | Mega Drive pad | Does |
 |---|---|

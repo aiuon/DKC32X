@@ -1475,3 +1475,43 @@ outside the SNES picture "flash solid colors quickly".
   elapsed time is not - not fully understood (no cost found in the instructions, the tile fetches or
   the frame-buffer writes alone).  Hence a pause-menu option LAMP SWING (ON by default; OFF = the
   I21o still cones, the 68000's sprites too: C_HUD keyframe message bit 0x2000).
+
+### I21q (2026-11-03): real-hardware flash carts, a smaller ROM, LAMP SWING off by default
+User: LAMP SWING off by default (it costs frames).  GitHub issue #1 (ruiner9): the Mega EverDrive PRO
+refuses the ROM - "This rom conflicts with 32X addon" - and shows it as "ROM Type: 10M+32X(3)"; a
+Reddit reply: the 14 MB ROM "wouldn't work on most Everdrive carts".  Asked: a smaller ROM without
+losing anything (compression), or later a "small flash cart" build option.
+- B-EDPRO (header): a ROM over 4 MB said "SEGA 32X" in its system field; the EverDrive PRO then maps it
+  with its linear big-ROM mode ("10M": the whole cartridge in a straight line past 4 MB), which
+  collides with the 32X's own address space.  Bank-switched 32X games (Doom 32X Fusion, the
+  SegaXtreme FMV entries) say "SEGA SSF": the cart then uses the Sega / SSF bank mapper - the one this
+  ROM is written for ($A130F3-$A130FF, 512 KB windows).  finalize.py writes "SEGA SSF" when the ROM is
+  over 4 MB.  Emulators / MiSTer are unaffected (PicoDrive and the MiSTer core pick the mapper by
+  size, ares by the 32X loader).  Not testable here: needs the user's / ruiner9's cart.
+- B-EDSRAM: the EverDrive's SSF mode keeps the save RAM in page 31 (odd bytes of its upper 256 KB),
+  reached by mapping window 0 there through $A130F0 (key bit 15, write enable bit 13) - the standard
+  SSF2 $A130F1 switch does nothing there (saves would have been lost).  md_setup detects it the way
+  d32xr does (window 0 -> page 2 must equal window 2), sram_xfer then uses that path; emulators /
+  MiSTer keep $A130F1.  (MegaSD: its own save path - not handled; its saves may not be kept.)
+- Size (lossless): 14 MB -> 11.5 MB (15 -> 10 level banks).
+  * Map / cabin pictures: 22 x 57 KB of 8-bit pixels -> deduplicated 4-bit tiles + a palette line
+    per tile (they are SNES tiles; 20 of 19712 tiles use two lines: kept 8-bit): 1232 -> 568 KB.
+    sh/main.c pic_row8 decodes a tile line (map_rows, draw_menu).  Round trip checked pixel-exact.
+  * Genesis plane tiles + plane maps of every level (1968 KB, load-time only): LZSS (tools/lzss.py,
+    4 KB window), streamed to VRAM by the 68000 (md lz_vram, state in registers) - the level loads no
+    slower (Jungle Hijinxs' first picture 2 frames earlier in ares); PicoDrive VRAM dump after the load
+    identical to the uncompressed build's.  A first version merged two byte reads into one word read
+    at an odd address (gcc, -m68000!): garbage planes - byte reads through a volatile pointer now.
+  * Front-end screens' VRAM (15 x 64 KB): 1 KB pages shared between screens (fescr.c FE_VP: a page
+    table of pack offsets in map_mem + 1792; the first place, + 32512, is spr_rwbuf's - the credits
+    wrote OBJ tiles over it) - 960 -> ~436 KB.  Host renders of the boot screens, the ending and the
+    credits (137 pictures) pixel-identical to I21p; title-sequence pace in the MiSTer model unchanged.
+  * Room in the first 256 KB for that code: musplay's 64-bit division (1.2 KB of libgcc) -> 32-bit,
+    -Os for cold set-up code (load_level, fe_setup, map_setup, draw_menu, game_init, sram_*,
+    bm_game_setup, hang_page; memset for their local arrays).
+- Why not 4 MB (a "small flash cart" build): a standard 32X cartridge without a mapper is at most
+  4 MB, and the game's own SNES data that the recompiled code reads (sprites, level layouts) is
+  ~3 MB on its own, plus ~0.7 MB of code and 0.34 MB of music - the converted level graphics
+  (~4.8 MB) would not fit even compressed.  The remaining big redundancy is the 7 world banks
+  (SNES pages shared by several worlds are copied into each: ~2 MB) - the 3 MB resident area is full.
+- LAMP SWING: off by default (LAMP_SWING_DEFAULT 0).

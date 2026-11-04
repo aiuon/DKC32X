@@ -2007,3 +2007,18 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   sim: all OK; cabin sims FA / F5 text logs identical to the I21o sim's; GAMEBOT 12000 + STACKCHK
   2004 / 1372; ares S&G / Loopy GAMEDEMO pictures (swing, lit black); ares Candy cabin every-frame dumps
   (default + MiSTer model): side bars black throughout.
+## 2026-11-03: I21q - flash-cart header + EverDrive saves, ROM 14 -> 11.5 MB (BUGLOG "I21q")
+- References: d32xr (github viciious/d32xr: src-md/crt0.s read_sram / write_sram / set_bank_page,
+  src-md/everdrive.c InitEverDrive; Makefile MAPPER = SEGA SSF with ENABLE_SSF_MAPPER), SegaXtreme FMV
+  thread (32X SSF entries "run fine on my Mega EverDrive Pro"), plutiedev beyond-4mb.
+- Pack formats: pictures (map / cabin / menu) = pic_tiles (u16 n4, nraw, map[28][32], tiles); level md
+  block flags bit 1024 = LZSS tiles + maps (u32 length, stream, pad) - MD_LZ=0 builds the old layout;
+  front-end screen record off_vram = a 64 x u32 page table (pack offsets) of 1 KB pages, shared in
+  their bank through BankPack.ts keys ('FEPG', page).
+- md: lz_vram(nwords) streams to VDP_DATA; med_detect / med_sram (RV = 1, interrupts off).
+- Checks: plain md5 bd680b4c... (tools/prebuilt/md.bin refreshed; the prebuilt build is identical);
+  host FE renders old (sim_xcp + I21p ROM) vs new (sim_xc + new ROM): end 30 / cred 42 / boot 65 shots
+  identical (/tmp/claude-0/fpl/fecmp2.sh); PicoDrive VRAM after Jungle Hijinxs' load MD_LZ=0 vs 1:
+  equal but for the sprite table; ares: maps, cabins, save screen, Kongo Jungle map; Candy save in
+  ares writes DK32 + checksum; verify2 6 entrances x pad / tp OK; GAMEBOT 12000 + STACKCHK 2000 / 1372.
+- Low ROM after I21q: sh.bin 260256 (~1.9 KB free; GAMEBOT +0.8 KB).
