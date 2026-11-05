@@ -2067,3 +2067,77 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   bus words a frame), the mixer's accumulators are read-modify-write in SDRAM (pairs of voices per pass
   would halve them), spc_exec runs from ROM (12.7 KB, no SDRAM room).
 - Checks: plain md5 4d5e5782... (Linux convert.py = Wine .bat = dev build); tools/prebuilt/md.bin unchanged since I22.
+
+## 2026-11-05: I24 - SOUND FM: the music on the Mega Drive's own chips (BUGLOG "I24")
+- Legal shape: the builder converts the user's ROM at build time (the game's own driver, translated by
+  spc2x.py, is run in Python - tools/audio/fm/fmlog.py - and its S-DSP writes are converted).  Nothing of
+  the music ships: no note data, no arrangements; the FM patches are fitted by a generic search on the
+  user's machine (fit cache: cache/fm_fits.json next to the builder - convert.py - never in the bundle).
+- Design: the melodic voices (samples the fit can play) on the YM2612 (6 FM channels) + PSG (overflow),
+  driven by our Z80 driver (z80/fmdrv.asm, prebuilt tools/prebuilt/fmdrv.bin); the drums / ambience
+  (samples the fit cannot play: noise, few pitches, short one-shots) stay on the 32X: the slave mixes the
+  S-DSP voices of those samples (the song record's SRCN mask) with the sound effects, echo included -
+  the same work as SOUND SFX ONLY plus the drums.  Echo of FM notes: "ghost" notes on idle channels
+  (EDL later, EVOL quieter, modulators 8 TL duller, RR 9; a real note takes the channel back).
+- Pipeline (tools/audio/fm/): fmbuild.py (build_viewer.py runs it in its own process when FM_DIR is set;
+  3 passes over FM_JOBS processes: the fits each song asks for, each sample fitted once at the pitch of
+  the first song playing it - the same patches whatever the order - then the songs) -> fmlog.py (the
+  engine's register writes per tick) -> fmsong.py (events on the engine's tick grid, loop detection,
+  roles, ghosts, segments intro + loop body, channel allocation) -> fmpack.py (byte streams, LZ) ->
+  song blocks build/fm/song_NN.bin + fm.json (per song SRCN mask of the 32X part, tick grid offset; the
+  "swap" samples = used by no effect and by no song's 32X part).  fmmodel.py = the driver's reference
+  (register writes per tick); devkit/fm/zharness.c runs fmdrv.bin in cz80 + PicoDrive's ym2612 against it:
+  0 differences, 0 missed timer periods (songs 0 / 3 / 6 / 14, 60 s each).
+- Stream format (per channel; fmpack.py): 00-3F WAIT n+1, 40 lo hi WAIT n, 42 END, 43 LOOP, 50 inst env fh
+  fl vol KEYON, 51 FREQ, 52 VOL, 53 KEYOFF, 54 ENV2, 55 PAN, 56 n bytes PSG, 57 d VOL+=d, 58 d FREQ+=d,
+  59-5B KEYOFF + WAIT 1-3, 5C-5F d VOL+=d + WAIT 1-4, 80-FF 1wwddddd FREQ+=d + WAIT ww.  The 68000 resolves
+  the LZ: 41 o16 len CALL, 60-7F o16 CALL of 3-34 bytes, nested 8 deep (CALL_DEPTH; 3 deep was 366 KB for
+  the 27 songs, 8 deep with the folded waits and 3-byte calls 192 KB).
+- ROM layout (finalize.py): the music block moved from the pack to the end of the resident ROM, its
+  swap samples last (cart window 5); the FM pages after everything else: copies of bank 5 whose tail
+  (from the swap samples to 0x300000, 52 KB) holds 'FMD1' (u16 songs, u32 driver offset, u16 its length,
+  per song u32 bank << 24 | window-5 offset), the driver and song blocks (best fit; a song that fits
+  nowhere loses its FM flag and plays on the 32X).  27 songs -> 4 pages, ROM 13.5 MB.  The 68000 maps a
+  page into window 5 ($A130FB) while SOUND FM plays; the SH-2s see the same bytes everywhere but the tail.
+  Pack header word 13 (byte 52) = fm_info = first page << 24 | tail offset (header now 56 bytes).
+  Song record pad: 0-4 SRCN mask, 5 bit 0 FM data, 6-7 tick grid offset (BE).  Music header pad = the
+  swap samples' start (BE u24): with music_light bit 3 at a song start the slave never mixes a voice
+  playing one (mp_fmguard: an FM page may be in window 5).
+- 68000 (md/fm.c, RAM code): 0x9B FM on / mono, 0x98 / 0x99 / 0x9A start stamp + song.  0x9A stops the old
+  song and asks for the new one; md_idle sets it up in two steps (each well under a frame, interrupts off:
+  directory + driver + tables, then 40 bytes a stream) - one 250 ms step lost vblanks.  md_vint tops the 7
+  Z80 rings up (<= 160 bytes; decoded into a 68000 buffer first, the Z80 held only per copy of <= 64
+  bytes: a longer hold loses its 1 ms timer period).  Start: tick 0 at (vblank seq, offset) from the slave
+  - late: tick 0 and every due tick at once, then on the grid.
+- Timing / sync: the Z80 polls YM timer A (54 units = 1.014 ms), a tick every TK = 12.5 ms (NTSC 170455 /
+  PAL 168899 units x 256).  The slave stamps when its song's tick 0 sounds: the audio position (music_dma_n
+  x HALF - TCR1: samples played, any emulator that runs the DMA has it - PicoDrive's FRT reads 0) at its
+  V interrupt (now always on: only the stamp unless it owns the sky) against the position of the new
+  song's first sample, + the tick grid offset; the 68000's vblank numbers from C_PAD bits 8-13 (written
+  first thing in md_vint now; the slave reads them 5-14 ms after its own V interrupt).  The 68000 counts
+  the lines since the vblank (VDP V counter) when it starts, so a late V interrupt does not shift it.
+  Measured: PicoDrive audio Z80 part vs 32X part 7 ms apart, ares within ~10 ms (both NTSC; PAL similar);
+  internal positions in PicoDrive -12 ms (its PWM output lags its DMA).
+- Menu: SOUND = FULL -> FM -> LIGHT -> SFX ONLY -> OFF (FM only when the ROM has FM pages).  build.py
+  --sound fm makes FM the power-on setting (-DMUSIC_MODE_DEFAULT=4; no FM pages: FULL); --no-fm builds
+  without.  Loudness FM vs FULL: PicoDrive equal, ares +2 dB.
+- Room: the first 256 KB were full - fm.c and load_md are 68000 RAM code (packed by mdpack, optimal LZSS
+  parse now), the game code's SDRAM helpers (r65lib, game_hle .sdtext) moved into the .sdgame image
+  (world bank 0, SDGAME_LMA 0x36CC00): 8 KB free; new song set-up code in ROM (-Os).  SDRAM 256 bytes free.
+- Fits: each sample once (pass 2), from 4 starts of the search (FIT_SEEDS; best of 4 ~ 20 % lower
+  error than one start - one start's luck varies ~15 %), ~7 min of one CPU for the 36 instruments, in
+  parallel.  The same on every machine (the Windows builder's numpy 1.26 vs 2.5 here): own splitmix64
+  random numbers (numpy's Generator streams may change between versions), the feedback operator through
+  an integer-phase sine table on a 2^-30 grid (the chaotic feedback loop turned a last-bit sin() difference
+  into another patch on 16 of 36 samples), scores rounded to 1e-6, stable sorts, sample features /
+  play frequencies rounded to 9 decimals.  Checked: Linux and Wine fmbuild give the same song blocks.
+- Reset: md_setup (fm_init) holds the Z80 in reset and silences the YM2612 / PSG from the 68000 - a reset
+  during SOUND FM left the old driver playing its stale rings dry with notes held.
+- Checks (final): plain build md5 57faa556...; bundle24: scanbundle only unicodedata.pyd; Linux convert.py
+  (linapp24, earlier fits) and the Wine .bat run (wtest24, 824 s with the instrument fits, 2 CPUs) give
+  this ROM byte for byte; PicoDrive GAMEBOT FM 9000 frames + FULL 9000, ares GAMEBOT FM 6000 frames (no
+  starved stream, no missed period, no misaligned SH-2 access), PAL in PicoDrive.
+- Test tools (dev only): pd_dbg PD_NOPWM / PD_NOFM (mute a side), PD_ZDUMP=file (Z80 RAM), PD_ZLOG=file +
+  PD_SDVAR=hex,.. + PD_MDVAR=hex,.. (per frame: Z80 mailbox, SDRAM / 68000 words, C_PAD, the slave's TCR1);
+  ares ARES_ZLOG + ARES_SDVAR, ARES_AUDIO=prefix (each stream as s16 stereo: 0 PSG, 1 OPN2, 2 PWM);
+  md -DFMDEBUG (the 68000's vblank number in the Z80 mailbox); music_p0 (the song's first sample).

@@ -16,7 +16,7 @@ import rompatch
 BANK = 0x80000
 BASE = 0x02300000
 TABLE = 4096 * 4
-BANK0_END = 0x6F000 - 16                 # (tools/build.py SDGAME_LMA - 0x300000, its header)
+BANK0_END = 0x6CC00 - 16                 # (tools/build.py SDGAME_LMA - 0x300000, its header)
 
 
 def syms(elf):
@@ -40,7 +40,7 @@ def main():
     for bi, pages in enumerate(w['banks']):
         widx = dict((p, j) for j, p in enumerate(pages))
         assert TABLE + len(pages) * 1024 <= BANK, 'world bank %d over 512 KB' % bi
-        # (I17) bank 0 also holds the SDRAM game code image (finalize.py, from 0x6F000 - 16)
+        # (I17) bank 0 also holds the SDRAM game code image (finalize.py, from 0x6CC00 - 16)
         assert bi or TABLE + len(pages) * 1024 <= BANK0_END, 'world bank 0 over its %d KB (SDRAM code image after it)' % (BANK0_END // 1024)
         tab = bytearray()
         for p in range(4096):

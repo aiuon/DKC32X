@@ -145,7 +145,7 @@ typedef struct {
 typedef struct { uint32_t npool, off_pool, nbake, off_bake, nvch, off_vch, off_vprio; } tileset_t;   /* off_vprio: u16 BG1 priority mask per vchunk (0: none) */
 typedef struct { char name[28]; uint32_t nlev; uint16_t idx[8]; uint32_t off_img, off_pal; uint8_t bank, pad[7]; } world_t;
 typedef struct { char magic[4]; uint32_t nlev, nworld, off_levels, off_worlds, off_font, off_music, off_rooms, off_maps,
-                 off_screens, off_tfont, off_boot, off_fe; } pack_hdr_t;   /* off_boot: the power-on snapshot (complete game) */
+                 off_screens, off_tfont, off_boot, off_fe, fm_info; } pack_hdr_t;   /* fm_info (I24): SOUND FM pages, 0 = none */   /* off_boot: the power-on snapshot (complete game) */
 /* cabins: Cranky, Funky, Candy pictures; txh = the dialogue layer's h offset */
 typedef struct { uint32_t off_img, off_pal; uint8_t bank; int8_t txh; uint8_t pad[2]; } cabin_t;
 /* the game's map screens by index ($02 on a map, CODE_80E1F8): 0 the world map, 1 / 2 Kongo Jungle ... */
@@ -526,13 +526,20 @@ static int32_t s_hend;                    /* (I22) this frame's sky_hend (the sl
 __attribute__((interrupt_handler)) SDRAM_CODE void slave_vint(void)
 {
     REG16(SYS_VINT_CLR) = 0;
-    s_hline = 1;
-    s_hend = *UNCACHED(&sky_hend);
-    if (*UNCACHED(&slave_hmask) & 0x04) REG8(SYS_INTMASK) = REG8(SYS_INTMASK) | 0x04;   /* (I22: H back on) */
-    CRAM[0] = *UNCACHED(&sky_ram[0]);
-    {
-        const uint8_t *st = *UNCACHED(&sft_show);
-        if (st) REG16(VDP_SHIFT) = *UNCACHED(st);
+    *UNCACHED(&music_s_tvint) = music_dma_n * 128 - *(volatile uint32_t *)0xFFFFFF98;   /* (I24 SOUND FM: the audio position at this
+                                                                           vblank - music.c HALF, TCR1) */
+    *UNCACHED(&music_s_vc) = *UNCACHED(&music_s_vc) + 1;
+    /* (I24: the V interrupt is always on now - for SOUND FM's time stamps; the line work only when the slave
+       owns the sky) */
+    if (*UNCACHED(&slave_hmask)) {
+        s_hline = 1;
+        s_hend = *UNCACHED(&sky_hend);
+        if (*UNCACHED(&slave_hmask) & 0x04) REG8(SYS_INTMASK) = REG8(SYS_INTMASK) | 0x04;   /* (I22: H back on) */
+        CRAM[0] = *UNCACHED(&sky_ram[0]);
+        {
+            const uint8_t *st = *UNCACHED(&sft_show);
+            if (st) REG16(VDP_SHIFT) = *UNCACHED(st);
+        }
     }
     (void)REG16(SYS_VINT_CLR);
 }
@@ -3533,14 +3540,24 @@ static int music_mode = 2;
 static int music_mode = MUSIC_MODE_DEFAULT;
 #endif
 #define music_on (music_mode != 2)
-/* the slave's music_light: bit 0 voices at half rate, bit 1 SFX ONLY, bit 2 16 kHz output (LIGHT: from the next song) */
-#define MUSIC_LIGHT_VAL() ((music_mode == 1 ? 5u : 0u) | (music_mode == 3 ? 2u : 0u))
+/* the slave's music_light: bit 0 voices at half rate, bit 1 SFX ONLY, bit 2 16 kHz output (LIGHT: from the next song),
+   bit 3 (I24) SOUND FM (with bit 1: the 32X plays the effects + the song's drums / ambience, the Z80 the rest) */
+#define MUSIC_LIGHT_VAL() ((music_mode == 1 ? 5u : 0u) | (music_mode == 3 ? 2u : 0u) | (music_mode == 4 ? 0xAu : 0u))
+static uint32_t fm_flags_sent = 0xFF, fm_mono;   /* (I24) the 68000's FM mode / mono flags as last sent */
 static int music_msg;                     /* frames to show the music mode on the HUD */
 static int level_seconds;
 /* light: voices mixed at half rate (levels whose rendering needs both CPUs) */
-static void music_play(int song, int light)
+static void fm_follow(int song);
+static void md_cmd(uint16_t c);
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void music_play(int song, int light)
 {
     if (!hdr->off_music) return;
+    if (hdr->fm_info && music_mode != 4 && (fm_flags_sent & 1)) {
+        /* (I24) SOUND FM off: bank 5 back in window 5 before the 32X starts a song with its own samples */
+        md_cmd(0x9AFF);
+        md_cmd(0x9B00);
+        fm_flags_sent = 0;
+    }
     music_seq++;
     *UNCACHED(&music_req) = music_seq << 9 | (light ? 0x100 : 0) | (song & 0xFF);
 #ifdef MUSWAITLOG
@@ -3559,6 +3576,47 @@ static void music_play(int song, int light)
     {   extern volatile uint32_t muswait_log[32]; uint32_t k = muswait_log[0]++ & 15;
         muswait_log[2 + k * 2] = game_stats.frames << 8 | (song & 0xFF); muswait_log[3 + k * 2] = vcount - mw_v0; }
 #endif
+    fm_follow(song);
+}
+
+/* (I24) a 68000 command (C_CMD) with bounded waits - SOUND FM's few words */
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void md_cmd(uint16_t c)
+{
+    uint32_t v0 = vcount;
+    while ((COMM(C_CMD) & 0x8000) && vcount - v0 < 30)
+        bus_pause();
+    COMM(C_CMD) = c;
+    v0 = vcount;
+    while ((COMM(C_CMD) & 0x8000) && vcount - v0 < 30)
+        bus_pause();
+}
+/* (I24) SOUND FM: the 68000's mode / mono, and the song for the Z80 with its start (the vblank and the delay the
+   slave measured: its first tick sounds then, so the Z80's will too) */
+static int fm_pend_song = -1;
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void fm_follow(int song)
+{
+    if (!hdr->fm_info) return;
+    fm_mono = *UNCACHED(&music_mono);
+    uint32_t fl = (music_mode == 4 ? 1u : 0u) | (fm_mono ? 2u : 0u);
+    if (fl != fm_flags_sent) {
+        if (!(fl & 1)) md_cmd(0x9AFF);
+        md_cmd((uint16_t)(0x9B00 | fl));
+        fm_flags_sent = fl;
+    }
+    if (!(fl & 1)) return;
+    uint32_t sy = *UNCACHED(&music_fmsync);
+    fm_pend_song = -1;
+    if ((song & 0xFF) == 0xFF) { md_cmd(0x9AFF); return; }
+    if ((sy >> 16) != (music_seq & 0xFFFF)) {
+        /* (no answer yet - the slave was busy - or no FM data for the song: the 32X plays it all then)
+           fm_poll sends it when the slave's stamp comes */
+        md_cmd(0x9AFF);
+        fm_pend_song = song & 0xFF;
+        return;
+    }
+    md_cmd((uint16_t)(0x9800 | ((sy >> 10) & 63) | ((sy >> 8) & 3) << 6));
+    md_cmd((uint16_t)(0x9900 | (sy & 0xFF)));
+    md_cmd((uint16_t)(0x9A00 | (song & 0xFF)));
 }
 #ifdef MUSWAITLOG
 volatile uint32_t muswait_log[32] __attribute__((used));
@@ -3593,8 +3651,20 @@ volatile uint32_t path_ring[64][4] __attribute__((used)), path_ri __attribute__(
 #else
 #define PATHLOG(c, v) ((void)0)
 #endif
-static void music_follow(void)
+/* (I24) every frame: a late stamp from the slave, the game's mono setting */
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void fm_poll(void)
 {
+    if (!hdr->fm_info || music_mode != 4) return;
+    if (fm_pend_song >= 0 && (*UNCACHED(&music_fmsync) >> 16) == (music_seq & 0xFFFF)) fm_follow(fm_pend_song);
+    else if ((uint32_t)(*UNCACHED(&music_mono) ? 2 : 0) != (fm_flags_sent & 2)) {
+        fm_mono = *UNCACHED(&music_mono);
+        fm_flags_sent = 1 | (fm_mono ? 2u : 0u);
+        md_cmd((uint16_t)(0x9B00 | fm_flags_sent));
+    }
+}
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void music_follow(void)
+{
+    fm_poll();
     int want = 0xFF;
     if (music_on && (game_wram16(0x51D) & 0xFF)) want = game_wram16(0x523) & 0xFF;
     if (music_on && full_game) {
@@ -4893,6 +4963,7 @@ void m_main(void)
     shared_t *sh = UNCACHED(&shared_state);
     hdr = PK(pack_hdr_t, 0);
     font = PACK + hdr->off_font;
+    if (music_mode == 4 && !hdr->fm_info) music_mode = 0;   /* (I24: SOUND FM by default, but no FM pages) */
 
     FRT_TCR = 0;
     canary_set();
@@ -5336,8 +5407,10 @@ void m_main(void)
                         case PM_FG: fg_on ^= 1; pm_fg_reload = 1; break;
                         case PM_OBJ: obj_wide ^= 1; break;
                         case PM_LAMP: lamp_swing_on ^= 1; break;
-                        case PM_SOUND:                                       /* (I23) FULL -> LIGHT -> SFX ONLY -> OFF */
-                            music_mode = music_mode == 0 ? 1 : music_mode == 1 ? 3 : music_mode == 3 ? 2 : 0;
+                        case PM_SOUND:                                       /* (I23) FULL -> LIGHT -> SFX ONLY -> OFF;
+                                                                                (I24) FULL -> FM -> LIGHT ... when the ROM has FM data */
+                            music_mode = music_mode == 0 ? (hdr->fm_info ? 4 : 1) : music_mode == 4 ? 1 :
+                                         music_mode == 1 ? 3 : music_mode == 3 ? 2 : 0;
                             *UNCACHED(&music_light) = MUSIC_LIGHT_VAL();
                             game_song = -2;                                  /* (music_follow: the song again - LIGHT's rate) */
                             break;
@@ -6047,7 +6120,7 @@ void m_main(void)
                 bus_pause();
             for (int i = 0; i < SCREEN_H; i++) sky_ram[i] = 0;
             in_level = 0;
-            *UNCACHED(&music_light) = 0;
+            *UNCACHED(&music_light) = music_mode == 4 ? 0xA : 0;   /* (I24: SOUND FM stays FM) */
             ripple = 0;
             comp = 0;
             comp_fog = 0;
@@ -6871,8 +6944,8 @@ void m_main(void)
             line[7] = ' '; fmt_num(line + 8, cv2_frames > 9999 ? 9999 : cv2_frames, 4); line[12] = 0;
 #endif
             if (music_msg) {
-                static const char *const names[4] = { "MUSIC AUTO", "MUSIC LIGHT", "MUSIC OFF", "SFX ONLY" };
-                const char *q = names[music_mode];
+                static const char *const names[5] = { "MUSIC AUTO", "MUSIC LIGHT", "MUSIC OFF", "SFX ONLY", "MUSIC FM" };
+                const char *q = names[music_mode > 4 ? 0 : music_mode];
                 int i = 0;
                 for (; q[i]; i++) line[i] = q[i];
                 for (; i < 15; i++) line[i] = ' ';
@@ -6907,7 +6980,7 @@ void m_main(void)
                 if (i == PM_RIPPLE) v = rip_on ? "ON" : "OFF";
                 if (i == PM_LAMP) v = lamp_swing_on ? "ON" : "OFF";
                 if (i == PM_OBJ) v = obj_wide ? "WIDE" : "SNES";
-                if (i == PM_SOUND) { static const char *const sn[4] = { "FULL", "LIGHT", "OFF", "SFX ONLY" }; v = sn[music_mode & 3]; }
+                if (i == PM_SOUND) { static const char *const sn[5] = { "FULL", "LIGHT", "OFF", "SFX ONLY", "FM" }; v = sn[music_mode > 4 ? 0 : music_mode]; }
                 if (i == PM_STATS) v = pm_stats ? "ON" : "OFF";
                 if (v) text57_cv(bx + 100, yy, v, 112, 96);
             }
@@ -7027,7 +7100,7 @@ void m_main(void)
             swaps = 0;
             fps_mark += pal ? 50 : 60;
             /* adaptive music: if this level can't hold 60 (PAL 50) fps, mix the voices at half rate */
-            if (++level_seconds > 2 && fps < (pal ? 48u : 57u) && (music_mode == 0 || music_mode == 3))
+            if (++level_seconds > 2 && fps < (pal ? 48u : 57u) && (music_mode == 0 || music_mode == 3 || music_mode == 4))
                 *UNCACHED(&music_light) = MUSIC_LIGHT_VAL() | 1;
         }
     }
@@ -7098,6 +7171,7 @@ void s_main(void)
             if (ph->off_music)
                 music_init(PACK + ph->off_music, slot_echo.echo);
             mus_started = 1;
+            REG8(SYS_INTMASK) = REG8(SYS_INTMASK) | 0x08;   /* (I24) V: SOUND FM's time stamps (slave_vint) */
             if (COMM(C_TOKEN) == last)
                 continue;                       /* (no job yet) */
         }
@@ -7105,7 +7179,7 @@ void s_main(void)
         {
             uint32_t m = *UNCACHED(&slave_hmask);
             /* (I22: H goes on only in the V interrupt, where the line count starts - see slave_hint) */
-            if (m != hmask) { hmask = m; REG8(SYS_INTMASK) = (REG8(SYS_INTMASK) & (0x01 | (m & 0x04))) | (m & ~0x04); }
+            if (m != hmask) { hmask = m; REG8(SYS_INTMASK) = (REG8(SYS_INTMASK) & (0x01 | (m & 0x04))) | (m & ~0x04) | 0x08; }
         }
         static shared_t local;            /* (static: the slave's 2 KB stack; s_main is the slave's only) */
         local = *sh;

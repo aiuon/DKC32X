@@ -57,7 +57,7 @@ if [ -n "$WORLD_PROFILES" ]; then BANKED="-DSNES_PG_BANKED"; PGSYM="-Wl,--defsym
 $SHCC $GFLAGS $BANKED -c build/game/game_tab.c -o build/game_tab.o
 printf '\t.section .gtext,"a"\n\t.balign 16\n\t.global _snes_blob\n_snes_blob:\n\t.incbin "build/game/snes_blob.bin"\n' > build/game_data.s
 sh-elf-as --small build/game_data.s -o build/game_data.o
-SDLMA=""; [ -n "$WORLD_PROFILES" ] && SDLMA="-Wl,--defsym,SDGAME_LMA=0x36F000"
+SDLMA=""; [ -n "$WORLD_PROFILES" ] && SDLMA="-Wl,--defsym,SDGAME_LMA=0x36CC00"
 $SHCC $SHFLAGS -T sh/mars.ld -Wl,--defsym,GAME_BASE=$GAME_BASE $PGSYM $SDLMA build/sh_start.o build/sh_main.o build/sh_comp.o \
     build/sh_mixv.o build/sh_mixout.o build/sh_music.o build/sh_musplay.o build/sh_spcdsp.o build/sh_spceng_gen.o \
     build/sh_game.o build/sh_game_hle.o build/sh_sprites.o build/sh_r65lib.o build/sh_r65interp.o build/sh_r65tramp.o $PROFO build/g65_*.o build/game_tab.o build/game_data.o \
@@ -71,7 +71,8 @@ fi
 sh-elf-objcopy -O binary -j .gtext build/sh.elf build/gtext.bin
 if [ -n "$WORLD_PROFILES" ]; then
     python3 tools/worldbanks.py "$ROM" build/game/worlds.json build/sh.elf build/gen2/worldbanks.bin
-    python3 tools/finalize.py build/sh.bin build/gen2/pack.bin "$OUT" build/gtext.bin $GAME_BASE build/gen2/banks.bin build/gen2/worldbanks.bin build/sdgame.bin 0x36F000
+    python3 tools/finalize.py build/sh.bin build/gen2/pack.bin "$OUT" build/gtext.bin $GAME_BASE build/gen2/banks.bin build/gen2/worldbanks.bin build/sdgame.bin 0x36CC00 \
+        ${FM_DIR:+build/gen2/music.bin "$FM_DIR" tools/prebuilt/fmdrv.bin}
 else
     python3 tools/finalize.py build/sh.bin build/gen2/pack.bin "$OUT" build/gtext.bin $GAME_BASE build/gen2/banks.bin
 fi

@@ -136,8 +136,10 @@ def sample_pcm(aram, srcn):
     return pcm + [pad], len(pcm), loop_i
 
 
-def build_music(rom, E='>'):
-    """-> bytes of the music block (offsets relative to its start); E = struct byte order"""
+def build_music(rom, E='>', fm=None):
+    """-> bytes of the music block (offsets relative to its start); E = struct byte order.
+    fm (I24, tools/audio/fm/fmbuild.py's fm.json): the samples SOUND FM never mixes go last (an FM page
+    replaces them, md/fm.c), their start in the header's pad (BE u24), each song record's pad = its FM data"""
     want = os.environ.get('MUSIC_SONGS')          # (comma list: only these level songs)
     names = [n for n in LEVEL_MUSIC if not want or n in want.split(',') or n == MENU_SONG]
     extra = os.environ.get('MUSIC_EXTRA')
@@ -189,23 +191,34 @@ def build_music(rom, E='>'):
     buf += b'\0' * (-len(buf) % 16)
     o_pool = len(buf)
     buf += pool
-    for (img, ram, smp), o_tab in zip(songs, otabs):
-        recs.append(struct.pack(E + 'II', o_tab, o_pool) + struct.pack(E + '%dH' % NSRC, *smp) + b'\0' * 8)
+    for si, ((img, ram, smp), o_tab) in enumerate(zip(songs, otabs)):
+        pad = b'\0' * 8
+        if fm and str(si) in fm.get('songs', {}):
+            e = fm['songs'][str(si)]
+            m = e['spc_mask']
+            pad = bytes([(m >> (8 * k)) & 255 for k in range(5)]) + bytes([1]) + struct.pack('>H', e['grid'])
+        recs.append(struct.pack(E + 'II', o_tab, o_pool) + struct.pack(E + '%dH' % NSRC, *smp) + pad)
     print('   music: %d songs, ARAM images %d KB -> %d KB (64-byte chunk pool)' % (
         len(songs), len(songs) * IMG_HI // 1024, (len(pool) + 2 * sum(map(len, tabs))) // 1024))
-    srecs = []
-    for pcm, n, loop in samples:
+    srecs = [None] * len(samples)
+    swap = set(fm.get('swap', [])) if fm else set()
+    order = [i for i in range(len(samples)) if i not in swap] + [i for i in range(len(samples)) if i in swap]
+    swap_off = 0
+    for i in order:
+        pcm, n, loop = samples[i]
         buf += b'\0' * (-len(buf) % 4)
+        if i in swap and not swap_off: swap_off = len(buf)
         o = len(buf)
         buf += struct.pack(E + '%dh' % len(pcm), *pcm)
-        srecs.append(struct.pack(E + 'III', o, n, loop))
+        srecs[i] = struct.pack(E + 'III', o, n, loop)
+    if not swap_off: swap_off = len(buf)
     level_song = bytearray([0xFF] * 256)
     id_song = bytearray([0xFF] * 32)
     for si, name in enumerate(names):
         for e in LEVEL_MUSIC.get(name, []):
             level_song[e] = si
         id_song[ids[name]] = si
-    menu = bytes([names.index(MENU_SONG), 0, 0, 0])
+    menu = bytes([names.index(MENU_SONG)]) + (struct.pack('>I', swap_off)[1:] if fm else b'\0\0\0')
     buf[0:head] = b'MUS1' + struct.pack(E + 'HHII', len(songs), len(samples), off_songs, off_samples) + \
         bytes(level_song) + menu + bytes(id_song)
     for i, r in enumerate(recs):
@@ -213,6 +226,8 @@ def build_music(rom, E='>'):
         buf[off_songs + i * 96: off_songs + (i + 1) * 96] = r
     for i, r in enumerate(srecs):
         buf[off_samples + i * 12: off_samples + (i + 1) * 12] = r
+    if fm is not None:
+        fm['swap_off'] = swap_off             # (for finalize: where the FM pages' tail may start)
     return bytes(buf), names
 
 

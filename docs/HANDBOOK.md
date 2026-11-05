@@ -46,7 +46,13 @@ them. Keep this file current when something structural changes.
 - SRAM (battery saves): 68000 only (A130F1 = 1, A15104 = 2, byte n at $900001 + 2n). While A130F1 = 1
   MiSTer maps SRAM over the whole $200000-$3FFFFF: both SH-2s must be off cart ROM. Never write
   A130F9 (PicoDrive loses SRAM).
-- SSF2 mapper: windows 6 / 7 (A130FD / A130FF) banked; ROM <= 15 MB (EverDrive Pro limit).
+- SSF2 mapper: windows 6 / 7 (A130FD / A130FF) banked, window 5 (A130FB) too with SOUND FM (an FM
+  page: a copy of bank 5 but its tail); ROM <= 15 MB (EverDrive Pro limit).
+- (I24) Z80: it never touches the 68000 bus (bank register parked at $FF8000 - the 32X bulletin's PSG /
+  ROM conflict); the 68000 feeds its rings.  A 68000 bus request stops the Z80: hold it < ~0.4 ms (the
+  driver polls the YM's 1 ms timer A; a longer hold loses a period = the song drifts behind the 32X).
+- (I24) 68000 + GCC: a byte-wise p[1] | p[2] << 8 can become ONE word read at an odd address (+ rorw):
+  address error on a real 68000, the aligned word in PicoDrive.  ROM byte data: volatile byte pointers.
 - PAL: region-free ROM; SH-2 detects PAL from VDP reg 0x4100 bit 15 and runs 60 game frames / s on
   50 pictures (gtick extra every 5th vblank).
 
@@ -139,9 +145,9 @@ them. Keep this file current when something structural changes.
 
 ### 4.1 SDRAM (256 KB, 0x06000000)
 - .data, then .sdgame (copied by m_main uncached, read back + compared, up to 4 rounds,
-  sdgame_fixes), then .bss up to 0x0603E800 (__end ~0x0603BD60, check the link map).
+  sdgame_fixes; I24: also the r65lib / game_hle SDRAM code), then .bss up to 0x0603E900 (check the map).
 - Master stack 0x0603E900-0x0603F7F0 (3.8 KB since I23 - STK_LO / mars.ld; canaries 16 B at each end,
-  measured peak ~2 KB).  SDRAM is FULL (~240 bytes free after I23): new code goes to ROM.
+  measured peak ~2 KB).  SDRAM is FULL (~256 bytes free after I24): new code goes to ROM.
 - Slave stack 0x0603F800-0x06040000 (2 KB, measured peak 1140 B).
 - STACKCHK builds paint both stacks (0xA5A5A5A5 master / 0x5A5A5A5A slave); read with PicoDrive
   pd_dbg PD_SDDUMP (SDRAM byte-swapped per 16-bit word).
@@ -155,18 +161,22 @@ them. Keep this file current when something structural changes.
   dissolve's records (FE_WD, FE_MIXM / S, FE_DW, FE_DY, FE_DSUB, FE_SBLK - NOTES I21h).
 
 ### 4.3 ROM
-- First 256 KB: 68000 code, SH-2 boot + code, .data image, .sdgame image (finalize.py checks; ~1.9 KB
-  free after I21q; cold set-up code is -Os - add memset-free code there).
+- First 256 KB: 68000 code, SH-2 boot + code, .data image (finalize.py checks; ~8 KB free after I24; cold
+  set-up code is -Os - add memset-free code there; the 68000's RAM code is LZ-packed: more 68000 code
+  costs ~70 % of its size).
 - Over 4 MB the header says "SEGA SSF" (I21q): flash carts then use the Sega bank mapper; the EverDrive's
   save RAM is page 31 (md med_sram).  A 4 MB, mapper-less build cannot hold the game (BUGLOG I21q).
-- Pack at 0x40000 (music, level data, front-end tables, palettes); game code at GAME_BASE; resident
-  SNES pages. Resident end must stay <= 0x300000 (0x2FFD50 after I16 and I18 - FULL, 688 bytes left;
-  SDRAM-placed code does not use resident ROM; a 1 KB page more made the I18 build fail).
+- Pack at 0x40000 (level data, front-end tables, palettes; the music too in --no-fm builds); game code at
+  GAME_BASE; resident SNES pages; (I24) the music block last, its SNES-only samples at the end of window
+  5 (the FM pages' tail).  Resident end must stay <= 0x300000 (~240 bytes left after I24; SDRAM-placed
+  code does not use resident ROM; a 1 KB page more made the I18 build fail).
+- (I24) FM pages after the world banks: copies of bank 5, tail = FM directory + Z80 driver + song blocks
+  (finalize.py; NOTES I24).  The .sdgame image is in world bank 0 from 0x36CC00 (worldbanks BANK0_END).
 - DUP pages (I16): resident sprite pages of common characters copied into EVERY world bank at the
   same offset (first after the table) - always visible at one address like resident pages; as many
   as the fullest world bank allows (mkgame.py world_split, WORLD_DUP=0 turns it off).
 - 0x300000 window 6 = world bank (snes_pg table at 0x02300000 + the world's pages); window 7 = level
-  banks (best-fit by tile-set group). ROM 14 MB (14680064 bytes, I18).
+  banks (best-fit by tile-set group). ROM 13.5 MB with 4 FM pages (I24).
 
 ### 4.4 32X palette conventions
 - CRAM 0 = sky (per-line H-int), 1-127 BG, 128-255 sprites; 253-255 = SNES sprite palette 7
@@ -220,8 +230,10 @@ them. Keep this file current when something structural changes.
 ### 5.3 Delivery checklist
 1. Full regression: verify2 set, regress tour, ares transition run (dumps, no flashes), GAMEBOT run,
    STACKCHK, ARES_MISALIGN scan.
-2. Bundle: copy the previous bundle, refresh app/sh, app/md, app/tools with mkbundle.copytree (drop
-   tools/win, __pycache__), HANDBOOK / BUGLOG / NOTES.
+2. Bundle: copy the previous bundle, refresh app/sh, app/md, app/tools, app/z80 with mkbundle.copytree
+   (drop tools/win, __pycache__), HANDBOOK / BUGLOG / NOTES.  The bundle builds with the PREBUILT 68000
+   program and Z80 driver: copy build/md.bin (no test flags) to tools/prebuilt/md.bin and z80/fmdrv.bin
+   (pasmo) to tools/prebuilt/fmdrv.bin after every md/ or z80/ change.
 3. scanbundle; Wine run of the .bat (WINEPREFIX=/tmp/claude-0/wineprefix, under `script`) must give a
    ROM byte-identical to the Linux convert.py run (DKC_HARNESS=/tmp/claude-0/harness_linux
    DKC_SNES9X_TRACE=/opt/ref/snes9x_trace/libretro/snes9x_libretro.so DKC_PREBUILT_MD=1). Afterwards

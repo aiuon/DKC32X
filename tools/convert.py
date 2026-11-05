@@ -42,6 +42,8 @@ def main():
     if os.path.isdir(tc):
         env['DKC_TOOLCHAIN'] = tc
     env['DKC_PREBUILT_MD'] = '1'
+    # (I24) SOUND FM's instrument fits (the slow part of its conversion): kept between conversions
+    env['FM_FITCACHE'] = os.path.join(ROOT, 'cache', 'fm_fits.json')
     os.makedirs(env['DKC_TMP'], exist_ok=True)
     py = sys.executable
 

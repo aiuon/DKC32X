@@ -1606,3 +1606,38 @@ filter either: 7.6 MHz, ~70 cycles a multiply, and the YM2612 DAC is mono).
   unpause sound + echo after resuming, four jump sounds with their echo tails in Jungle Hijinxs, silence
   between; the pause menu (wider box) cycles FULL -> LIGHT -> SFX ONLY -> OFF -> FULL and the game goes on;
   GAMEBOT 12000 + STACKCHK 2012 / 1500.
+
+### I24 (2026-11-05): SOUND FM - the music's melody on the YM2612 / PSG, the drums on the 32X
+User: "Go ahead and implement the playback, if it sounds good enough we could even make it the default".
+(GEMA-drv looked at: a full sound driver with its own formats - ours plays the converted SNES songs, so
+its own small driver; the .mod-player idea: the 68000 is the LZ decoder here.)  NOTES "I24" has the design.
+- B-FM68ODD: the 68000 decoder read every CALL target wrong in PicoDrive - GCC merged p[1] | p[2] << 8 into
+  move.w @(1) + rorw (a word read at an odd address: PicoDrive reads the aligned word, real 68000s raise an
+  address error).  fm_p() returns a volatile pointer now (byte reads); the host test of the decoder could
+  not see it (x86 allows it).  Check: objdump of md.elf has no rorw on memory reads.
+- B-FMDRV: tools/prebuilt/fmdrv.bin was copied before the driver learned the new stream ops: KEYOFF + WAIT
+  (59) stopped every stream after its first note.  build: the prebuilt driver is copied from z80/ with
+  every driver change (delivery checklist).
+- B-FMSTALL: 0x9A set the song up in one go with interrupts off (driver, tables, 3.5 KB of rings): 250 ms,
+  vblanks lost - the 68000's vblank numbers slipped against the slave's and the start came up to 0.7 s
+  late.  Now two short steps in md_idle and 40 bytes a stream; the vblanks bring the rest.
+- B-FMSTAMP: the slave's stamps used its FRT (PicoDrive: always 0) and its V interrupt, which was off
+  outside the slave's sky levels: every stamp was garbage and the 68000 waited up to 63 vblanks.  Now the
+  audio position (DMA count x 128 - TCR1, set together with interrupts masked) and the V interrupt always
+  on (slave_vint: only the stamp unless the slave owns the sky).  Unknown vblank numbers: "at once".
+- B-FMLATE: a late start counted tick 0 as due one tick period later (PEND = whole periods past, not + 1):
+  12.5 ms late; and the on-time start ignored the lines between the vblank and the late V interrupt.
+- B-FMCPAD: the 68000 wrote C_PAD (its vblank number) at the end of md_vint, after up to several ms of
+  work - the slave's 5 ms read saw the old number now and then (s_seqoff wobbled).  Written first now.
+- B-FMWIN: the Wine run of the builder made other FM patches than Linux (16 of 36 samples): numpy 1.26 vs
+  2.5 random streams, and the fit's feedback loop is chaotic - a last-bit sin() difference became another
+  waveform.  Now platform-exact (NOTES "Fits"); Linux and Wine song blocks identical.
+- B-FMRESET: a reset during SOUND FM: nothing stopped the Z80 - it played its rings dry and left notes on
+  (FULL after the reset: a drone).  md_setup now holds the Z80 in reset and silences the chips.
+- Room: the first 256 KB overflowed by 1.3 KB (68000 FM code + SH-2 FM code) and SDRAM by 512 bytes: see
+  NOTES (68000 RAM code, mdpack optimal parse, r65lib / game_hle SDRAM code in the .sdgame image, new_song /
+  seq_learn / mp_swapv in ROM).  GAMEBOT builds fit again (8 KB free).
+- Checks: Z80 driver vs fmmodel (cz80 harness) 0 differences / 0 missed periods; the 68000 decoder (host
+  build of md/fm.c) = fmpack.expand on 27 songs x 7 streams x 3000 commands; PicoDrive GAMEBOT FM 7200
+  frames (logos, title, file select, map, Jungle Hijinxs, death, bonus): no stream starved, no missed
+  period, no clipping; PAL (TK 168899); FM vs FULL loudness; sync as in NOTES.

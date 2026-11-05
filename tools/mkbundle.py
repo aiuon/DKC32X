@@ -44,7 +44,7 @@ def main():
     if os.path.exists(a.out):
         shutil.rmtree(a.out)
     app = os.path.join(a.out, 'app')
-    for d in ('sh', 'md', 'tools'):
+    for d in ('sh', 'md', 'tools', 'z80'):
         copytree(os.path.join(ROOT, d), os.path.join(app, d))
     for f in ('README.md', 'BUILD.md'):
         if os.path.exists(os.path.join(ROOT, f)):

@@ -129,10 +129,11 @@ hardware: it boots on the EverDrive PRO; reports are welcome in the issues. A 6-
   menu instead (pick any level directly).
 - The pause menu also has *exit to the map* and options (for example frame skip, 60FPS MODE,
   ripple effects and level select).
-- The pause menu's **SOUND** option: **FULL** (default, the sound as on the SNES), **LIGHT** (music at a
-  lower output rate - a little less treble, faster on a real 32X), **SFX ONLY** (sound effects with
-  their echo, no music - faster again) and **OFF**. On a real 32X the music engine costs a lot of
-  speed; LIGHT or SFX ONLY help most in the busy jungle levels.
+- The pause menu's **SOUND** option: **FULL** (default, the sound as on the SNES), **FM** (the Mega
+  Drive's own FM and PSG chips play the melody, the 32X the drums and the effects - see Music below),
+  **LIGHT** (music at a lower output rate - a little less treble, faster on a real 32X), **SFX ONLY**
+  (sound effects with their echo, no music - faster again) and **OFF**. On a real 32X the music engine
+  costs a lot of speed; FM, LIGHT or SFX ONLY help most in the busy jungle levels.
 - Saves (Cranky's / Candy's barrels, the file select) are kept in the cartridge's battery memory.
   In an emulator that is the `.srm` / `.sav` file next to the ROM; on MiSTer, mount a save file
   when you load the ROM.
@@ -211,7 +212,10 @@ A short overview; [docs/HANDBOOK.md](docs/HANDBOOK.md) has the full picture.
   drives the Mega Drive video chip and handles the battery saves.
 - **Music.** The game's SPC700 sound driver is translated to C from your ROM at build time and runs
   on the slave SH-2, together with an emulation of the SNES sound chip (S-DSP: samples, envelopes,
-  echo), played through the 32X's PWM sound.
+  echo), played through the 32X's PWM sound.  SOUND FM: at build time the songs' melodic instruments
+  are converted for the YM2612 (FM patches fitted to the ROM's samples on your machine) and the PSG; a
+  small Z80 driver of our own plays them, the 68000 feeds it, and the 32X keeps the drums and effects,
+  started on the same tick.
 - **Level starts** are snapshots made by running your ROM in a headless snes9x at build time.
 - **Frame rate.** The game always runs at its normal speed. When a scene is too heavy for one
   picture per frame, the port runs two game frames per picture instead of slowing down. The pause

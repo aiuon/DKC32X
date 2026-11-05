@@ -29,7 +29,8 @@ def run(cmd, **kw):
 
 
 # (I17) the SDRAM game code's image: in world bank 0 (cart window 6 at power-on), not in the first 256 KB
-SDGAME_LMA = 0x36F000                      # (window 6 + 0x6F000: up to 68 KB, after the bank's pages)
+SDGAME_LMA = 0x36CC00                      # (window 6 + 0x6CC00: up to 77 KB, after the bank's pages - I24: + the
+                                           #  game code's SDRAM helpers, 8 KB more)
 
 
 def tool(tc, name):
@@ -48,6 +49,9 @@ def main():
     ap.add_argument('--jobs', type=int, default=max(1, os.cpu_count() or 1))
     ap.add_argument('--extra-shflags', default='')
     ap.add_argument('--md-bin', default=os.path.join(ROOT, 'tools', 'prebuilt', 'md.bin'))
+    ap.add_argument('--no-fm', action='store_true', help='no SOUND FM (the Mega Drive FM / PSG music mode)')
+    ap.add_argument('--sound', choices=('full', 'fm'), default=os.environ.get('DKC_SOUND', 'full'),
+                    help='the SOUND setting at power-on: full (the 32X plays all the music) or fm (SOUND FM)')
     a = ap.parse_args()
     out = os.path.abspath(a.out or os.path.splitext(a.rom)[0] + ' (32X).32x')
     os.chdir(ROOT)
@@ -82,7 +86,14 @@ def main():
     run([PY, 'tools/recomp/mkgame.py', rom, D + '/memprof_all.txt', 'build/game'] +
         ['%s:%s' % (f, os.path.splitext(os.path.basename(f))[0]) for f in snaps])
 
-    step('Converting levels, maps and music')
+    # (I24) SOUND FM: the songs converted for the Mega Drive's FM / PSG chips from this ROM (build_viewer.py
+    # runs tools/audio/fm/fmbuild.py; the patch fits are cached in build/fm - the first build takes longer)
+    fm = not a.no_fm
+    if fm:
+        env['FM_DIR'] = 'build/fm'
+    else:
+        env.pop('FM_DIR', None)
+    step('Converting levels, maps and music' + (' (and the music for SOUND FM)' if fm else ''))
     run([PY, 'tools/build_viewer.py', rom, 'build/gen2'] + LEVELS)
     # (I11: 256-byte aligned - the 4 KB rounding wasted up to 4 KB of the resident 3 MB)
     game_base = 0x02000000 + ((0x40000 + os.path.getsize('build/gen2/pack.bin') + 0xFF) & ~0xFF)
@@ -106,7 +117,7 @@ def main():
     step('Compiling (this is the slow part)')
     gcc, gas = tool(a.toolchain, 'gcc'), tool(a.toolchain, 'as')
     shf = ['-m2', '-mb', '-O2', '-fomit-frame-pointer', '-ffreestanding', '-fno-builtin', '-nostdlib', '-Wall',
-           '-DTCACHE'] + a.extra_shflags.split()
+           '-DTCACHE'] + (['-DMUSIC_MODE_DEFAULT=4'] if fm and a.sound == 'fm' else []) + a.extra_shflags.split()
     gf = shf + ['-DR65_SH2', '-Ish', '-Itools/recomp', '-w', '-DR65_OOL']
     run([PY, 'tools/gen_comp_asm.py', 'build/comp.s', 'rom'])
     jobs = []
@@ -161,7 +172,8 @@ def main():
     env['DKC_NM'] = tool(a.toolchain, 'nm')
     run([PY, 'tools/worldbanks.py', rom, 'build/game/worlds.json', 'build/sh.elf', 'build/gen2/worldbanks.bin'])
     run([PY, 'tools/finalize.py', 'build/sh.bin', 'build/gen2/pack.bin', out, 'build/gtext.bin', '0x%X' % game_base,
-         'build/gen2/banks.bin', 'build/gen2/worldbanks.bin', 'build/sdgame.bin', '0x%X' % SDGAME_LMA])
+         'build/gen2/banks.bin', 'build/gen2/worldbanks.bin', 'build/sdgame.bin', '0x%X' % SDGAME_LMA] +
+        (['build/gen2/music.bin', 'build/fm', 'tools/prebuilt/fmdrv.bin'] if fm else []))
     print('32X ROM written: ' + out, flush=True)
 
 

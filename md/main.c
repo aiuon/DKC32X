@@ -271,6 +271,7 @@ static RAM_CODE __attribute__((noinline)) void mapper_w(uint32_t reg, uint8_t v)
 
 static RAM_CODE __attribute__((noinline)) void med_detect(void);
 volatile uint16_t dbg_stage;
+static void fm_init(uint32_t info);
 void md_setup(void)
 {
     md_pal = VDP_CTRL & 1;
@@ -292,6 +293,10 @@ void md_setup(void)
     VDP_DATA = 0;
     VDP_DATA = 0;
     active = 0;
+    {   /* (I24) SOUND FM: the FM pages (pack header word 13: first FM bank << 24 | the tail's offset) */
+        const uint16_t *hp = pack_ptr(0);
+        fm_init(rd32(hp + 26));
+    }
     dbg_stage = 2;
 }
 
@@ -454,8 +459,13 @@ out:
 
 static void load_md(const uint16_t *md);
 static void fe_plane(uint16_t i);
+#include "fm.c"                             /* (I24) SOUND FM: the Z80's music */
 static void do_command(uint16_t cmd)
 {
+    if ((cmd & 0xFC00) == 0x9800) {         /* (I24) SOUND FM: 0x98xx - 0x9Bxx */
+        fm_command(cmd);
+        return;
+    }
     if (cmd == 0x9D00) {                    /* (I13) SH-2 (load_level): display off now, backdrop black - the
                                                32X layer goes off next (the old level's planes showed
                                                alone for a few frames while the new level loaded) */
@@ -629,7 +639,7 @@ static RAM_CODE __attribute__((noinline)) void lz_vram(uint32_t nwords)
     lz_src = src; lz_pos = pos; lz_flags = flags; lz_nf = nf; lz_mlen = mlen; lz_mdist = mdist;
 }
 
-static void load_md(const uint16_t *md)
+static RAM_CODE void load_md(const uint16_t *md)   /* (I24: RAM - packed, the first 256 KB of ROM are full) */
 {
     {
         uint16_t ntiles = md[0];
@@ -1225,9 +1235,24 @@ static inline uint16_t ld_lines(uint8_t v0)
     uint8_t v1 = VDP_VCNT;
     return (uint8_t)(v1 - v0);
 }
+static uint8_t pad_seq;
 __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
 {
     uint8_t ld_v0 = VDP_VCNT;
+    fm_vint_start((pad_seq + 1) & 63);      /* (I24) a SOUND FM song's start, first thing (its timing) */
+    /* (I24: the pad sample and its number first thing too - SOUND FM's slave reads the number 5 ms after its
+       own V interrupt to learn the 68000's vblank numbers; written at the end it came too late in busy
+       vblanks) */
+    pad_seq++;
+    {
+        uint16_t ldb = (uint16_t)((ld_pct >> (6 - ld_bit)) & 1) << 15 | (ld_bit == 0 ? 0x4000 : 0);
+        if (++ld_bit == 7) ld_bit = 0;
+#ifdef PADTEST
+        COMM(C_PAD) = (uint16_t)((uint16_t)(pad_seq & 0x3F) << 8 | ldb | ((pad_seq & 31) == 0 ? 0x18 : 0x08));   /* (test: B for one vblank in 32) */
+#else
+        COMM(C_PAD) = (uint16_t)((uint16_t)(pad_seq & 0x3F) << 8 | ldb | read_pad());
+#endif
+    }
     dbg_v++;
     if (bg3_swap) { uint16_t *t = bg3col; bg3col = bg3nxt; bg3nxt = t; bg3_swap = 0; }
     for (int i = 0; i < 8; i++) dbg_comm[i] = COMM(i * 2);
@@ -1456,15 +1481,6 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
     /* (I17) high byte = this vblank's sample number: the master SH-2 keeps every vblank's pad in order
        (main.c pad_take), so logic frames run back to back under frame skip each get their own sample -
        a press that lasted one vblank was missed when two logic frames read the same register value */
-    static uint8_t pad_seq;
-    pad_seq++;
-    uint16_t ldb = (uint16_t)((ld_pct >> (6 - ld_bit)) & 1) << 15 | (ld_bit == 0 ? 0x4000 : 0);
-    if (++ld_bit == 7) ld_bit = 0;
-#ifdef PADTEST
-    COMM(C_PAD) = (uint16_t)((uint16_t)(pad_seq & 0x3F) << 8 | ldb | ((pad_seq & 31) == 0 ? 0x18 : 0x08));   /* (test: B for one vblank in 32) */
-#else
-    COMM(C_PAD) = (uint16_t)((uint16_t)(pad_seq & 0x3F) << 8 | ldb | read_pad());
-#endif
     ld_acc += (uint32_t)ld_lines(ld_v0) * 16 + (ld_hints * 3 >> 1);   /* (an H int ~ 3/32 line) */
     ld_hints = 0;
     if (++ld_frames == 60) {
@@ -1475,6 +1491,7 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
         ld_acc = 0;
         ld_frames = 0;
     }
+    fm_vint_feed();                         /* (I24) the Z80's rings topped up */
 }
 
 /* jungle gradient: count H-ints instead of reading VCNT (which may already show the next line,
@@ -1531,6 +1548,11 @@ RAM_CODE void md_idle(void)
         if (c & 0x8000) {
             __asm__ volatile("move.w #0x2700,%sr");
             do_command(c);
+            __asm__ volatile("move.w #0x2300,%sr");
+        }
+        if (fm_step) {                      /* (I24) SOUND FM: a song's set-up, a step at a time */
+            __asm__ volatile("move.w #0x2700,%sr");
+            fm_work();
             __asm__ volatile("move.w #0x2300,%sr");
         }
     }

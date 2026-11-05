@@ -44,6 +44,13 @@ static uint32_t cycle_v;
 volatile uint32_t music_req;           /* master -> slave: seq << 9 | light << 8 | song (0xFF = silence) */
 volatile uint32_t music_ack;           /* slave -> master: last seq handled */
 volatile uint32_t music_light;         /* master -> slave: 1 = voices at half rate (adaptive) */
+volatile uint32_t music_fmsync;        /* (I24) slave -> master: seq << 16 | 68000 vblank number << 10 | 32 us steps after it
+                                          until the song's first tick sounds (SOUND FM: the Z80 starts with it) */
+volatile uint32_t music_s_tvint, music_s_vc;   /* (I24) the slave's V interrupt (main.c): the audio position then
+                                                  (samples played: music_dma_n x HALF - TCR1), a count */
+volatile uint32_t music_dma_n;         /* (I24) output halves started (the one playing: samples (n-1..n) x HALF) */
+volatile uint32_t music_p0;            /* (I24, test reads) the audio position of the song's first sample */
+static uint32_t s_seqoff = 0xFFFFFFFF, irq_t0;
 volatile uint32_t music_ticks;         /* FRT ticks spent in the last refill (for the HUD) */
 volatile uint32_t music_refills;
 volatile uint32_t music_halfs, music_skips, music_maxdt, music_stat_rst, music_lates;
@@ -58,8 +65,10 @@ static volatile uint16_t sfx_q[SFXQ];
 static volatile uint32_t sfx_head;
 static uint32_t sfx_tail;
 
+volatile uint32_t music_mono;          /* (I24) the game's mono setting (engine command $FC): SOUND FM's pans */
 void music_sfx(uint32_t cmd, uint32_t param)
 {
+    if (cmd == 0xFC) *UNCACHED(&music_mono) = param != 0;
     uint32_t h = *UNCACHED(&sfx_head);
     UNCACHED(&sfx_q[0])[h & (SFXQ - 1)] = (uint16_t)(cmd << 8 | (param & 0xFF));
     *UNCACHED(&sfx_head) = h + 1;
@@ -79,10 +88,10 @@ static const uint8_t *blob;
 static uint32_t mus_rate = MUS_RATE;
 #define BUF_TICKS ((uint32_t)HALF * (SH2_HZ / 8) / mus_rate)  /* FRT ticks (SH-2 clock / 8) */
 static uint32_t force_half, skip_next;
-static void refill(uint32_t *dst)
+/* (I24) a new song (rare: from ROM - SDRAM is full) */
+static __attribute__((noinline, optimize("Os", "no-tree-loop-distribute-patterns"))) void new_song(uint32_t req)
 {
-    uint32_t req = *UNCACHED(&music_req);
-    if ((req >> 9) != cur_seq) {
+    {
         cur_seq = req >> 9;
         {
             uint32_t rate = (*UNCACHED(&music_light) & 4) ? MUS_RATE_LIGHT : MUS_RATE;
@@ -95,7 +104,39 @@ static void refill(uint32_t *dst)
             }
         }
         mp_start(&mp, blob, req & 0xFF, echo_mem, ECHO_FRAMES, mus_rate);
+        music_p0 = music_dma_n * HALF;
         mp.dsp.half = (req >> 8) & 1;
+        mp.fm = 0;
+        if (*UNCACHED(&music_light) & 8) mp_fmguard(&mp, blob);   /* (I24: an FM page may be in window 5) */
+        {   /* (I24) SOUND FM (music_light bit 3) and the song has FM data: the Z80 plays the melody, this CPU the
+               song's drums / ambience with the sound effects.  Engine time from the PWM's real rate (it runs
+               with the Z80's clock: the same crystal), and when its first tick sounds - for the master */
+            const mus_hdr_t *h = (const mus_hdr_t *)blob;
+            uint32_t song = req & 0xFF;
+            if ((*UNCACHED(&music_light) & 8) && song < h->nsongs) {
+                const mus_song_t *sg = (const mus_song_t *)(blob + h->off_songs) + song;
+                if (MUS_FM_OK(sg)) {
+                    uint32_t hz = SH2_HZ;
+                    mp.fm = 1;
+                    mp.fpt = (((hz << 4) / CYCLE) << 12) / 32000;     /* (16.16: the real rate / 32000) */
+                    /* this buffer sounds after the one the DMA has just started: HALF samples of CYCLE / 8 FRT
+                       ticks; the engine's tick grid starts grid samples (32 kHz) later */
+                    /* (the audio position: the buffer refilled now plays from sample music_dma_n x HALF on;
+                       the last vblank was at music_s_tvint - both in samples at the PWM's real rate, so any
+                       emulator that runs the DMA has it; PicoDrive has no FRT) */
+                    uint32_t vc, pv;
+                    do { vc = *UNCACHED(&music_s_vc); pv = *UNCACHED(&music_s_tvint); } while (vc != *UNCACHED(&music_s_vc));
+                    uint32_t d = music_dma_n * HALF - pv + MUS_FM_GRID(sg) * mus_rate / 32000;
+                    uint32_t us = d * CYCLE * 1000 / (hz / 1000);
+                    uint32_t fr = hz == 23011361u ? 16688 : 20120;
+                    uint32_t f = us / fr, o = us - f * fr;
+                    uint32_t seq = (vc + s_seqoff + f) & 63;
+                    /* (the 68000's vblank numbers not known yet: offset 1023 = "at once") */
+                    *UNCACHED(&music_fmsync) = (cur_seq & 0xFFFF) << 16 |
+                        (s_seqoff > 63 ? 0x3FFu : seq << 10 | (o >> 5));
+                }
+            }
+        }
         /* light mode = comp levels: two-way cache + on-chip RAM.  Mix buffers in the free top of the
            slave's on-chip RAM (the comp renderer uses the first 1.5 KB) */
         /* (samples always read cached: uncached reads cost ~29 cycles each on MiSTer - the mixer
@@ -108,11 +149,31 @@ static void refill(uint32_t *dst)
         }
         *UNCACHED(&music_ack) = cur_seq;
     }
+}
+/* (I24) the 68000's vblank number of this frame (its C_PAD sample number) - read well after the
+   V interrupt (the 68000 writes it during its vblank) */
+static __attribute__((noinline)) void seq_learn(void)
+{
+    uint32_t vc, pv;
+    do { vc = *UNCACHED(&music_s_vc); pv = *UNCACHED(&music_s_tvint); } while (vc != *UNCACHED(&music_s_vc));
+    uint32_t ph = (music_dma_n - 1) * HALF - pv;          /* (samples since that vblank: 5 - 14 ms) */
+    if (ph > mus_rate / 200 && ph < mus_rate * 14 / 1000)
+        s_seqoff = ((*(volatile uint16_t *)0x20004028 >> 8) - vc) & 63;
+}
+static void refill(uint32_t *dst)
+{
+    uint32_t req = *UNCACHED(&music_req);
+    if ((req >> 9) != cur_seq) {
+        new_song(req);
+    }
     mp.dsp.half = ((req >> 8) & 1) | (*UNCACHED(&music_light) & 1) | (force_half != 0);
 #ifdef SFXONLY_TEST
     mp.sfx_only = 1;                        /* (test: SOUND SFX ONLY forced) */
 #else
-    mp.sfx_only = (*UNCACHED(&music_light) >> 1) & 1;   /* (I23: music_light bit 1 = SOUND SFX ONLY) */
+    mp.sfx_only = ((*UNCACHED(&music_light) >> 1) & 1) && !(*UNCACHED(&music_light) & 8 && !mp.fm);
+                                            /* (I23: music_light bit 1 = SOUND SFX ONLY; I24: FM without the song's
+                                               FM data - the 32X plays it all) */
+    if (*UNCACHED(&music_light) & 8) seq_learn();   /* (I24: SOUND FM - known before its first song) */
 #endif
     if (force_half) force_half--;
     {
@@ -152,11 +213,20 @@ static void dma_go(int h)
 __attribute__((section(".sdtext"), aligned(16))) void music_irq(void)
 {
     (void)REG32(CHCR1);
-    dma_go(half ^ 1);
+    {   /* (I24) the next half and its number together (slave_vint reads both: the audio position) */
+        uint32_t sr;
+        __asm__ volatile ("stc sr,%0" : "=r"(sr));
+        __asm__ volatile ("ldc %0,sr" : : "r"(sr | 0xF0));
+        dma_go(half ^ 1);
+        music_dma_n++;
+        __asm__ volatile ("ldc %0,sr" : : "r"(sr));
+    }
     uint16_t t0 = frt();
+    irq_t0 = t0;
     if (skip_next) {                        /* behind: one buffer of silence instead of a livelock */
         skip_next = 0;
         for (int i = 0; i < HALF; i++) pwm_buf[half][i] = (CYCLE / 2) * 0x10001u;
+        if (mp.fm) mp_advance(&mp, HALF);   /* (I24 SOUND FM: the engine keeps the Z80's time) */
     } else
         refill(pwm_buf[half]);
     uint16_t dt = (uint16_t)(frt() - t0);
@@ -199,7 +269,7 @@ volatile uint32_t music_bench;
 uint32_t mixv(int32_t *acc, const int16_t *pcm, uint32_t pos, const void *a);
 #endif
 
-void music_init(const uint8_t *music_blob, int8_t *echo)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) void music_init(const uint8_t *music_blob, int8_t *echo)
 {
 #ifdef MUSDEBUG
     {   /* micro benchmark: 10 x mixv over 128 frames (one voice), FRT ticks */

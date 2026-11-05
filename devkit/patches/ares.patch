@@ -384,6 +384,27 @@ index aea26fd..0cc51dd 100644
    SH2::frt.run(clocks);
    SH2::wdt.run(clocks);
    Thread::step(clocks);
+diff --git a/ares/md/m32x/vdp.cpp b/ares/md/m32x/vdp.cpp
+index 3d517a4..2b027c1 100644
+--- a/ares/md/m32x/vdp.cpp
++++ b/ares/md/m32x/vdp.cpp
+@@ -30,8 +30,16 @@ auto M32X::VDP::power(bool reset) -> void {
+   selectFramebuffer(framebufferSelect);
+ }
+ 
++extern "C" { extern unsigned ares_frame_no; }
+ auto M32X::VDP::scanline(u32 pixels[1280], u32 y) -> void {
+   if(!Mega32X() || !pixels || y >= (latch.lines ? 240 : 224)) return;
++  {   // ARES_LAYER=1: 32X layer only (Mega Drive output black), 2: Mega Drive only; ARES_VDPLOG: mode / priority per line 100
++    static int lay = -1; if(lay < 0) { const char *e = getenv("ARES_LAYER"); lay = e ? atoi(e) : 0; }
++    if(lay == 2) return;
++    if(lay == 1) for(u32 i = 0; i < 1280; i++) pixels[i] = 1 << 11;   // (backdrop bit: the 32X pixel always wins)
++    static const char *vl = getenv("ARES_VDPLOG");
++    if(vl && y == 100) { fprintf(stderr, "VDP f %u mode %u prio %u shift %u\n", ares_frame_no, (u32)latch.mode, (u32)latch.priority, (u32)latch.dotshift); }
++  }
+   if(latch.mode == 1) return scanlineMode1(pixels, y);
+   if(latch.mode == 2) return scanlineMode2(pixels, y);
+   if(latch.mode == 3) return scanlineMode3(pixels, y);
 diff --git a/ares/md/system/serialization.cpp b/ares/md/system/serialization.cpp
 index 794af5e..b5adf86 100644
 --- a/ares/md/system/serialization.cpp
@@ -428,10 +449,10 @@ index b2a10cd..81ccf54 100644
    if(latch.interlace == 1) screen->setInterlace(field());
    auto yScale = latch.interlace ? 2 : 1;
 diff --git a/desktop-ui/program/platform.cpp b/desktop-ui/program/platform.cpp
-index 4f49c5a..5cea111 100644
+index 4f49c5a..2f6f787 100644
 --- a/desktop-ui/program/platform.cpp
 +++ b/desktop-ui/program/platform.cpp
-@@ -77,9 +77,64 @@ auto Program::status(string_view message) -> void {
+@@ -77,9 +77,87 @@ auto Program::status(string_view message) -> void {
    showMessage(message);
  }
  
@@ -490,9 +511,51 @@ index 4f49c5a..5cea111 100644
 +        }
 +      }
 +    }
++    { // (test hack, I24) ARES_ZLOG=file: per frame the Z80 mailbox (SOUND FM) and SDRAM words ARES_SDVAR=hex,hex..
++      static const char* zl = getenv("ARES_ZLOG");
++      static FILE* zf = zl ? fopen(zl, "w") : nullptr;
++      if(zf) {
++        ares::Node::Debugger::Memory apu, sdr;
++        for(auto memory : ares::Node::enumerate<ares::Node::Debugger::Memory>(emulator->root)) {
++          if(memory->name() == "APU RAM") apu = memory;
++          if(memory->name() == "32X SDRAM") sdr = memory;
++        }
++        if(apu) {
++          auto z = [&](u32 a) -> u32 { return apu->read(a); };
++          u32 pend = z(0x1f02) | z(0x1f03) << 8, acc = z(0x1f04) | z(0x1f05) << 8 | z(0x1f06) << 16;
++          if(acc & 0x800000) acc |= 0xff000000;
++          fprintf(zf, "%u tickn %u acc %d stat %u cmd %u pend %u", f, z(0x1f0c) | z(0x1f0d) << 8, (s32)acc, z(0x1f0b), z(0x1f00), pend);
++          fprintf(zf, " go"); for(u32 i = 0x1f30; i < 0x1f39; i++) fprintf(zf, " %u", z(i));
++        }
++        if(sdr) if(const char* sv = getenv("ARES_SDVAR")) {
++          char b[256]; strncpy(b, sv, 255); b[255] = 0; char* sp; char* t = strtok_r(b, ",", &sp);
++          while(t) { u32 o = strtoul(t, 0, 16) & 0x3fffc; u32 v = 0; for(u32 i = 0; i < 4; i++) v = v << 8 | sdr->read(o + i); fprintf(zf, " %08x", v); t = strtok_r(0, ",", &sp); }
++        }
++        fprintf(zf, "\n"); fflush(zf);
++      }
++    }
 +    if(quitAt && f >= quitAt) _exit(0);
 +  }
 +
    if(requestScreenshot) {
      requestScreenshot = false;
      captureScreenshot(data, pitch, width, height);
+@@ -206,9 +284,18 @@ auto Program::audio(ares::Node::Audio::Stream node) -> void {
+ 
+     //mix all frames together
+     f64 samples[2] = {0.0, 0.0};
++    static const char* ad = getenv("ARES_AUDIO");   // (test hack, I24) prefix: each stream as s16 stereo, prefix.N.raw
++    static FILE* af[8];
++    u32 sidx = 0;
+     for(auto& stream : streams) {
+       f64 buffer[2];
+       u32 channels = stream->read(buffer);
++      if(ad && sidx < 8) {
++        if(!af[sidx]) { char fn[512]; snprintf(fn, sizeof fn, "%s.%u.raw", ad, sidx); af[sidx] = fopen(fn, "wb"); }
++        s16 o[2] = {(s16)max(-32768.0, min(32767.0, buffer[0] * 32767.0)), (s16)max(-32768.0, min(32767.0, (channels == 1 ? buffer[0] : buffer[1]) * 32767.0))};
++        if(af[sidx]) fwrite(o, 2, 2, af[sidx]);
++      }
++      sidx++;
+       if(channels == 1) {
+         //monaural -> stereo mixing
+         samples[0] += buffer[0];

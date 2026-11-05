@@ -38,3 +38,46 @@ def decompress(z, n):
                 v = z[i] << 8 | z[i+1]; i += 2; d = (v >> 4) + 1; l = (v & 15) + 3
                 for _ in range(l): o.append(o[-d])
     return bytes(o)
+
+
+def compress_opt(data, W=4096, MINL=3, MAXL=18):
+    """(I24) the same format, optimal parse (fewest bits: a literal 9, a match 17) - for the 68000's RAM image"""
+    n = len(data)
+    head = {}
+    cand = [None] * n                      # per position: [(length, distance)] - the longest per length
+    for i in range(n):
+        key = data[i:i + 3]
+        ms = []
+        if len(key) == 3:
+            best = 0
+            for j in reversed(head.get(key, [])):
+                if i - j > W: break
+                l = 0
+                while l < MAXL and i + l < n and data[j + l] == data[i + l]: l += 1
+                if l > best:
+                    for L in range(max(best + 1, MINL), l + 1): ms.append((L, i - j))
+                    best = l
+                if l == MAXL: break
+            head.setdefault(key, []).append(i)
+        cand[i] = ms
+    INF = 1 << 60
+    cost = [INF] * (n + 1); how = [None] * (n + 1)
+    cost[n] = 0
+    for i in range(n - 1, -1, -1):
+        c = 9 + cost[i + 1]; h = None
+        for L, d in cand[i]:
+            if i + L <= n and 17 + cost[i + L] < c: c = 17 + cost[i + L]; h = (L, d)
+        cost[i] = c; how[i] = h
+    out = bytearray(); i = 0
+    while i < n:
+        flagpos = len(out); out.append(0); flags = 0
+        for bit in range(8):
+            if i >= n: break
+            h = how[i]
+            if h:
+                v = (h[1] - 1) << 4 | (h[0] - MINL)
+                out += bytes([v >> 8, v & 255]); i += h[0]
+            else:
+                flags |= 0x80 >> bit; out.append(data[i]); i += 1
+        out[flagpos] = flags
+    return bytes(out)

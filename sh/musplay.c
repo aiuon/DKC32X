@@ -15,7 +15,7 @@ static void dsp_cb(spc_t *s, int reg, int val)
     spcdsp_write((spcdsp_t *)s->user, reg, val);
 }
 
-void mp_start(musplay_t *m, const uint8_t *blob, int song, int8_t *echo, uint32_t echo_cap, uint32_t rate)
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) void mp_start(musplay_t *m, const uint8_t *blob, int song, int8_t *echo, uint32_t echo_cap, uint32_t rate)
 {
     const mus_hdr_t *h = (const mus_hdr_t *)blob;
     uint8_t *p = (uint8_t *)m;
@@ -36,6 +36,8 @@ void mp_start(musplay_t *m, const uint8_t *blob, int song, int8_t *echo, uint32_
     m->spc.user = &m->dsp;
     spc_exec(&m->spc, SPC_CODE_1071);
     m->dsp.sfxflags = m->spc.ram + 0x1A0;   /* (I23: spcdsp_write's KON - which voices effects key on) */
+    m->spcm[0] = (uint32_t)sg->pad[0] | (uint32_t)sg->pad[1] << 8 | (uint32_t)sg->pad[2] << 16 | (uint32_t)sg->pad[3] << 24;
+    m->spcm[1] = sg->pad[4];
     m->spc.ram[0x24] = 1;
     m->until = 0;
     m->playing = 1;
@@ -55,12 +57,57 @@ void mp_cmd(musplay_t *m, int cmd, int param)
 
 /* (I23) SOUND SFX ONLY: only the voices sound effects play on (the engine's $01A0 + voice flags, and the voices an
    effect keyed on last - spcdsp sfxv).  ROM: SDRAM is full */
+#ifndef MP_VMASK_ALL                        /* (I24: tools/audio/fmdump.c renders single voices) */
+#define MP_VMASK_ALL 0xFF
+#else
+extern int MP_VMASK_ALL;
+#endif
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) void mp_fmguard(musplay_t *m, const uint8_t *blob)
+{
+    const mus_hdr_t *h = (const mus_hdr_t *)blob;
+    uint32_t so = (uint32_t)h->pad[0] << 16 | (uint32_t)h->pad[1] << 8 | h->pad[2];
+    m->swapm[0] = m->swapm[1] = 0;
+    if (!so) return;
+    for (int i = 0; i < MUS_NSRC; i++)
+        if (m->dir[i] && m->dir[i]->off_pcm >= so) m->swapm[i >> 5] |= 1u << (i & 31);
+}
+/* the voices playing a sample an FM page replaces (ROM: SDRAM is full) */
+static __attribute__((noinline)) uint32_t mp_swapv(musplay_t *m)
+{
+    uint32_t v = 0;
+    for (int i = 0; i < 8; i++) {
+        uint32_t s = m->dsp.regs[i * 16 + 4] & 63;
+        if ((s < 32 ? m->swapm[0] >> s : m->swapm[1] >> (s - 32)) & 1) v |= 1u << i;
+    }
+    return v;
+}
 static __attribute__((noinline)) void mp_vmask(musplay_t *m)
 {
     const uint8_t *f = m->spc.ram + 0x1A0;
     uint32_t on = 0;
     for (int i = 0; i < 8; i++) if (f[i]) on |= 1u << i;
-    m->dsp.vmask = m->dsp.sfxv | on;
+    if (m->fm)                              /* (I24) SOUND FM: the 32X's part of the music too */
+        for (int i = 0; i < 8; i++) {
+            uint32_t s = m->dsp.regs[i * 16 + 4] & 63;
+            if ((s < 32 ? m->spcm[0] >> s : m->spcm[1] >> (s - 32)) & 1) on |= 1u << i;
+        }
+    m->dsp.vmask = (m->dsp.sfxv | on) & ~((m->swapm[0] | m->swapm[1]) ? mp_swapv(m) : 0);
+}
+
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) void mp_advance(musplay_t *m, int n)
+{
+    if (!m->playing) return;
+    while (n > 0) {
+        if (m->until <= 0) {
+            spc_exec(&m->spc, SPC_CODE_064F);
+            uint32_t ec = m->spc.ram[0xEC] ? m->spc.ram[0xEC] : 256;
+            m->until += (int32_t)(4 * ec * m->fpt);
+        }
+        int k = (((m->until + 0xFFFF) >> 16) + 1) & ~1;
+        if (k > n) k = n;
+        n -= k;
+        m->until -= k << 16;
+    }
 }
 
 /* (I12: SDRAM - the slave runs it for the music, ~5 cycles per instruction from the cartridge) */
@@ -89,7 +136,7 @@ __attribute__((section(".sdtext"), aligned(16))) void mp_render(musplay_t *m, vo
         int k = (((m->until + 0xFFFF) >> 16) + 1) & ~1;   /* even: the mixer works on frame pairs */
         if (k > n) k = n;
         if (m->sfx_only) mp_vmask(m);
-        else m->dsp.vmask = 0xFF;
+        else m->dsp.vmask = (m->swapm[0] | m->swapm[1]) ? MP_VMASK_ALL & ~mp_swapv(m) : MP_VMASK_ALL;
         spcdsp_mix(&m->dsp, out, k);
 #ifdef __sh__
         out = (uint32_t *)out + k;

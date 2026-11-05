@@ -3405,7 +3405,7 @@ def write_pack(built, tilesets, L, out):
     maps = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'maps.json')))
     p = Pack()
     nlev, nworld = len(built), len(maps)
-    p.add(b'\0' * 52)
+    p.add(b'\0' * 56)                    # (I24: + fm_info, finalize.py)
     off_levels = p.add(b'\0' * (LEVEL_REC * nlev))
     off_worlds = p.add(b'\0' * (WORLD_REC * nworld))
     off_font = p.add(font_table())
@@ -3532,15 +3532,33 @@ def write_pack(built, tilesets, L, out):
     if 'MUSIC_SONGS' not in os.environ:          # only the songs of the levels built (+ jingles / cabins)
         ents = set(b['lv']['entrance'] for b in built)
         os.environ['MUSIC_SONGS'] = ','.join(n for n, e in mkmusic.LEVEL_MUSIC.items() if ents & set(e))
-    music, mnames = mkmusic.build_music(L.rom)
+    # (I24) SOUND FM (FM_DIR): every song converted for the Z80 from this ROM (tools/audio/fm/fmbuild.py); the
+    # music block then goes to the end of the resident ROM (finalize.py: its SNES-only samples last, in cart
+    # window 5 - the FM pages replace them), written apart as music.bin
+    fm_dir = os.environ.get('FM_DIR')
+    fm = None
+    if fm_dir:
+        # (its own process: it converts the songs in parallel - multiprocessing wants a script of its own)
+        import subprocess
+        r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'audio', 'fm',
+                                                         'fmbuild.py'), sys.argv[1], fm_dir])
+        if r.returncode:
+            raise SystemExit('SOUND FM conversion failed')
+        fm = json.load(open(os.path.join(fm_dir, 'fm.json')))
+        fm.pop('swap_off', None)
+    music, mnames = mkmusic.build_music(L.rom, fm=fm)
     print('music: %d KB, %s' % (len(music) // 1024, ' '.join(mnames)))
+    if fm:
+        assert fm['names'] == mnames, 'FM songs != music songs'
+        json.dump(fm, open(os.path.join(fm_dir, 'fm.json'), 'w'), indent=1)
+        open(os.path.join(out, 'music.bin'), 'wb').write(music)
     # LEVEL_MUSIC is only the level-viewer menu's song table.  The complete game plays the song the
     # game itself uploads (bonus rooms included), so a room missing here is not a problem.
     nomus = [b for b in built if not any(b['lv']['entrance'] in v for v in mkmusic.LEVEL_MUSIC.values())]
     if nomus:
         print('note: %d rooms have no viewer-menu song (the game picks their music itself)' % len(nomus))
     p.align(16)
-    off_music = p.add(music)
+    off_music = p.add(music) if not fm else 0       # (FM: finalize.py places it and patches the offset)
     # entrance -> pack level (room): the level itself, its aliases (bonus exits, checkpoints)
     room_of = bytearray([0xFF] * 256)
     for li, b in enumerate(built):

@@ -79,9 +79,15 @@ static void key_on(spcdsp_t *d, int i)
     v->on = 1;
 }
 
+#ifdef DSP_HOOK
+extern void dsp_hook(int reg, int val);  /* (host tools: tools/audio/fmdump.c logs the DSP writes) */
+#endif
 void spcdsp_write(spcdsp_t *d, int reg, int val)
 {
     reg &= 0x7F;
+#ifdef DSP_HOOK
+    dsp_hook(reg, val);
+#endif
     d->regs[reg] = (uint8_t)val;
     if (reg == 0x4C) {                       /* KON */
         for (int i = 0; i < 8; i++)

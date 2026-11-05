@@ -69,6 +69,18 @@ WHAT IT DOES
 3. Recompiles the game's 65816 code to SH-2 C code and compiles it with
    the bundled GCC (app\toolchain).
 4. Converts the levels, graphics and music, and writes the 32X ROM.
+   The music is also converted for the Mega Drive's own FM / PSG sound
+   chips (SOUND FM, below). Its instrument fitting is the slow part of
+   this step the first time; the result is kept in app\cache and reused.
+
+SOUND (pause menu)
+------------------
+FULL      the 32X plays the music exactly as the SNES does (default)
+FM        the Mega Drive's FM and PSG chips play the melody, the 32X the
+          drums and effects - a lighter load for the 32X
+LIGHT     the 32X music at a lower rate (busy levels)
+SFX ONLY  sound effects only
+OFF       silence
 
 The resulting .32x is a converted copy of your cartridge: it's for your
 own use. Please don't share it.

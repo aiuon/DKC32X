@@ -6,6 +6,7 @@
 #define MUS_RATE 22050
 #endif
 extern volatile uint32_t music_req, music_ack, music_ticks, music_refills, music_light;
+extern volatile uint32_t music_fmsync, music_s_tvint, music_s_vc, music_mono, music_dma_n;   /* (I24) SOUND FM */
 void music_init(const uint8_t *music_blob, int8_t *echo);
 /* master: a game command for the sound engine (sound effects), played from the next refill */
 void music_sfx(uint32_t cmd, uint32_t param);

@@ -23,7 +23,7 @@ SECTIONS {
 	.data 0x06000000 : AT(LOADADDR(.text) + SIZEOF(.text)) {
 		*(.data .data.*)
 		. = ALIGN(0x10);
-		EXCLUDE_FILE(*g65_*.o) *(.sdtext .sdtext.*)
+		EXCLUDE_FILE(*g65_*.o *sh_r65lib.o *sh_game_hle.o) *(.sdtext .sdtext.*)
 		. = ALIGN(0x10);
 	} > ram
 	_sdata = SIZEOF(.data);
@@ -34,6 +34,8 @@ SECTIONS {
 	.sdgame 0x06000000 + SIZEOF(.data) : AT(DEFINED(SDGAME_LMA) ? SDGAME_LMA : LOADADDR(.data) + SIZEOF(.data)) {
 		_sdgame_start = .;
 		*g65_*.o(.sdtext .sdtext.*)
+		*sh_r65lib.o(.sdtext .sdtext.*)	/* (I24) the game code's SDRAM helpers too: 8 KB out of the first 256 KB */
+		*sh_game_hle.o(.sdtext .sdtext.*)
 		. = ALIGN(0x10);
 		_sdgame_end = .;
 	} > ram

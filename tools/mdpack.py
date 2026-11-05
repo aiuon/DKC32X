@@ -12,7 +12,7 @@ te, ds = sym['__text_end'], sym['__data_size']
 b = open(out, 'rb').read()
 o = te - 0x8803F0
 assert o + ds == len(b), 'md.bin: the RAM image is not at its end (%d + %d != %d)' % (o, ds, len(b))
-z = lzss.compress(b[o:])
+z = lzss.compress_opt(b[o:])          # (I24: optimal parse, the same format)
 assert lzss.decompress(z, ds) == b[o:]
 open(out, 'wb').write(b[:o] + z + (b'\0' if len(z) & 1 else b''))
 print('mdpack: 68000 RAM image %d -> %d bytes' % (ds, len(z)))
