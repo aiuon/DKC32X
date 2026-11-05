@@ -52,6 +52,7 @@ static uint16_t last_frame;
 static uint16_t disp_hold, hold_f;
 static uint16_t no_ripple;                 /* (I14) comp levels: BG1 without the underwater ripple */
 static uint16_t hcount;                 /* H-ints since vblank: the first one ends line 0 */
+static uint16_t h_mode = 1;             /* (I25) H interrupt: 0 off, 1 every line, 2 every 2nd line (vdp_regs: on) */
 static uint16_t active, fx, planes, hud_shown;
 static uint16_t scA[6], scB[6];
 static const uint16_t *anim_data;       /* animated plane tiles: n x {tile, 8 frames x 16 words} */
@@ -460,10 +461,16 @@ out:
 static void load_md(const uint16_t *md);
 static void fe_plane(uint16_t i);
 #include "fm.c"                             /* (I24) SOUND FM: the Z80's music */
+#include "mdsnd.c"                          /* (I25) SOUND MD: the Mega Drive plays everything */
 static void do_command(uint16_t cmd)
 {
     if ((cmd & 0xFC00) == 0x9800) {         /* (I24) SOUND FM: 0x98xx - 0x9Bxx */
         fm_command(cmd);
+        return;
+    }
+    if ((cmd & 0xF800) == 0x9000) {         /* (I25) SOUND MD: effect xx on voice v (0x9vxx) */
+        md_sfx_cmd(cmd);
+        COMM(C_CMD) = 0;
         return;
     }
     if (cmd == 0x9D00) {                    /* (I13) SH-2 (load_level): display off now, backdrop black - the
@@ -1478,6 +1485,17 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
         }
     }
     hcount = 0;
+    {   /* (I25) the H interrupt only while a level's colour gradient needs it (fx 1): every line cost the 68000
+           ~100 cycles even where the handler returns at once (18 % of its time) - SOUND MD's mixer needs it.  In
+           SOUND MD every 2nd line: the gradient's CRAM writes stall the 68000 ~0.4 line each (most of its time
+           in those levels); its bands are 2 lines tall then */
+        uint16_t hw = (active && fx == 1) ? (md_on ? 2 : 1) : 0;
+        if (hw != h_mode) {
+            h_mode = hw;
+            VDP_CTRL = hw ? 0x8014 : 0x8004;
+            VDP_CTRL = (uint16_t)(0x8A00 | (hw == 2 ? 1 : 0));
+        }
+    }
     /* (I17) high byte = this vblank's sample number: the master SH-2 keeps every vblank's pad in order
        (main.c pad_take), so logic frames run back to back under frame skip each get their own sample -
        a press that lasted one vblank was missed when two logic frames read the same register value */
@@ -1498,7 +1516,7 @@ __attribute__((interrupt_handler)) RAM_CODE void md_vint(void)
    depending on the interrupt latency -> colour bands jumped a line between frames) */
 __attribute__((interrupt_handler)) RAM_CODE void md_hint(void)
 {
-    uint16_t l = ++hcount;                 /* the line about to be drawn */
+    uint16_t l = hcount += h_mode == 2 ? 2 : 1;   /* the line about to be drawn (I25: every 2nd in SOUND MD) */
     ld_hints++;
     if (fx != 1)
         return;
@@ -1555,5 +1573,6 @@ RAM_CODE void md_idle(void)
             fm_work();
             __asm__ volatile("move.w #0x2300,%sr");
         }
+        if (md_on) md_work();               /* (I25) SOUND MD: the Z80's ring topped up (interrupts on) */
     }
 }

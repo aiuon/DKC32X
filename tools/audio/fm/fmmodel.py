@@ -8,8 +8,9 @@ from fmsong import TICK_LEN, PCM_RATE, N_FM, N_PCM, SLOT
 
 
 class Model:
-    def __init__(self, song, mono=False):
+    def __init__(self, song, mono=False, att=0):
         self.s = song
+        self.att = att                   # (MB_ATT: added to the carriers' TL - I25 SOUND MD)
         self.mono = mono
         self.writes = []                 # (dac sample, part 0/1/2=psg, reg, val)
         self.inst = [None] * N_FM
@@ -89,7 +90,7 @@ class Model:
                 mul, tl = ops[k]
                 car = cm >> k & 1
                 w(t, part, 0x30 + o, mul)
-                w(t, part, 0x40 + o, min(127, tl + vol) if car else min(127, tl + dull))
+                w(t, part, 0x40 + o, min(127, tl + vol + self.att) if car else min(127, tl + dull))
                 if car:
                     w(t, part, 0x50 + o, e50); w(t, part, 0x60 + o, e60); w(t, part, 0x70 + o, e70); w(t, part, 0x80 + o, e80)
                 elif follow:            # (the modulators fade with the note: its decay, to silence)
@@ -112,7 +113,7 @@ class Model:
             b0, cm, follow, ops = self.s.inst[self.inst[ch]]
             self.vol[ch] = vol
             for k in range(4):
-                if cm >> k & 1: w(t, part, 0x40 + SLOT[k] + cc, min(127, ops[k][1] + vol))
+                if cm >> k & 1: w(t, part, 0x40 + SLOT[k] + cc, min(127, ops[k][1] + vol + self.att))
         elif op == 'env2':
             _, ch = c
             part, cc = self.ch(ch)

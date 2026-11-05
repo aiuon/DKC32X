@@ -2141,3 +2141,67 @@ motion on MiSTer (B7 fixed).  ROM is full (4 MB) -> SSF2 banking:
   PD_SDVAR=hex,.. + PD_MDVAR=hex,.. (per frame: Z80 mailbox, SDRAM / 68000 words, C_PAD, the slave's TCR1);
   ares ARES_ZLOG + ARES_SDVAR, ARES_AUDIO=prefix (each stream as s16 stereo: 0 PSG, 1 OPN2, 2 PWM);
   md -DFMDEBUG (the 68000's vblank number in the Z80 mailbox); music_p0 (the song's first sample).
+
+## 2026-11-06: I25 - the FM "beeps" fixed; SOUND GENESIS (the Mega Drive plays everything) (BUGLOG "I25")
+- Beeps (user: loud sudden digital notes, a grating Victory fanfare): measured FM render vs the 32X render
+  of the same voices window by window (devkit: /tmp scripts, NOTES only).  Two causes:
+  1. The patch fit weighed harmonics up to 9 kHz only; energy above was nearly free (the old "hi" term
+     covered 16-17 harmonics at most).  A patch could put a modulator's sidebands up there: the bell /
+     marimba sample (36: Victory, Mine Cart Madness, DK Island Swing) got MUL 15 on a modulator - a whistle
+     17-50 dB over the original above 4 kHz; the 98 Hz bass (29) buzzed +20 dB from 2 kHz up.  fmfit now
+     compares octave bands from the last weighed harmonic to the chip's Nyquist (target_bands: the sample
+     played at that pitch, 16 kHz S-DSP limit) - 3 dB free, then 0.3 x excess^2.  All instruments refit.
+  2. PSG overflow (all 6 FM channels busy): a square wave at the note's key-on level for the whole note -
+     no envelope, all odd harmonics.  PSG_OVERFLOW off: a busy channel whose note has faded 12 dB below
+     the new one is stolen (fm_now: start level down its S-DSP envelope), else the quietest if quieter,
+     else the note drops (Mine Cart Madness: 2 notes in the whole song).  (The PSG path now follows the
+     envelope and is 4 dB quieter, for if it is ever turned back on.)
+  Also: an instrument's level from the sample as the 32X core plays it (played_rms: linear interpolation
+  at the median pitch - a 32-sample chip wave played 3.6 dB under its own RMS).  Result (windows of 23 ms
+  much louder / harsher than the original): Mine Cart Madness 1506 -> 22, Treetop Rock 528 -> 59, Victory
+  143 -> 1.  fmbuild's fit cache signature now covers fit_job + the seeds only (not all of fmbuild.py).
+- SOUND GENESIS (menu "GENESIS", music_mode 5, music_light bit 4, MUSIC_MODE_DEFAULT=5 / build --sound md):
+  the 32X plays nothing (the slave's song request is silence); the real-hardware model's SOUND OFF speed.
+  * Converter (tools/audio/fm/mdconv.py, fmbuild pass 4): each song again with 5 FM channels (channel 6
+    is the DAC) + an 8th stream: the S-DSP notes of the song's 32X samples (drums / ambience) as PCM
+    commands per engine tick (44 v s step lvl KEYON, 45 LEVEL, 46 STEP, 47 KEYOFF; the envelope as LEVEL
+    steps of 1.5 dB, 32 levels) - FMS2 blocks, LZ-packed with the 7 Z80 streams.  The effects: every
+    engine command (1-FB) run on voice 0 with the first song's ARAM (the same in every song but for the
+    master volume: per-song level offset, fm.json md att), uncompressed.  The PCM bank: every sample a
+    drum part or an effect uses, resampled to the DAC rate (numpy windowed sinc - the Windows Python has
+    no scipy; loops resampled as a period by FFT), peak-normalised to 8 bits, padded 136 bytes (+ a noise
+    sample for the S-DSP noise voices).  mdmix.py = the 68000 mixer in Python (previews, the reference).
+  * ROM: one MD page after the FM pages: bank 5 with everything after the music header + song records
+    replaced (the master still reads those): 'MDD1' directory, z80/mddrv.bin, bank, effects, songs
+    (27 songs 258 KB of 337).  The FM directory's spare words point at it; pack header fm_info bit 23 =
+    an MD page exists (the 68000 masks the tail offset to 19 bits now).
+  * Z80 (z80/mddrv.asm, tools/prebuilt/mddrv.bin): a sample player.  Timer A at 7 units (7610 Hz NTSC):
+    each period the next ring entry (sample 1-255, written last by the 68000 / 0 = not yet; cmd 0 none /
+    2 / 3 YM part I / II / 4 PSG; reg; val - the Z80 clears what it played, so a plain entry costs the
+    68000 one byte) -> the DAC and at most one register write.  Timer B = 16 timer A periods: the
+    periods the loop missed (68000 bus holds) are owed and played back to back - the rate stays exact
+    (it was 6 % slow in both emulators without this).  6 units (8878 Hz) left too little room per period.
+  * 68000 (md/mdsnd.c, RAM code): the whole sound engine - the 7 FM / PSG streams interpreted as fmdrv
+    does (keyon / carriers / env2 ...) into register writes, only those that change a register (shadow;
+    A4/A0 and 28 always); the PCM stream; effects (0x9vxx = effect xx on S-DSP voice v - it takes the
+    music's voice v like on the SNES); 8 voices mixed (asm: 62 cycles a voice-sample; VOL[32][256]
+    tables), clipped through a table, written to the ring 8 entries a bus hold (4 with register writes).
+    Ticks counted in ring entries (TK per 256 x units a sample): FM and PCM cannot drift apart.  md_work
+    runs in md_idle (interrupts on), keeps 300 entries (39 ms) ahead.
+  * The SH-2 posts effects without waiting for the answer (md_sfx_post, flushed every frame) - md_cmd's
+    wait would cost the master up to a frame per effect; every other C_CMD writer now waits for C_CMD
+    free first (CMD_FREE).
+- 68000 time: the H interrupt was on for every line in every screen (~100 cycles each even where the
+  handler returns at once: 18 % of the 68000), and the jungle gradient's per-line CRAM writes stall it
+  ~0.4 line each - a timed loop ran 5.3x slower with interrupts on in Jungle Hijinxs.  Now the H
+  interrupt is on only while a level's gradient needs it (fx 1), and in SOUND GENESIS every 2nd line
+  (bands 2 lines tall).  That took SOUND GENESIS from 4500 to the full 7610 samples a second in levels.
+- GCC 13 m68k merges byte stores into word stores even at addresses that may be odd (a 3-byte row:
+  md_q[h][0..1] -> move.w to an odd address: PicoDrive wrote the wrong bytes, a real 68000 would take
+  an address error).  -fno-store-merging for the 68000 now; md_q rows are 4 bytes.
+- Loudness: FM -2.25 dB (MD_ATT 3) and the DAC at K_PCM 384: GENESIS ~2.5-4.5 dB under FULL (the DAC's 8
+  bits are the limit).  Mono, no echo, drums / effects to 3.8 kHz.
+- Checks: cz80 harness (devkit/fm/mdharness.c: the ring kept full, writes in every K-th entry, bus
+  holds) - no lost sample; PicoDrive + ares GAMEBOT: 7610 entries a second consumed in menus and levels,
+  no dry ring outside loads; AUTOLEVEL 0 PicoDrive capture vs the Python preview: envelope correlation
+  0.97 (after the level's start); FM / FULL GAMEBOT runs unchanged.

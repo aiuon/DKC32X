@@ -49,9 +49,10 @@ def main():
     ap.add_argument('--jobs', type=int, default=max(1, os.cpu_count() or 1))
     ap.add_argument('--extra-shflags', default='')
     ap.add_argument('--md-bin', default=os.path.join(ROOT, 'tools', 'prebuilt', 'md.bin'))
-    ap.add_argument('--no-fm', action='store_true', help='no SOUND FM (the Mega Drive FM / PSG music mode)')
-    ap.add_argument('--sound', choices=('full', 'fm'), default=os.environ.get('DKC_SOUND', 'full'),
-                    help='the SOUND setting at power-on: full (the 32X plays all the music) or fm (SOUND FM)')
+    ap.add_argument('--no-fm', action='store_true', help='no SOUND FM / GENESIS (the Mega Drive music modes)')
+    ap.add_argument('--sound', choices=('full', 'fm', 'md'), default=os.environ.get('DKC_SOUND', 'full'),
+                    help='the SOUND setting at power-on: full (the 32X plays all the music), fm (SOUND FM) or md (SOUND GENESIS: '
+                         'the Mega Drive plays everything)')
     a = ap.parse_args()
     out = os.path.abspath(a.out or os.path.splitext(a.rom)[0] + ' (32X).32x')
     os.chdir(ROOT)
@@ -100,7 +101,7 @@ def main():
 
     # the 68000 side (no game data in it): shipped prebuilt; rebuilt when a 68000 compiler is around
     if shutil.which('m68k-linux-gnu-gcc') and not os.environ.get('DKC_PREBUILT_MD'):
-        mf = ['-m68000', '-O2', '-fomit-frame-pointer', '-ffreestanding', '-fno-builtin', '-fno-pic', '-fno-pie',
+        mf = ['-m68000', '-O2', '-fno-store-merging', '-fomit-frame-pointer', '-ffreestanding', '-fno-builtin', '-fno-pic', '-fno-pie',
               '-nostdlib', '-Imd', '-Wall'] + os.environ.get('EXTRA_MDFLAGS', '').split()
         run(['m68k-linux-gnu-gcc'] + mf + ['-x', 'assembler-with-cpp', '-c', 'md/boot.s', '-o', 'build/md_boot.o'])
         run(['m68k-linux-gnu-gcc'] + mf + ['-c', 'md/main.c', '-o', 'build/md_main.o'])
@@ -117,7 +118,7 @@ def main():
     step('Compiling (this is the slow part)')
     gcc, gas = tool(a.toolchain, 'gcc'), tool(a.toolchain, 'as')
     shf = ['-m2', '-mb', '-O2', '-fomit-frame-pointer', '-ffreestanding', '-fno-builtin', '-nostdlib', '-Wall',
-           '-DTCACHE'] + (['-DMUSIC_MODE_DEFAULT=4'] if fm and a.sound == 'fm' else []) + a.extra_shflags.split()
+           '-DTCACHE'] + (['-DMUSIC_MODE_DEFAULT=4'] if fm and a.sound == 'fm' else ['-DMUSIC_MODE_DEFAULT=5'] if fm and a.sound == 'md' else []) + a.extra_shflags.split()
     gf = shf + ['-DR65_SH2', '-Ish', '-Itools/recomp', '-w', '-DR65_OOL']
     run([PY, 'tools/gen_comp_asm.py', 'build/comp.s', 'rom'])
     jobs = []
@@ -173,7 +174,7 @@ def main():
     run([PY, 'tools/worldbanks.py', rom, 'build/game/worlds.json', 'build/sh.elf', 'build/gen2/worldbanks.bin'])
     run([PY, 'tools/finalize.py', 'build/sh.bin', 'build/gen2/pack.bin', out, 'build/gtext.bin', '0x%X' % game_base,
          'build/gen2/banks.bin', 'build/gen2/worldbanks.bin', 'build/sdgame.bin', '0x%X' % SDGAME_LMA] +
-        (['build/gen2/music.bin', 'build/fm', 'tools/prebuilt/fmdrv.bin'] if fm else []))
+        (['build/gen2/music.bin', 'build/fm', 'tools/prebuilt/fmdrv.bin', 'tools/prebuilt/mddrv.bin'] if fm else []))
     print('32X ROM written: ' + out, flush=True)
 
 

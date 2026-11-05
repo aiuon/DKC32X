@@ -3542,24 +3542,30 @@ static int music_mode = MUSIC_MODE_DEFAULT;
 #define music_on (music_mode != 2)
 /* the slave's music_light: bit 0 voices at half rate, bit 1 SFX ONLY, bit 2 16 kHz output (LIGHT: from the next song),
    bit 3 (I24) SOUND FM (with bit 1: the 32X plays the effects + the song's drums / ambience, the Z80 the rest) */
-#define MUSIC_LIGHT_VAL() ((music_mode == 1 ? 5u : 0u) | (music_mode == 3 ? 2u : 0u) | (music_mode == 4 ? 0xAu : 0u))
+#define MUSIC_LIGHT_VAL() ((music_mode == 1 ? 5u : 0u) | (music_mode == 3 ? 2u : 0u) | (music_mode == 4 ? 0xAu : 0u) | \
+                           (music_mode == 5 ? 0x10u : 0u))
+/* (I25) SOUND MD ("GENESIS", music_mode 5; music_light bit 4): the Mega Drive plays everything - the slave
+   nothing (its song request is silence), the effects go to the 68000 (md_sfx_post) */
+#define MD_OK() ((hdr->fm_info & 0x800000u) != 0)
 static uint32_t fm_flags_sent = 0xFF, fm_mono;   /* (I24) the 68000's FM mode / mono flags as last sent */
 static int music_msg;                     /* frames to show the music mode on the HUD */
 static int level_seconds;
 /* light: voices mixed at half rate (levels whose rendering needs both CPUs) */
 static void fm_follow(int song);
 static void md_cmd(uint16_t c);
+static void md_follow(int song);
 __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void music_play(int song, int light)
 {
     if (!hdr->off_music) return;
-    if (hdr->fm_info && music_mode != 4 && (fm_flags_sent & 1)) {
+    int md = music_mode == 5 && MD_OK();
+    if (hdr->fm_info && music_mode != 4 && !md && (fm_flags_sent & 1)) {
         /* (I24) SOUND FM off: bank 5 back in window 5 before the 32X starts a song with its own samples */
         md_cmd(0x9AFF);
         md_cmd(0x9B00);
         fm_flags_sent = 0;
     }
     music_seq++;
-    *UNCACHED(&music_req) = music_seq << 9 | (light ? 0x100 : 0) | (song & 0xFF);
+    *UNCACHED(&music_req) = music_seq << 9 | (light ? 0x100 : 0) | (md ? 0xFF : song & 0xFF);
 #ifdef MUSWAITLOG
     uint32_t mw_v0 = vcount;
 #endif
@@ -3576,9 +3582,14 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     {   extern volatile uint32_t muswait_log[32]; uint32_t k = muswait_log[0]++ & 15;
         muswait_log[2 + k * 2] = game_stats.frames << 8 | (song & 0xFF); muswait_log[3 + k * 2] = vcount - mw_v0; }
 #endif
-    fm_follow(song);
+    if (md) md_follow(song);
+    else fm_follow(song);
 }
 
+/* (I25) C_CMD free (bounded): every writer waits for it - a SOUND MD effect is posted without waiting for its
+   answer (md_sfx_post), so it may still be pending */
+#define CMD_FREE() do { uint32_t cf_v0 = vcount; \
+    for (uint32_t cf_i = 0; cf_i < 2000000 && (COMM(C_CMD) & 0x8000) && vcount - cf_v0 < 30; cf_i++) bus_pause(); } while (0)
 /* (I24) a 68000 command (C_CMD) with bounded waits - SOUND FM's few words */
 __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void md_cmd(uint16_t c)
 {
@@ -3618,6 +3629,34 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     md_cmd((uint16_t)(0x9900 | (sy & 0xFF)));
     md_cmd((uint16_t)(0x9A00 | (song & 0xFF)));
 }
+/* (I25) SOUND MD: the 68000's mode, the song (it starts it at once: nothing to keep in step with) */
+__attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void md_follow(int song)
+{
+    fm_mono = *UNCACHED(&music_mono);
+    uint32_t fl = 5u | (fm_mono ? 2u : 0u);
+    if (fl != fm_flags_sent) {
+        md_cmd((uint16_t)(0x9B00 | fl));
+        fm_flags_sent = fl;
+    }
+    md_cmd((uint16_t)(0x9A00 | (song & 0xFF)));
+}
+/* (I25) SOUND MD: the game's sound effects for the 68000 (0x9vxx: effect xx on voice v), posted without
+   waiting for the answer (md_cmd's wait would cost this CPU up to a frame each); the rest wait their turn
+   (md_sfx_flush: here and every frame) */
+#define MDQ 16
+static uint16_t mdq[MDQ];
+static uint32_t mdq_h, mdq_t;
+static void md_sfx_flush(void)
+{
+    if (mdq_t != mdq_h && !(COMM(C_CMD) & 0x8000)) COMM(C_CMD) = mdq[mdq_t++ & (MDQ - 1)];
+}
+void md_sfx_post(uint32_t cmd, uint32_t param)
+{
+    if (cmd >= 0xFC) return;                        /* (FC mono: music_sfx; FD-FF: engine settings) */
+    mdq[mdq_h++ & (MDQ - 1)] = (uint16_t)(0x9000 | (param & 7) << 8 | (cmd & 0xFF));
+    if (mdq_h - mdq_t > MDQ) mdq_t = mdq_h - MDQ;  /* (overrun: the oldest dropped) */
+    md_sfx_flush();
+}
 #ifdef MUSWAITLOG
 volatile uint32_t muswait_log[32] __attribute__((used));
 #endif
@@ -3654,6 +3693,15 @@ volatile uint32_t path_ring[64][4] __attribute__((used)), path_ri __attribute__(
 /* (I24) every frame: a late stamp from the slave, the game's mono setting */
 __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void fm_poll(void)
 {
+    if (music_mode == 5 && MD_OK()) {               /* (I25) SOUND MD: waiting effects, the mono setting */
+        md_sfx_flush();
+        if ((uint32_t)(*UNCACHED(&music_mono) ? 2 : 0) != (fm_flags_sent & 2) && (fm_flags_sent & 4)) {
+            fm_mono = *UNCACHED(&music_mono);
+            fm_flags_sent = 5 | (fm_mono ? 2u : 0u);
+            md_cmd((uint16_t)(0x9B00 | fm_flags_sent));
+        }
+        return;
+    }
     if (!hdr->fm_info || music_mode != 4) return;
     if (fm_pend_song >= 0 && (*UNCACHED(&music_fmsync) >> 16) == (music_seq & 0xFFFF)) fm_follow(fm_pend_song);
     else if ((uint32_t)(*UNCACHED(&music_mono) ? 2 : 0) != (fm_flags_sent & 2)) {
@@ -3808,6 +3856,7 @@ static void prof_show(void)
     uint32_t total = prof_other;
     for (int i = 0; i < 1024; i++) total += prof_hist[i];
     REG8(SYS_INTMASK) = 0x08;
+    CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
     COMM(C_CMD) = 0x8000 | 0x7FFF;        /* 68000: clear Genesis planes */
     while (COMM(C_CMD) & 0x8000)
         bus_pause();
@@ -3859,6 +3908,7 @@ static void set_bank(uint32_t b)
         while (*UNCACHED(&s_job_now) && vcount - v0 < 3)
             bus_pause();
     }
+    CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
     COMM(C_CMD) = (uint16_t)(0xA000 | b);
     while (COMM(C_CMD) & 0x8000)
         bus_pause();
@@ -3879,6 +3929,7 @@ static void set_bank6(uint32_t b)
         while (*UNCACHED(&s_job_now) && vcount - v0 < 3)
             bus_pause();
     }
+    CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
     COMM(C_CMD) = (uint16_t)(0xA100 | b);
     while (COMM(C_CMD) & 0x8000)
         bus_pause();
@@ -3998,6 +4049,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
         uint32_t v0 = vcount;
         while ((COMM(C_CMD) & 0x8000) && vcount - v0 < 10)
             bus_pause();
+        CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
         COMM(C_CMD) = 0x9D00;
         v0 = vcount;
         while ((COMM(C_CMD) & 0x8000) && vcount - v0 < 10)
@@ -4057,6 +4109,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
         }
         music_play(0xFF, 0);
         LDST(5);
+        CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
         COMM(C_CMD) = 0x8000 | 0x4000 | (game_on && !rip_on ? 0x2000 : 0) | idx;   /* (0x2000: no BG1 ripple, I14) */
         comp = comp_fog = comp_pal_dirty = 0;
         for (int b = 0; b < 2; b++) {     /* the fog bands leave rows / borders unpainted: no old picture there */
@@ -4145,6 +4198,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     }
     music_play(0xFF, 0);                     /* silence: frees the echo buffer (shared with slotmap) */
 
+    CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
     COMM(C_CMD) = 0x8000 | (load_noplanes ? 0x7FFF : idx);   /* 68000 loads the Genesis planes meanwhile
                                                              (complete game's power-on: none - H2) */
     comp = (lv->flags & 4) != 0;
@@ -4668,6 +4722,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     if (map_cab >= 0) cab_colours(PK(uint16_t, off_pal));   /* (I14: after the bank switch) */
     UNCACHED(&shared_state)->epoch++;      /* (F11: the slave drops its cache lines even without a bank change) */
     map_img = PACK + off_img;
+    CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
     COMM(C_CMD) = 0x8000 | 0x7FFF;           /* 68000: clear the Genesis planes */
     while (COMM(C_CMD) & 0x8000)
         bus_pause();
@@ -4831,6 +4886,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static void 
     uint32_t sum = 0;
     for (int i = 0; i < 2048; i++) sum += d[i];
     COMM(2) = 0; COMM(4) = 0;
+    CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
     COMM(C_CMD) = 0x9F01;
     if (!sram_wait(&COMM(C_CMD), 0x9FF0)) return;
     for (int i = 0; i < SRAM_WORDS; i++) {
@@ -4862,6 +4918,7 @@ __attribute__((optimize("Os", "no-tree-loop-distribute-patterns"))) static int s
     static uint8_t buf[8];
     uint8_t *d = game_sram();
     COMM(2) = 0; COMM(4) = 0;
+    CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
     COMM(C_CMD) = 0x9F02;
     if (!sram_wait(&COMM(C_CMD), 0x9FF0)) return 0;
     /* (straight into a scratch copy: the game's SRAM only if the checksum holds) */
@@ -4964,6 +5021,8 @@ void m_main(void)
     hdr = PK(pack_hdr_t, 0);
     font = PACK + hdr->off_font;
     if (music_mode == 4 && !hdr->fm_info) music_mode = 0;   /* (I24: SOUND FM by default, but no FM pages) */
+    if (music_mode == 5 && !MD_OK()) music_mode = hdr->fm_info ? 4 : 0;   /* (I25: SOUND MD, no MD page) */
+    *UNCACHED(&music_light) = MUSIC_LIGHT_VAL();    /* (I25: from power-on - SOUND MD's effects go to the 68000) */
 
     FRT_TCR = 0;
     canary_set();
@@ -5005,6 +5064,7 @@ void m_main(void)
     REG8(SYS_INTMASK) = 0x0C;
     STAGE(0x03E0);
 
+    CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
     COMM(C_CMD) = 0x8000 | 0x7FFF;        /* 68000: clear Genesis planes */
     while (COMM(C_CMD) & 0x8000)
         bus_pause();
@@ -5059,6 +5119,7 @@ void m_main(void)
         load_noplanes = 1;
         load_level(0, sh);                 /* (a renderer state; the game shows its title screens first) */
         load_noplanes = 0;
+        CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
         COMM(C_CMD) = 0x8000 | 0x7FFF;     /* (H2: and not its Mega Drive planes - the jungle at night
                                               flashed at power-on while the 32X layer was off) */
         while (COMM(C_CMD) & 0x8000)
@@ -5409,7 +5470,7 @@ void m_main(void)
                         case PM_LAMP: lamp_swing_on ^= 1; break;
                         case PM_SOUND:                                       /* (I23) FULL -> LIGHT -> SFX ONLY -> OFF;
                                                                                 (I24) FULL -> FM -> LIGHT ... when the ROM has FM data */
-                            music_mode = music_mode == 0 ? (hdr->fm_info ? 4 : 1) : music_mode == 4 ? 1 :
+                            music_mode = music_mode == 0 ? (hdr->fm_info ? 4 : 1) : music_mode == 4 ? (MD_OK() ? 5 : 1) : music_mode == 5 ? 1 :
                                          music_mode == 1 ? 3 : music_mode == 3 ? 2 : 0;
                             *UNCACHED(&music_light) = MUSIC_LIGHT_VAL();
                             game_song = -2;                                  /* (music_follow: the song again - LIGHT's rate) */
@@ -6115,12 +6176,13 @@ void m_main(void)
             go_menu = 0;
             map_mode = 0;
             render_state_reset();
+            CMD_FREE();                            /* (I25: a posted SOUND MD effect may still be pending) */
             COMM(C_CMD) = 0x8000 | 0x7FFF;
             while (COMM(C_CMD) & 0x8000)
                 bus_pause();
             for (int i = 0; i < SCREEN_H; i++) sky_ram[i] = 0;
             in_level = 0;
-            *UNCACHED(&music_light) = music_mode == 4 ? 0xA : 0;   /* (I24: SOUND FM stays FM) */
+            *UNCACHED(&music_light) = music_mode == 4 ? 0xA : music_mode == 5 ? 0x10 : 0;   /* (I24: SOUND FM stays FM; I25 MD) */
             ripple = 0;
             comp = 0;
             comp_fog = 0;
@@ -6944,8 +7006,8 @@ void m_main(void)
             line[7] = ' '; fmt_num(line + 8, cv2_frames > 9999 ? 9999 : cv2_frames, 4); line[12] = 0;
 #endif
             if (music_msg) {
-                static const char *const names[5] = { "MUSIC AUTO", "MUSIC LIGHT", "MUSIC OFF", "SFX ONLY", "MUSIC FM" };
-                const char *q = names[music_mode > 4 ? 0 : music_mode];
+                static const char *const names[6] = { "MUSIC AUTO", "MUSIC LIGHT", "MUSIC OFF", "SFX ONLY", "MUSIC FM", "MUSIC GENESIS" };
+                const char *q = names[music_mode > 5 ? 0 : music_mode];
                 int i = 0;
                 for (; q[i]; i++) line[i] = q[i];
                 for (; i < 15; i++) line[i] = ' ';
@@ -6980,7 +7042,7 @@ void m_main(void)
                 if (i == PM_RIPPLE) v = rip_on ? "ON" : "OFF";
                 if (i == PM_LAMP) v = lamp_swing_on ? "ON" : "OFF";
                 if (i == PM_OBJ) v = obj_wide ? "WIDE" : "SNES";
-                if (i == PM_SOUND) { static const char *const sn[5] = { "FULL", "LIGHT", "OFF", "SFX ONLY", "FM" }; v = sn[music_mode > 4 ? 0 : music_mode]; }
+                if (i == PM_SOUND) { static const char *const sn[6] = { "FULL", "LIGHT", "OFF", "SFX ONLY", "FM", "GENESIS" }; v = sn[music_mode > 5 ? 0 : music_mode]; }
                 if (i == PM_STATS) v = pm_stats ? "ON" : "OFF";
                 if (v) text57_cv(bx + 100, yy, v, 112, 96);
             }

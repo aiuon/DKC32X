@@ -70,7 +70,7 @@ WHAT IT DOES
    the bundled GCC (app\toolchain).
 4. Converts the levels, graphics and music, and writes the 32X ROM.
    The music is also converted for the Mega Drive's own FM / PSG sound
-   chips (SOUND FM, below). Its instrument fitting is the slow part of
+   chips (SOUND FM and GENESIS, below). Its instrument fitting is the slow part of
    this step the first time; the result is kept in app\cache and reused.
 
 SOUND (pause menu)
@@ -78,6 +78,9 @@ SOUND (pause menu)
 FULL      the 32X plays the music exactly as the SNES does (default)
 FM        the Mega Drive's FM and PSG chips play the melody, the 32X the
           drums and effects - a lighter load for the 32X
+GENESIS   the Mega Drive plays everything: the melody on FM, the drums and
+          effects as samples on its DAC (mono, no echo, 7.6 kHz) - the 32X
+          plays no sound at all, the fastest setting
 LIGHT     the 32X music at a lower rate (busy levels)
 SFX ONLY  sound effects only
 OFF       silence

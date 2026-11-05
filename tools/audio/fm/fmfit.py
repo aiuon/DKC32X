@@ -39,6 +39,45 @@ def target_spectrum(pcm, loop, f0, sr=32000.0):
     hi = 10 * np.log10(P[i_hi:].sum() / (P[1:].sum() + 1e-30) + 1e-9)
     return np.maximum(db, -60.0), hi
 
+def hi_edge(f):
+    """(I25) where the harmonics the distance weighs end (Hz as played): 16 harmonics, at most 9 kHz"""
+    return min((NH / 2 + 0.5) * f, 9000.0)
+
+
+def hi_bands(f):
+    """(I25) octave bands from hi_edge(f) to the chip's Nyquist: (lo, hi, weight) - the weight less where only
+    the chip makes sound (above the S-DSP's 16 kHz few hear it, but a whistle there still grates)"""
+    out = []
+    lo = hi_edge(f)
+    while lo < SR_CHIP / 2 - 1:
+        hi_ = min(2 * lo, SR_CHIP / 2)
+        out.append((lo, hi_, 1.0 if lo < 12000 else 0.5))
+        lo = hi_
+    return out
+
+
+def target_bands(pcm, loop, f0, fplay, sr=32000.0):
+    """(I25) the sample's energy (dB re total) in hi_bands(fplay) when played at fplay - the S-DSP's output
+    ends at 16 kHz"""
+    n = len(pcm)
+    if loop < n and n - loop >= 16:
+        body = np.tile(pcm[loop:], 65536 // (n - loop) + 1)[:65536]
+    else:
+        body = pcm[:min(n, int(0.06 * sr))]
+        body = np.concatenate([body, np.zeros(max(0, 8192 - len(body)))])
+    P = np.abs(np.fft.rfft(body * np.hanning(len(body)))) ** 2
+    df = sr / len(body)
+    ratio = fplay / f0
+    tot = P[1:].sum() + 1e-30
+    out = []
+    for lo, hi_, _ in hi_bands(fplay):
+        a, b = lo / ratio, min(hi_, sr / 2) / ratio
+        b = min(b, sr / 2)
+        i0, i1 = int(math.ceil(a / df)), int(math.ceil(b / df))
+        out.append(10 * np.log10(P[i0:i1].sum() / tot + 1e-9) if i1 > i0 else -90.0)
+    return np.maximum(np.array(out), -60.0)
+
+
 def simulate(alg, fb, mul, tl, f, periods=6, rms=False, hif=40):
     """C candidates: mul, tl (C, 4).  -> spectrum dB (C, NH) at k*f/2"""
     C = mul.shape[0]
@@ -74,21 +113,32 @@ def simulate(alg, fb, mul, tl, f, periods=6, rms=False, hif=40):
     idx = np.minimum(idx, Y.shape[1] - 1)
     H = Y[:, idx]
     db = 20 * np.log10(H / (H.max(axis=1, keepdims=True) + 1e-12) + 1e-9)
-    # energy above harmonic NH/2 up to `hif` x f (what the sample would hold there; dB re total)
+    # (I25) the energy above the harmonics the distance weighs (bands of an octave from hi_edge(f) up to the
+    # chip's Nyquist - in Hz as played, dB re total): unweighed before, a patch could put its sidebands up there
+    # (MUL 15 on a modulator: a bell's ring became a whistle louder than the note)
     E = Y ** 2
-    top = min(E.shape[1], int(2 * hif) + 1)
-    hi = 10 * np.log10(E[:, 2 * (NH // 2) + 1:top].sum(axis=1) / (E[:, 1:].sum(axis=1) + 1e-30) + 1e-9)
+    tot = E[:, 1:].sum(axis=1) + 1e-30
+    bands = []
+    for lo, hi_, _ in hi_bands(f):
+        i0 = int(math.ceil(lo / (f / 4.0))); i1 = min(E.shape[1], int(math.ceil(hi_ / (f / 4.0))))
+        bands.append(10 * np.log10(E[:, i0:i1].sum(axis=1) / tot + 1e-9) if i1 > i0 else np.full(C, -90.0))
+    hi = np.stack(bands, 1)
     if rms: return np.maximum(db, -60.0), np.sqrt((seg ** 2).mean(axis=1))
     return np.maximum(db, -60.0), hi
 
 def distance(sim, target, fplay):
     db, hi = sim
-    tg, thi = target
+    tg, tb = target
     k = np.arange(1, NH + 1)
     w = 1.0 / (1.0 + 0.15 * k) * ((k * fplay / 2) < 9000)
     w = w * np.where(tg > -45, 1.0, 0.4)
     e = ((db - tg[None, :]) ** 2 * w[None, :]).sum(axis=1) / w.sum()
-    return e + 0.5 * np.maximum(0.0, hi - max(thi, -40.0)) ** 2 / 4     # (soft: FM is brighter by nature)
+    # (I25) the energy above (hi_bands): FM is brighter by nature - 3 dB free, then it costs (a band 20 dB over:
+    # ~ a harmonic fit 5 times worse)
+    bw = np.array([b[2] for b in hi_bands(fplay)])
+    over = np.maximum(0.0, hi - np.maximum(tb, -50.0)[None, :] - 3.0)
+    return e + 0.3 * (over ** 2 * bw[None, :]).sum(axis=1)
+
 
 class Rng:
     """(I24) the fit's random numbers: splitmix64 in plain integers, uniform -> exact arithmetic only (no libm,
@@ -140,8 +190,8 @@ def _q(e):
 def fit(pcm, loop, f0, fplay, rng=None, rounds=5, batch=384):
     """-> (alg, fb, mul[4], tl[4], err); fplay = a typical played frequency (feedback depends on it)"""
     rng = rng or Rng(1)
-    target = target_spectrum(pcm, loop, f0)
-    hif = max(NH / 2 + 1, min(64, 12000.0 / max(fplay, 1)))      # (harmonics up to 12 kHz as played)
+    target = (target_spectrum(pcm, loop, f0)[0], target_bands(pcm, loop, f0, fplay))
+    hif = 0
     best = []
     for alg in range(8):
         mods, car = ALG[alg]

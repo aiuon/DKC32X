@@ -46,6 +46,10 @@ them. Keep this file current when something structural changes.
 - SRAM (battery saves): 68000 only (A130F1 = 1, A15104 = 2, byte n at $900001 + 2n). While A130F1 = 1
   MiSTer maps SRAM over the whole $200000-$3FFFFF: both SH-2s must be off cart ROM. Never write
   A130F9 (PicoDrive loses SRAM).
+- 68000 C: GCC 13 merges byte stores into (possibly odd) word stores - build with -fno-store-merging
+  (build.py / build.sh do); byte arrays read / written as rows: make the rows even-sized.
+- SOUND GENESIS (I25): the 68000 is the sound engine (md/mdsnd.c) - keep its free time: no H interrupt
+  unless an effect needs it (md_vint h_mode), Z80 bus holds of <= 8 ring entries.
 - SSF2 mapper: windows 6 / 7 (A130FD / A130FF) banked, window 5 (A130FB) too with SOUND FM (an FM
   page: a copy of bank 5 but its tail); ROM <= 15 MB (EverDrive Pro limit).
 - (I24) Z80: it never touches the 68000 bus (bank register parked at $FF8000 - the 32X bulletin's PSG /
@@ -232,8 +236,8 @@ them. Keep this file current when something structural changes.
    STACKCHK, ARES_MISALIGN scan.
 2. Bundle: copy the previous bundle, refresh app/sh, app/md, app/tools, app/z80 with mkbundle.copytree
    (drop tools/win, __pycache__), HANDBOOK / BUGLOG / NOTES.  The bundle builds with the PREBUILT 68000
-   program and Z80 driver: copy build/md.bin (no test flags) to tools/prebuilt/md.bin and z80/fmdrv.bin
-   (pasmo) to tools/prebuilt/fmdrv.bin after every md/ or z80/ change.
+   program and Z80 drivers: copy build/md.bin (no test flags) to tools/prebuilt/md.bin and z80/fmdrv.bin /
+   z80/mddrv.bin (pasmo) to tools/prebuilt/ after every md/ or z80/ change.
 3. scanbundle; Wine run of the .bat (WINEPREFIX=/tmp/claude-0/wineprefix, under `script`) must give a
    ROM byte-identical to the Linux convert.py run (DKC_HARNESS=/tmp/claude-0/harness_linux
    DKC_SNES9X_TRACE=/opt/ref/snes9x_trace/libretro/snes9x_libretro.so DKC_PREBUILT_MD=1). Afterwards

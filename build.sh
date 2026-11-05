@@ -26,7 +26,7 @@ python3 tools/recomp/mkgame.py "$ROM" ${MEMPROF:-tools/recomp/data/memprof.txt} 
 python3 tools/build_viewer.py "$ROM" build/gen2 $LEVELS
 GAME_BASE=$(python3 -c "import os; n=os.path.getsize('build/gen2/pack.bin'); print(hex(0x02000000 + ((0x40000 + n + 0xFFF) & ~0xFFF)))")
 
-MDFLAGS="$EXTRA_MDFLAGS -m68000 -O2 -fomit-frame-pointer -ffreestanding -fno-builtin -fno-pic -fno-pie -nostdlib -Imd -Wall"
+MDFLAGS="$EXTRA_MDFLAGS -m68000 -O2 -fno-store-merging -fomit-frame-pointer -ffreestanding -fno-builtin -fno-pic -fno-pie -nostdlib -Imd -Wall"
 $MDCC $MDFLAGS -x assembler-with-cpp -c md/boot.s -o build/md_boot.o
 $MDCC $MDFLAGS -c md/main.c -o build/md_main.o
 m68k-linux-gnu-ld -T md/md.ld build/md_boot.o build/md_main.o -o build/md.elf 2>/dev/null
@@ -72,7 +72,7 @@ sh-elf-objcopy -O binary -j .gtext build/sh.elf build/gtext.bin
 if [ -n "$WORLD_PROFILES" ]; then
     python3 tools/worldbanks.py "$ROM" build/game/worlds.json build/sh.elf build/gen2/worldbanks.bin
     python3 tools/finalize.py build/sh.bin build/gen2/pack.bin "$OUT" build/gtext.bin $GAME_BASE build/gen2/banks.bin build/gen2/worldbanks.bin build/sdgame.bin 0x36CC00 \
-        ${FM_DIR:+build/gen2/music.bin "$FM_DIR" tools/prebuilt/fmdrv.bin}
+        ${FM_DIR:+build/gen2/music.bin "$FM_DIR" tools/prebuilt/fmdrv.bin tools/prebuilt/mddrv.bin}
 else
     python3 tools/finalize.py build/sh.bin build/gen2/pack.bin "$OUT" build/gtext.bin $GAME_BASE build/gen2/banks.bin
 fi

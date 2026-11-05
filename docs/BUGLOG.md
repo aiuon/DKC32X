@@ -1641,3 +1641,23 @@ its own small driver; the .mod-player idea: the 68000 is the LZ decoder here.)  
   build of md/fm.c) = fmpack.expand on 27 songs x 7 streams x 3000 commands; PicoDrive GAMEBOT FM 7200
   frames (logos, title, file select, map, Jungle Hijinxs, death, bonus): no stream starved, no missed
   period, no clipping; PAL (TK 168899); FM vs FULL loudness; sync as in NOTES.
+
+### I25 (2026-11-06): FM beeps fixed; SOUND GENESIS - the Mega Drive plays everything
+User: "digital-sounding notes that have louder volume than the rest and come on suddenly"; the victory
+fanfare grating; "How much performance would an extra genesis sound only mode add? Can you try working on
+that and adding it as an extra mode today?"  NOTES "I25" has the design.
+- B-FMWHISTLE: fitted patches with a modulator at MUL 15 / buzzing high feedback: the fit never weighed
+  the energy above ~9 kHz (or 16 harmonics).  Octave bands up to the chip's Nyquist now; all refit.
+- B-FMPSG: PSG overflow notes held their key-on level (no envelope) as square waves - the "beeps".
+  Overflow steals a faded FM channel instead (PSG overflow off).
+- B-MDLEN (SOUND GENESIS, found in testing): the 68000's command length table lacked the PCM stream's
+  44-47: the drum stream decoded as garbage (silence with bursts).
+- B-MDODD: GCC store merging wrote a word to an odd address (md_q rows of 3 bytes) - PicoDrive wrote the
+  wrong bytes (a stuck Z80 ring); a real 68000 would crash.  -fno-store-merging, 4-byte rows.
+- B-MDSLOW: SOUND GENESIS fed 4000-5000 samples a second in levels (7610 needed): the H interrupt on
+  every line, and the gradient's CRAM writes stalling the 68000 (5.3x slower with interrupts on).  H
+  interrupt only where a gradient needs it, every 2nd line in SOUND GENESIS.
+- B-MDLOST: the Z80 lost ~6 % of its timer periods to the 68000's bus holds (tempo and pitch 6 % low):
+  timer B counts 16-period windows, the missed periods are played afterwards.
+- Real-hardware model: SOUND GENESIS = SOUND OFF's slave load (no audio work on the 32X): JH ~31 fps vs
+  FM ~24, Reptile Rumble ~42 vs ~31 (I23 table); the 68000 now busy ~40-50 % in levels.

@@ -38,6 +38,11 @@ static uint32_t fm_blob;              /* the song's stream blob (window-5 offset
 static uint16_t fm_seq_now;           /* the 68000's vblank number (the C_PAD sample number) - md_vint */
 static inline uint16_t fm_cur_seq(void) { return fm_seq_now; }
 static void fm_go(void);
+/* (I25) SOUND MD (mdsnd.c) */
+static uint16_t md_on;
+static void md_enable(void);
+static void md_disable(void);
+static void md_song(uint16_t song);
 static inline uint16_t fm_lines(void)               /* lines since the last vblank began */
 {
     uint8_t v = VDP_VCNT;
@@ -54,11 +59,18 @@ static inline uint32_t fm_rd32(uint32_t off)
 }
 static inline uint16_t fm_rd16(uint32_t off) { const volatile uint8_t *p = fm_p(off); return (uint16_t)(p[0] << 8 | p[1]); }
 
+#ifdef MDPROF
+static uint32_t z80_spins, z80_reqs;     /* (test: bus request waits) */
+#endif
 static inline void z80_req(void)
 {
     Z80_BUSREQ = 0x100;
-    for (uint16_t i = 0; i < 2000 && (Z80_BUSREQ & 0x100); i++)
+    uint16_t i = 0;
+    for (; i < 2000 && (Z80_BUSREQ & 0x100); i++)
         ;
+#ifdef MDPROF
+    z80_spins += i; z80_reqs++;
+#endif
 }
 static inline void z80_rel(void) { Z80_BUSREQ = 0; }
 
@@ -83,6 +95,10 @@ static RAM_CODE uint16_t fm_len(const volatile uint8_t *p)
     case 0x51: return 3;
     case 0x52: case 0x55: case 0x57: case 0x58: case 0x5C: case 0x5D: case 0x5E: case 0x5F: return 2;
     case 0x56: return (uint16_t)(p[1] + 3);
+    case 0x44: return 6;              /* (I25) SOUND MD's PCM stream: KEYON / LEVEL / STEP / KEYOFF */
+    case 0x45: return 3;
+    case 0x46: return 4;
+    case 0x47: return 2;
     default: return 1;                /* 0x42 0x43 0x53 0x54 0x59-0x5B */
     }
 }
@@ -330,10 +346,18 @@ static RAM_CODE void fm_command(uint16_t cmd)
     switch (cmd >> 8) {
     case 0x98: fm_seq = a & 63; fm_off = (uint16_t)((fm_off & 0xFF) | (a >> 6) << 8); break;
     case 0x99: fm_off = (uint16_t)((fm_off & 0x300) | a); break;
-    case 0x9A: fm_stop(); fm_step = 0; fm_song = a; if (a != 0xFF && fm_mode && fm_firstbank) fm_step = 1; break;
+    case 0x9A: fm_stop(); fm_step = 0; fm_song = a;
+        if (md_on) { md_song(a); break; }          /* (I25) SOUND MD: the 68000 plays it */
+        if (a != 0xFF && fm_mode && fm_firstbank) fm_step = 1;
+        break;
     case 0x9B:
         fm_flags = a;
         fm_tk = md_pal ? 168899UL : 170455UL;
+        if ((a & 5) == 5) {                          /* (I25) SOUND MD (bit 2): the Mega Drive plays everything */
+            if (!md_on) md_enable();
+            break;
+        }
+        if (md_on) md_disable();
         if (!(a & 1)) {                              /* FM off: the 32X's own music again (bank 5) */
             fm_stop();
             fm_step = 0;
@@ -396,7 +420,7 @@ static RAM_CODE void fm_hush(void)
 static RAM_CODE void fm_init(uint32_t info)
 {
     fm_firstbank = (uint16_t)(info >> 24);
-    fm_tail = info & 0xFFFFFF;
+    fm_tail = info & 0x7FFFF;                        /* (bit 23: SOUND MD's page exists - I25) */
     fm_bank = 5;
     mapper_w(0xA130FB, 5);                           /* (a reset in FM mode left an FM page there) */
     if (fm_firstbank) fm_hush();

@@ -11,6 +11,7 @@
 *.bin
 !tools/prebuilt/md.bin
 !tools/prebuilt/fmdrv.bin
+!tools/prebuilt/mddrv.bin
 *.elf
 *.o
 # emulator saves and save states

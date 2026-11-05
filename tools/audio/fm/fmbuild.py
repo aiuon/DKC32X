@@ -17,7 +17,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, '..'))
 sys.path.insert(0, os.path.join(HERE, '..', '..'))
-import fmlog, fmsong, fmpack, fmexport, fmconv, fmfit
+import fmlog, fmsong, fmpack, fmexport, fmconv, fmfit, mdconv
+import collections
 import numpy as np
 from samples import Pack
 
@@ -41,6 +42,46 @@ def song_block(S):
     h += struct.pack('>7H', *starts) + struct.pack('>7H', *[0xFFFF if x is None else x for x in lofs])
     assert len(h) == hdr_n
     return h + ib + eb + blob
+
+
+def song_block_md(S, dtoks, dlt):
+    """(I25) SOUND MD's song block: 'FMS2' - the 7 Z80 streams (5 FM channels) + the PCM stream (mdconv.py),
+    one LZ blob; header as FMS1 with 8 starts / loops (56 bytes)"""
+    streams, lts = fmpack.tokens(S)
+    streams = list(streams) + [dtoks]; lts = list(lts) + [dlt]
+    blob, starts, lofs = fmpack.compress_all(streams, lts)
+    for st, toks in zip(starts, streams):
+        assert fmpack.expand(blob, st) == toks
+    ib, eb = fmexport.inst_bytes(S), fmexport.env_bytes(S)
+    assert len(S.inst) <= 32 and len(S.env) <= 146, (len(S.inst), len(S.env))
+    hdr_n = 56
+    off_inst = hdr_n
+    off_env = off_inst + len(ib)
+    off_blob = off_env + len(eb)
+    assert len(blob) < 0x10000
+    h = b'FMS2' + struct.pack('>HHI', len(S.inst), len(S.env), 0) + struct.pack('>III', off_inst, off_env, off_blob)
+    h += struct.pack('>8H', *starts) + struct.pack('>8H', *[0xFFFF if x is None else x for x in lofs])
+    assert len(h) == hdr_n
+    return h + ib + eb + blob
+
+
+def md_job(a):
+    """(a worker, pass 4) one song for SOUND MD: 5 FM channels + the PCM stream -> outdir/md_song_NN.bin"""
+    rom_path, outdir, song, cache, order = a
+    t0 = time.time()
+    le, pack, gen, smap, tl, ev = _log(rom_path, outdir, song)
+    nt = ev[-1][0] + 1
+    lp = fmsong.find_loop(ev, nt)
+    S = fmsong.convert(pack, smap, ev, nt, cache, lp, n_fm=5)
+    notes = fmconv.notes_of(ev)
+    bank = mdconv.Bank(pack, order)
+    st = collections.Counter()
+    dtoks, dlt = mdconv.drum_stream(S, notes, smap, bank, st)
+    assert len(bank.ent) == len(order), 'a drum sample outside the bank'
+    blk = song_block_md(S, dtoks, dlt)
+    open(os.path.join(outdir, 'md_song_%02d.bin' % song), 'wb').write(blk)
+    return dict(song=song, size=len(blk), att=mdconv.sfx_att(mdconv.song_mv(notes)), stats=dict(st),
+                secs=time.time() - t0)
 
 
 def sfx_samples(gen, pack_bytes, song):
@@ -164,8 +205,10 @@ def build(rom_path, outdir):
     fmlog.engine(rom_path, os.path.join(outdir, 'dkc_engine_fm.py'))     # (made once, before the workers)
     # (the fits are slow: cached while the samples are the same)
     hs = hashlib.md5(le[pack.off_samples:])
-    for f in ('fmfit.py', 'samples.py', 'fmconv.py', 'fmbuild.py'):   # (and the fitting code: a fit of an older one
+    for f in ('fmfit.py', 'samples.py', 'fmconv.py'):   # (and the fitting code: a fit of an older one
         hs.update(open(os.path.join(HERE, f), 'rb').read())      #  is not reused)
+    import inspect                                               # (of this file: the fit job and its seeds only -
+    hs.update((inspect.getsource(fit_job) + repr(FIT_SEEDS)).encode())   #  I25: edits elsewhere kept the fits)
     sig = hs.hexdigest()
     cpath = os.environ.get('FM_FITCACHE') or os.path.join(outdir, 'fitcache.json')
     os.makedirs(os.path.dirname(os.path.abspath(cpath)), exist_ok=True)
@@ -211,6 +254,38 @@ def build(rom_path, outdir):
                                       size=r['size'])
         fm['blocks'][str(song)] = 'song_%02d.bin' % song
     json.dump(cache, open(cpath, 'w'))
+    # (I25) SOUND MD: the effects (once: with the first song's ARAM - the effects are the same in every song
+    # but for the master volume, which the 68000 applies), the PCM bank (effects' + drums' samples), the songs
+    t1 = time.time()
+    gen = fmlog.engine(rom_path, os.path.join(outdir, 'dkc_engine_fm.py'))
+    fx = mdconv.all_sfx(gen, le, 0)
+    sgi = set()
+    for cmd, (nts, smap) in fx.items():
+        for nt_ in nts:
+            if nt_.get('noise'): sgi.add(mdconv.NOISE)
+            elif smap.get(nt_['srcn']) is not None: sgi.add(smap[nt_['srcn']])
+    order = sorted(sgi | spc_used | {mdconv.NOISE})
+    bank = mdconv.Bank(pack, order)
+    st = collections.Counter()
+    fxs = {}
+    for cmd, (nts, smap) in sorted(fx.items()):
+        b = mdconv.sfx_stream(nts, smap, bank, st)
+        if b: fxs[cmd] = b
+    assert len(bank.ent) == len(order)
+    open(os.path.join(outdir, 'md_sfx.bin'), 'wb').write(mdconv.sfx_table(fxs))
+    open(os.path.join(outdir, 'md_bank.bin'), 'wb').write(bank.blob())
+    md = {'songs': {}, 'blocks': {}, 'bank': 'md_bank.bin', 'sfx': 'md_sfx.bin', 'ta_units': mdconv.TA_UNITS,
+          'md_att': mdconv.MD_ATT}
+    for r in _run([(rom_path, outdir, song, cache, order) for song in range(pack.nsongs)], md_job, n):
+        md['songs'][str(r['song'])] = dict(size=r['size'], att=r['att'])
+        md['blocks'][str(r['song'])] = 'md_song_%02d.bin' % r['song']
+        print('   MD %2d %-20s %5d bytes %s (%.0f s)' % (r['song'], names[r['song']], r['size'], r['stats'], r['secs']),
+              flush=True)
+    fm['md'] = md
+    print('   MD: %d effects (%d KB), PCM bank %d samples (%d KB), %d KB of song data, %.0f s' % (
+        len(fxs), os.path.getsize(os.path.join(outdir, 'md_sfx.bin')) // 1024, len(order),
+        os.path.getsize(os.path.join(outdir, 'md_bank.bin')) // 1024,
+        sum(e['size'] for e in md['songs'].values()) // 1024, time.time() - t1))
     keep = sfx | spc_used
     fm['swap'] = sorted(g for g in range(pack.nsamples) if g not in keep)
     fm['sfx'] = sorted(sfx)

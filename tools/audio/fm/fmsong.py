@@ -26,6 +26,8 @@ PCM_RATE = YM_CLK / 144.0 / 4.0              # YM timer A = 1020: 13316.76 Hz
 TICK_LEN = TICK32 / 32000.0 * PCM_RATE       # DAC samples a tick (166.46)
 N_FM, N_PCM = 6, 0                          # (I24 design: no DAC - channel 6 is FM too)
 FM_FULL, PSG_RMS = fmconv.FM_FULL, fmconv.PSG_RMS
+PSG_OVERFLOW = False       # (I25) the PSG's square buzzed over the FM: the busy channels are stolen instead
+PSG_TRIM = 4.0             # (I25) dB: a PSG tone quieter than its power match
 PSG_CLK = fmconv.PSG_CLK
 VOL_DB = 3.0                                 # PCM variant level steps
 AMB_PITCHES = 3                              # a non-melodic sample played at more pitches = ambience (32X)
@@ -186,15 +188,16 @@ def fit_requests(pack, smap, ev, cache):
     return req
 
 
-def convert(pack, smap, ev, nticks, cache, loop=None, only=0xFF, echo=True):
-    """-> Song.  ev: [(tick, reg, val)]"""
+def convert(pack, smap, ev, nticks, cache, loop=None, only=0xFF, echo=True, n_fm=None):
+    """-> Song.  ev: [(tick, reg, val)]; n_fm: FM channels (I25 SOUND MD: 5 - channel 6 is the DAC)"""
+    N_FM = n_fm or globals()['N_FM']
     notes = fmconv.notes_of(ev)
     S = Song()
     periodic = periodic_srcn(ev, loop)
     # ---- instruments / roles (fmconv's analysis)
     used = collections.defaultdict(list)
     for n in notes: used[n['srcn']].append(n['track'][0][1])
-    role, info, patch = {}, {}, {}
+    role, info, patch, lrms = {}, {}, {}, {}
     for s, ps in used.items():
         if s not in smap: role[s] = 'skip'; continue
         gi = smap[s]
@@ -211,13 +214,14 @@ def convert(pack, smap, ev, nticks, cache, loop=None, only=0xFF, echo=True):
         p = dict(patch_for(pack, gi, inf, fplay, cache.setdefault('patch', {})))
         p['looped'] = inf['looped']
         patch[s] = p
+        lrms[s] = played_rms(pack, gi, inf, fplay / inf['f0'])
         role[s] = 'fm' if p['err'] < 150 else 'spc'
     S.role, S.info, S.patch = role, info, patch
     G = 1.0
     S.gain = G
 
     def level_of(s, vl, vr, mv):
-        return G * 2 * info[s]['rms'] * 16384.0 * max(abs(vl), abs(vr)) / 128.0 * mv / 128.0
+        return G * 2 * lrms.get(s, info[s]['rms']) * 16384.0 * max(abs(vl), abs(vr)) / 128.0 * mv / 128.0
 
     # ---- echo ghosts (EDL later, EVOL quieter; FM: duller; PCM: on an idle channel)
     work = []
@@ -265,6 +269,14 @@ def convert(pack, smap, ev, nticks, cache, loop=None, only=0xFF, echo=True):
     S.pref = pref
     for si, (a, b) in enumerate(segs):
         fm_end = [0] * N_FM; fm_last = [None] * N_FM; fm_lvl = [0.0] * N_FM; fm_ghost = [False] * N_FM
+        fm_note = [None] * N_FM; fm_t0 = [0] * N_FM
+        def fm_now(c, T):
+            # (I25) a channel's note's level now: its start level down its envelope (a held note's decay)
+            if fm_end[c] <= T or fm_note[c] is None: return 0.0
+            n_, s_ = fm_note[c]
+            dt = (T - fm_t0[c]) * TICK32 / 32000.0
+            dec = 0.0 if info[s_]['looped'] else info[s_]['decay'] * n_['track'][0][1] / 4096.0
+            return fm_lvl[c] * 10 ** (-(float(env_db(n_, np.array([dt]))[0]) + dec * dt) / 20.0)
         owner = [None] * N_FM
         psg_end = [0] * 3; pcm_end = [0] * N_PCM; pcm_ghost = [False] * N_PCM; pcm_own = [None] * N_PCM
         noise_own = [None]
@@ -305,13 +317,15 @@ def convert(pack, smap, ev, nticks, cache, loop=None, only=0xFF, echo=True):
                 elif ghost:
                     S.stats['ghost dropped'] += 1; continue
                 if ch is None:
-                    if True:
-                        sc = next((c for c in range(3) if psg_end[c] <= T0), None)
-                        if sc is not None: target = 'psg'
-                        else:
-                            qc = min(range(N_FM), key=lambda c: fm_lvl[c])
-                            if fm_lvl[qc] < lvl: ch = qc; cancel(ch, T0); S.stats['fm steal'] += 1
-                            else: S.stats['dropped'] += 1; continue
+                    # (I25) every FM channel busy: a note that has faded 12 dB below this one gives its channel up
+                    # first - the PSG's square is the last resort (its edges buzz over the FM: the "beeps")
+                    cur = [fm_now(c, T0) for c in range(N_FM)]
+                    qc = min(range(N_FM), key=lambda c: cur[c])
+                    sc = next((c for c in range(3) if psg_end[c] <= T0), None) if PSG_OVERFLOW else None
+                    if cur[qc] < lvl * 0.25 or sc is None and cur[qc] < lvl:
+                        ch = qc; cancel(ch, T0); S.stats['fm steal'] += 1
+                    elif sc is not None: target = 'psg'
+                    else: S.stats['dropped'] += 1; continue
             if target == 'noise':
                 if ghost: continue
                 Lc = []; lists.append(Lc)
@@ -353,17 +367,26 @@ def convert(pack, smap, ev, nticks, cache, loop=None, only=0xFF, echo=True):
             if target == 'psg':
                 sc = next(c for c in range(3) if psg_end[c] <= T0)
                 psg_end[sc] = T1 + 1; S.stats['psg'] += 1
-                last = None
-                for (tt, p2, vl2, vr2, mv2) in n['track']:
-                    T = max(tt, T0)
-                    if T >= T1: break
+                # (I25) the note's envelope too (it held its key-on level to the key-off: a fading note became a
+                # steady beep), and PSG_TRIM quieter (a square of the same power sounds louder: all odd harmonics)
+                lastN = lastA = None; ti = 0
+                dec = 0.0 if inf['looped'] else inf['decay']
+                for T in range(T0, T1):
+                    while ti + 1 < len(n['track']) and max(n['track'][ti + 1][0], T0) <= T: ti += 1
+                    (tt, p2, vl2, vr2, mv2) = n['track'][ti]
                     freq = inf['f0'] * p2 / 4096.0
                     while 0 < freq and freq * 32 * 1023 < PSG_CLK: freq *= 2
                     N = max(1, min(1023, int(round(PSG_CLK / (32 * max(freq, 1.0))))))
-                    av = level_of(s, vl2, vr2, mv2)
+                    dt = (T - T0) * TICK32 / 32000.0
+                    edb = float(env_db(n, np.array([dt]))[0]) + dec * p2 / 4096.0 * dt + PSG_TRIM
+                    av = level_of(s, vl2, vr2, mv2) * 10 ** (-edb / 20.0)
                     att = int(max(0, min(15, round(20 * math.log10(PSG_RMS / max(av, 1e-3)) / 2.0))))
-                    if (N, att) != last:
-                        emit(Lc, T, 'psg', (0x80 | sc << 5 | (N & 15), N >> 4, 0x90 | sc << 5 | att)); last = (N, att)
+                    if N != lastN:
+                        emit(Lc, T, 'psg', (0x80 | sc << 5 | (N & 15), N >> 4, 0x90 | sc << 5 | att))
+                    elif att != lastA:
+                        emit(Lc, T, 'psg', (0x90 | sc << 5 | att,))
+                    lastN, lastA = N, att
+                    if att == 15 and T > T0 and n['adsr1'] & 0x80: break
                 emit(Lc, T1, 'psg', (0x90 | sc << 5 | 15,))
                 continue
             # ---- FM
@@ -385,6 +408,7 @@ def convert(pack, smap, ev, nticks, cache, loop=None, only=0xFF, echo=True):
             if ghost:
                 T1 = min(b, T1 + int(n['edl'] * 32000 / TICK32 * max(0, min(3, abs(n['efb']) * 4))))
             fm_end[ch] = T1 + 1; fm_last[ch] = s; fm_lvl[ch] = lvl; fm_ghost[ch] = bool(ghost)
+            fm_note[ch] = (n, s); fm_t0[ch] = T0
             owner[ch] = Lc
             iid = S.inst_id(patch_regs(P_))
             eid = S.env_id(env_regs(ar, d1r, d1l, d2r, ramp, bool(ghost)))
@@ -427,6 +451,22 @@ def convert(pack, smap, ev, nticks, cache, loop=None, only=0xFF, echo=True):
     S.cmds.sort(key=lambda e: (e[0], e[1]))
     S.segs = segs
     return S
+
+
+def played_rms(pack, gi, inf, ratio):
+    """(I25) the sample's level as the 32X core plays it at this pitch ratio (linear interpolation: a sample
+    with its harmonics up near 16 kHz - a 32-sample chip wave - plays some dB under its own RMS; its FM patch,
+    matched to the RMS, came out that much louder)"""
+    pcm, loop = pack.sample(gi)
+    n = len(pcm)
+    if loop < n and n - loop >= 16:
+        body = np.tile(pcm[loop:], 16384 // (n - loop) + 2)
+    else:
+        body = np.concatenate([pcm[:min(n, 640)], np.zeros(1)])
+    pos = np.arange(int((len(body) - 2) / ratio)) * ratio
+    y = np.interp(pos, np.arange(len(body)), body)
+    r = float(np.sqrt(np.mean(y ** 2))) if len(y) else inf['rms']
+    return round(min(r, inf['rms']) if r > 0 else inf['rms'], 9)
 
 
 def env_db(n, tt):

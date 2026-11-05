@@ -66,9 +66,11 @@ static volatile uint32_t sfx_head;
 static uint32_t sfx_tail;
 
 volatile uint32_t music_mono;          /* (I24) the game's mono setting (engine command $FC): SOUND FM's pans */
+void md_sfx_post(uint32_t cmd, uint32_t param);    /* (main.c) */
 void music_sfx(uint32_t cmd, uint32_t param)
 {
     if (cmd == 0xFC) *UNCACHED(&music_mono) = param != 0;
+    if (*UNCACHED(&music_light) & 0x10) { md_sfx_post(cmd, param); return; }   /* (I25) SOUND MD: the 68000 plays it */
     uint32_t h = *UNCACHED(&sfx_head);
     UNCACHED(&sfx_q[0])[h & (SFXQ - 1)] = (uint16_t)(cmd << 8 | (param & 0xFF));
     *UNCACHED(&sfx_head) = h + 1;
